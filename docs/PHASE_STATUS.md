@@ -73,6 +73,7 @@ Phase 1 über `.nvmrc`/`engines` festgelegt und in CI verwendet.
 | Markdown-Lint | bestanden |
 | Workflow-Lint (actionlint + shellcheck) | bestanden |
 | Secret-Scan (Verzeichnis + Git-Historie) | bestanden – 0 Funde |
+| CI auf GitHub (Lauf #1, Commit `1ed1737`) | bestanden – 4/4 Jobs |
 
 Details und exakte Befehle: [`PHASE_0_REPORT.md`](PHASE_0_REPORT.md).
 
