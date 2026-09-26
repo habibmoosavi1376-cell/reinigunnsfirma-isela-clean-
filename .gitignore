@@ -1,0 +1,69 @@
+# ------------------------------------------------------------------
+# ISELA CLEAN – .gitignore
+# Sicherheitsrelevant: Umgebungsdateien und Schlüssel dürfen NIE
+# eingecheckt werden. Nur .env.example ist erlaubt.
+# ------------------------------------------------------------------
+
+# Environment / Secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+secrets/
+.secrets/
+
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+dist/
+build/
+out/
+.next/
+.turbo/
+*.tsbuildinfo
+
+# Test / Coverage
+coverage/
+playwright-report/
+test-results/
+blob-report/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Lokale Datenbanken / Uploads / Exporte (können personenbezogene Daten enthalten)
+*.sqlite
+*.sqlite3
+*.db
+*.dump
+*.sql.gz
+uploads/
+exports/
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+*.swp
+
+# Deployment-Tools (lokaler State)
+.vercel/
+.netlify/
+.terraform/
+*.tfstate
+*.tfstate.*

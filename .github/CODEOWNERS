@@ -1,0 +1,7 @@
+# Default owner for all files. Refine per module once the team grows.
+* @habibmoosavi1376-cell
+
+# Security-sensitive areas require owner review.
+/.github/            @habibmoosavi1376-cell
+/docs/SECURITY.md    @habibmoosavi1376-cell
+/scripts/            @habibmoosavi1376-cell

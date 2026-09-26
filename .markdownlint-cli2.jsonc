@@ -1,0 +1,12 @@
+{
+  "config": {
+    "default": true,
+    // Long table rows and URLs are expected in specifications.
+    "MD013": false,
+    // Identical sub-headings are allowed in different sections.
+    "MD024": { "siblings_only": true },
+    // The PR template intentionally starts with a second-level heading.
+    "MD041": false
+  },
+  "ignores": ["**/node_modules/**", "**/dist/**", "**/.next/**", "**/coverage/**"]
+}

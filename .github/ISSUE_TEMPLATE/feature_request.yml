@@ -1,0 +1,27 @@
+name: Funktionswunsch
+description: Eine neue Funktion oder Verbesserung vorschlagen
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / Ziel
+      description: Welches fachliche Problem soll gelöst werden?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Vorschlag
+    validations:
+      required: true
+  - type: input
+    id: module
+    attributes:
+      label: Betroffenes Modul
+      placeholder: z. B. acquisition, payment-risk, website
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Akzeptanzkriterien
+      placeholder: "- [ ] …"
