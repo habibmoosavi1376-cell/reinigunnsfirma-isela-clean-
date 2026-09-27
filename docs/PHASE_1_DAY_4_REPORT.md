@@ -377,7 +377,7 @@ PR #5, Head `2958ad5` (Push- und Pull-Request-Lauf), grün:
 
 „Dependency review“ schlägt mit `Dependency review is not supported on this repository.
 Please ensure that Dependency graph is enabled` fehl. Das ist die Owner-Einstellung, wie auf
-#2–#4. Der Check wurde nicht umgangen; ein Kommentar auf dem PR dokumentiert das.
+den PRs 2–4. Der Check wurde nicht umgangen; ein Kommentar auf dem PR dokumentiert das.
 
 ## 13. Bugs gefunden und behoben
 
