@@ -67,3 +67,6 @@ Thumbs.db
 .terraform/
 *.tfstate
 *.tfstate.*
+
+# Temporary output of scripts/check-migration-drift.mjs
+.drift-check-*/

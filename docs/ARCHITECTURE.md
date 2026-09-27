@@ -43,6 +43,93 @@
 Versionen werden in Phase 1 über das Lockfile fixiert. Jede Abweichung von dieser
 Tabelle wird hier mit Begründung dokumentiert.
 
+### 2.1 Stack Gate Phase 1 (geprüft am 2026-09-27 gegen die npm-Registry)
+
+| Komponente | Geprüft | Entscheidung | Begründung |
+| --- | --- | --- | --- |
+| Node.js | 24.21.0 LTS | `.nvmrc` = 24, `engines` `>=24.11 <25` | LTS; pg-boss verlangt ≥ 22.12 |
+| pnpm | 10.33.0 | `packageManager` exakt | `minimumReleaseAge` (48 h) und blockierte Install-Skripte |
+| TypeScript | 7.0.2 verfügbar | **6.0.3** gepinnt | TS 7 (nativer Port) wird von `typescript-eslint` 8.70 nicht unterstützt (Peer `<6.1.0`) |
+| Next.js | 16.3.6 | Major 16 bestätigt, **noch nicht installiert** | Tag 1 enthält keine UI; exakter Pin mit `apps/web` |
+| PostgreSQL / PostGIS | 16.13 / 3.4.2 lokal; CI `postgis/postgis:16-3.4` per Digest | bestätigt | Geo-Typen als Domains `geo_point`/`geo_multipolygon` (drizzle-kit quotet Typen mit Klammern) |
+| Drizzle ORM / Kit | 0.45.3 / 0.31.11 | exakt gepinnt | vor 1.0 – Updates nur bewusst; Better-Auth-Peer `^0.45.2` erfüllt |
+| Better Auth | 1.7.6 | bestätigt, API gegen Typdefinitionen geprüft | Plugin `admin` bewusst **nicht** genutzt (zweites Rollensystem); `twoFactor` für MFA |
+| pg | 8.23.0 | exakt | Treiber für Drizzle und Better Auth |
+| Zod | 4.6.5 | exakt | Validierung und Typen |
+| pg-boss | 12.35.0 | bestätigt, **noch nicht installiert** | erst mit `apps/worker`; benötigt Dauerprozess |
+| Vitest | 5.0.2 verfügbar | **5.0.1** | 5.0.2 jünger als 48 h (`minimumReleaseAge`) |
+
+Abweichungen von der Zielstruktur (§3) an Tag 1: flache Pakete unter `packages/*` statt
+`packages/modules/*` (weniger Indirektion, gleiche Grenzen); kein Turborepo (ein Build-
+Schritt genügt, keine unnötige Abhängigkeit); keine Testcontainers (kein Docker-Daemon in
+der Entwicklungsumgebung) – Integrationstests nutzen `TEST_DATABASE_URL`, in CI einen
+PostGIS-Service-Container.
+
+### 2.2 Umgesetzte Module (Phase 1, Tag 1)
+
+| Paket | Inhalt | Server-only |
+| --- | --- | --- |
+| `@isela/shared` | Fehler, Clock, Redaction | nein |
+| `@isela/validation` | Zod-Helfer, Normalisierung (E-Mail, Telefon, PLZ) | nein |
+| `@isela/notifications` | Port `EmailSender` (ohne Default-Implementierung) | ja |
+| `@isela/database` | Drizzle-Schema, Migrationen, Seeds, Client | ja |
+| `@isela/audit` | Append-only Audit-Log mit Redaction | ja |
+| `@isela/auth` | Better Auth, RBAC-Matrix, `authorize`, Lockout, Einladungen, Sessions | ja |
+| `@isela/catalog` | Leistungen, Einsatzgebiete, Geo-Dienste | ja |
+| `@isela/crm` | Kunden, Adressen, Objekte, Leads, Kontakte, Consent | ja |
+| `@isela/lead-finder` | Provider-Vertrag, Gating, SSRF-Schutz, Scoring-Schema | ja |
+| `@isela/payment-risk` | Richtlinien-Schema mit Invarianten | ja |
+| `@isela/settings` | Typisierte, versionierte Settings | ja |
+| `@isela/config` | Typisiertes Server-Env-Schema (Tag 2), Fail-fast | ja |
+| `@isela/partners` | Partner-Lesezugriff mit Scope-Prüfung (Tag 2) | ja |
+| `@isela/geocoding` | Geocoding-Vertrag, Normalisierung, Qualitätsbewertung, Geoapify-Adapter (Tag 3) | ja |
+
+Die Grenzen werden per `scripts/check-module-boundaries.mjs` (Abhängigkeits-Allowlist,
+keine Deep-Imports, client-sichere Pakete nicht von Server-only-Paketen abhängig) und
+ESLint (`no-restricted-imports`) in CI geprüft. Die sensiblen Module `auth`,
+`payment-risk` und künftig `payments`, `invoicing`, `booking`, `jobs` sind `serverOnly`.
+
+### 2.3 Web-App (`apps/web`, Phase 1, Tag 2)
+
+- Next.js 16.3 (App Router, Turbopack), React 19.3, TypeScript strict. Fachlogik liegt
+  ausschließlich in den Paketen; Seiten und Server Actions rufen nur Paketfunktionen mit
+  einem `ServiceContext` auf. UI-Komponenten greifen nie direkt auf die Datenbank zu.
+- Composition Root: `lib/server/composition.ts` baut aus dem validierten Env (DB, SMTP,
+  Better Auth, CRM-Konfiguration) einmal pro Prozess die Dienste. `instrumentation.ts`
+  validiert beim Start und beendet den Prozess bei Fehlkonfiguration (Exit 1).
+- `proxy.ts` (ehem. Middleware): CSP-Nonce, Request-ID, Login-Redirect für geschützte
+  Bereiche ohne Session-Cookie. Rechteprüfung ausschließlich serverseitig in Layout-Guards
+  und in den Paketfunktionen.
+- Auth-Route `app/api/auth/[...all]` delegiert an die bestehende Better-Auth-Instanz aus
+  `@isela/auth` (keine zweite Auth-Implementierung).
+- Landingpages `/<leistung>-<ort>` werden später aus `service_category.url_slug` und aktiven
+  Einsatzgebieten erzeugt (`lib/seo/seo.ts`: `buildLandingPath`/`parseLandingPath`);
+  kein Ort ist im Code verankert.
+- Grenzen: `scripts/check-module-boundaries.mjs` prüft auch Apps – nur deklarierte Pakete,
+  nur öffentliche Exports, und `"use client"`-Dateien dürfen weder Server-only-Pakete noch
+  `@/lib/server` importieren.
+
+### 2.4 Adress-Pipeline und Backoffice (Phase 1, Tag 3)
+
+```text
+Formular → Validierung (Zod, Kundenart-Regeln) → Lead + Kontakt + Anfrage (Transaktion)
+  → Normalisierung → GeocodingProvider (außerhalb der Transaktion, austauschbar)
+  → Bewertung (Präzision, Konfidenz, PLZ/Straße/Hausnummer) → geocoding_attempt (append-only)
+  → nur ACCEPTED/MANUAL_CONFIRMED setzen Koordinaten → PostGIS-Servicegebiet
+  → AVAILABLE | NOT_AVAILABLE | UNKNOWN (+ Audit)
+```
+
+- Unsichere Treffer (`NEEDS_REVIEW`) setzen **keine** Koordinaten; ein Mensch bestätigt oder
+  verwirft im Backoffice.
+- Ohne konfigurierten Anbieter bleibt der Status `PENDING`/`UNKNOWN` (kein Fake-Geocoding).
+- Backoffice `/admin/leads` und `/admin/leads/[id]`: Lesemodelle in `@isela/crm`
+  (`listLeads`, `getLeadDetail`), Änderungen nur über Domänenfunktionen (State Machine,
+  Geocoding-Prüfung, Adresskorrektur, Kunden-/Kontoverknüpfung, Widerruf).
+- LeadFinder: Provider-Verträge und reine Pipeline-Stufen (Compliance → Normalisierung →
+  Deduplizierung → Scoring → menschliche Prüfung); kein Provider implementiert.
+- Landingpages: Tabelle `landing_page` + Veröffentlichungsprüfung (echter Service, Standort
+  im aktiven Servicegebiet per PostGIS, geprüfter Inhalt); noch keine Seiten.
+
 ## 3. Ziel-Repository-Struktur
 
 ```text
@@ -179,8 +266,10 @@ Integrationstests grün; Fachmodule mit hoher Abdeckung (Ziel ≥ 90 % für
 | Repo-Guard (verbotene Dateien) | ✅ aktiv | bleibt |
 | Markdown-Lint | ✅ aktiv | bleibt |
 | Workflow-Lint (actionlint) | ✅ aktiv | bleibt |
-| Typecheck / Lint / Tests / Build | – (kein Code) | Phase 1 |
-| Dependency Review, CodeQL | – | Phase 1 |
+| Typecheck / Lint / Unit-Tests / Build | ✅ aktiv (Phase 1, Tag 1) | bleibt |
+| Integrationstests gegen PostgreSQL + PostGIS, Migrations-Drift | ✅ aktiv (Phase 1, Tag 1) | bleibt |
+| Modulgrenzen, Standort-Hardcoding, Audit, Lizenzen | ✅ aktiv (Phase 1, Tag 1) | bleibt |
+| Dependency Review, CodeQL | ✅ aktiv (Phase 1, Tag 1) | bleibt |
 | E2E | – | Tag 9 |
 | Deployment staging/prod | – | Tag 10 |
 

@@ -1,0 +1,41 @@
+{
+  "name": "@isela/web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "next typegen && tsc -p tsconfig.json --noEmit",
+    "test:e2e": "playwright test"
+  },
+  "isela": {
+    "serverOnly": false
+  },
+  "dependencies": {
+    "@isela/audit": "workspace:*",
+    "@isela/auth": "workspace:*",
+    "@isela/catalog": "workspace:*",
+    "@isela/config": "workspace:*",
+    "@isela/crm": "workspace:*",
+    "@isela/database": "workspace:*",
+    "@isela/geocoding": "workspace:*",
+    "@isela/notifications": "workspace:*",
+    "@isela/partners": "workspace:*",
+    "@isela/shared": "workspace:*",
+    "@isela/validation": "workspace:*",
+    "better-auth": "1.7.6",
+    "next": "16.3.6",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "server-only": "0.0.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "@types/pg": "8.23.1",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "pg": "8.23.0"
+  }
+}

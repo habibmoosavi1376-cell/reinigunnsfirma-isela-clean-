@@ -89,6 +89,19 @@ Anforderungen:
 Berechtigungen werden als **Permissions** modelliert (z. B. `invoice:approve`), Rollen
 sind Bündel von Permissions. Details: [`SECURITY.md`](SECURITY.md#3-autorisierung-rbac).
 
+**Umsetzung ab Phase 1:** Die fachlichen Akteure oben werden auf sieben technische
+Rollen abgebildet (Details: [`DOMAIN_MODEL.md`](DOMAIN_MODEL.md#101-rollen-phase-1)):
+
+| Technische Rolle | Fachliche Akteure |
+| --- | --- |
+| `SUPER_ADMIN` | `OWNER` |
+| `ADMIN` | `ADMIN`, `SALES` (Vertrieb bis zur Einführung einer eigenen Rolle) |
+| `DISPATCHER` | `DISPATCHER` |
+| `FINANCE` | `ACCOUNTING` |
+| `STAFF` | `EMPLOYEE` |
+| `PARTNER` | `PARTNER_ADMIN` (mit `is_scope_admin`), `PARTNER_STAFF` |
+| `CUSTOMER` | `CUSTOMER`, `B2B_ADMIN` (mit `is_scope_admin`), `B2B_USER` |
+
 ## 4. Fachliche Module (Bounded Contexts)
 
 | Modul | Kernobjekte | MVP-Tag |
@@ -217,6 +230,11 @@ PaymentTermsDecision {
   policyId, policyVersion, evaluatedAt, decidedBy: SYSTEM | userId
 }
 ```
+
+**Invarianten (Phase 1, verbindlich):** Die Konfiguration darf die Regeln niemals
+unsicher machen – z. B. wird `minSuccessfulPaidOrders < 3` vom Validator abgelehnt.
+Vollständige Liste sowie Definitionen für Teilzahlung, Mahnstufen, B2B/B2C,
+Wiederholungsaufträge und Dubletten: [`DOMAIN_MODEL.md`](DOMAIN_MODEL.md#11-payment-risk--verbindliche-invarianten).
 
 Reason Codes (Auszug): `NEW_CUSTOMER`, `INSUFFICIENT_PAID_ORDERS`,
 `OPEN_OVERDUE_INVOICE`, `LATE_PAYMENT_HISTORY`, `RECENT_CHARGEBACK`,
