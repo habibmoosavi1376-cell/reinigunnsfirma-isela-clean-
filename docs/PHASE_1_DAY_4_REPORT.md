@@ -366,7 +366,18 @@ umgangen. Das Ergebnis des CI-Laufs auf dem PR steht in §12.1.
 
 ### 12.1 CI-Lauf auf dem PR
 
-Wird nach dem ersten vollständigen CI-Lauf ergänzt.
+PR #5, Head `2958ad5` (Push- und Pull-Request-Lauf), grün:
+
+- Typecheck/Lint/Unit/Build und Integration (PostGIS).
+- E2E (Playwright, Produktions-Build).
+- Web-Build mit Client-Bundle-Scan.
+- Secret-Scan (gitleaks), Repo-Guard.
+- Markdown- und Workflow-Lint, Audit/Lizenzen.
+- CodeQL (Analyse und Check).
+
+„Dependency review“ schlägt mit `Dependency review is not supported on this repository.
+Please ensure that Dependency graph is enabled` fehl. Das ist die Owner-Einstellung, wie auf
+#2–#4. Der Check wurde nicht umgangen; ein Kommentar auf dem PR dokumentiert das.
 
 ## 13. Bugs gefunden und behoben
 
