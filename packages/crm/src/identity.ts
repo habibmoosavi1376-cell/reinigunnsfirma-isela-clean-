@@ -37,6 +37,12 @@ export function hashIdentity(
     .digest("hex");
 }
 
+/** Keyed hash for non-identity purposes (e.g. rate-limit keys), namespaced to avoid reuse. */
+export function keyedHash(config: CrmConfig, namespace: string, value: string): string {
+  assertCrmConfig(config);
+  return createHmac("sha256", config.identityPepper).update(`${namespace}:${value}`).digest("hex");
+}
+
 export function normalizeTaxId(raw: string): string {
   return raw.replace(/[\s.-]/g, "").toUpperCase();
 }

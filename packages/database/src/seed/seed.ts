@@ -17,7 +17,11 @@ export async function seedReferenceData(db: Database): Promise<void> {
     await tx
       .insert(serviceCategory)
       .values(SEED_SERVICE_CATEGORIES.map((c) => ({ ...c })))
-      .onConflictDoNothing({ target: serviceCategory.key });
+      .onConflictDoUpdate({
+        target: serviceCategory.key,
+        // Only fills a missing slug (added in migration 0003); never overwrites admin changes.
+        set: { urlSlug: sql`COALESCE(${serviceCategory.urlSlug}, excluded.url_slug)` },
+      });
 
     await tx
       .insert(city)

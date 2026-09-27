@@ -1,7 +1,7 @@
 import { recordAudit } from "@isela/audit";
 import { auditActorOf, authorize, requireActor, type ServiceContext } from "@isela/auth";
 import { findServiceAreasForPoint, geoPointSchema, geographyPointSql } from "@isela/catalog";
-import { and, eq, inArray, schema } from "@isela/database";
+import { and, eq, inArray, schema, type DbExecutor } from "@isela/database";
 import { assertProviderUsable, type LeadProviderDescriptor } from "@isela/lead-finder";
 import { DomainError } from "@isela/shared";
 import {
@@ -29,8 +29,9 @@ const createLeadInput = z.strictObject({
   location: geoPointSchema.optional(),
 });
 
-async function loadSource(ctx: ServiceContext, sourceKey: string) {
-  const [source] = await ctx.db
+/** Loads a lead source and refuses it unless it is usable (enabled, reviewed). */
+export async function loadUsableLeadSource(db: DbExecutor, sourceKey: string) {
+  const [source] = await db
     .select()
     .from(schema.leadSource)
     .where(eq(schema.leadSource.key, sourceKey))
@@ -58,7 +59,7 @@ export async function createLead(ctx: ServiceContext, input: unknown): Promise<s
   const actor = requireActor(ctx.actor);
   authorize(actor, "lead:create");
   const data = parseInput(createLeadInput, input);
-  const source = await loadSource(ctx, data.sourceKey);
+  const source = await loadUsableLeadSource(ctx.db, data.sourceKey);
   const outsideServiceArea =
     data.location === undefined
       ? null
@@ -187,7 +188,7 @@ const addContactInput = z
     path: ["email"],
   });
 
-function suppressionHashes(config: CrmConfig, email: string | null, phone: string | null) {
+export function suppressionHashes(config: CrmConfig, email: string | null, phone: string | null) {
   const hashes: { channel: "EMAIL" | "PHONE"; valueHash: string }[] = [];
   if (email !== null) {
     hashes.push({

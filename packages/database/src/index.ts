@@ -7,11 +7,11 @@ export type {
   Schema,
   Transaction,
 } from "./client.ts";
-export { runMigrations, migrationsFolder } from "./migrate.ts";
 export * as schema from "./schema/index.ts";
 export {
   and,
   asc,
+  count,
   desc,
   eq,
   gt,
@@ -33,3 +33,5 @@ export {
   SEED_START_CITY,
   SEED_START_SERVICE_AREA,
 } from "./seed/reference-data.ts";
+export { consumeRateLimit } from "./rate-limit.ts";
+export type { RateLimitResult } from "./rate-limit.ts";

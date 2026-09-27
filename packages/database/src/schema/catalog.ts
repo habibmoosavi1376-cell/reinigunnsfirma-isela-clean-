@@ -97,6 +97,8 @@ export const serviceArea = pgTable(
 export const serviceCategory = pgTable("service_category", {
   id: uuid("id").primaryKey().defaultRandom(),
   key: text("key").notNull().unique(),
+  /** German URL segment for public pages (e.g. "bueroreinigung"); data, not code. */
+  urlSlug: text("url_slug").unique(),
   name: text("name").notNull(),
   description: text("description"),
   active: boolean("active").notNull().default(true),

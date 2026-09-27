@@ -27,3 +27,6 @@ export function requireEmailSender(sender: EmailSender | undefined): EmailSender
   }
   return sender;
 }
+
+export { createSmtpEmailSender } from "./smtp.ts";
+export type { SmtpConfig } from "./smtp.ts";

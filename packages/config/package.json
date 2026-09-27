@@ -1,5 +1,5 @@
 {
-  "name": "@isela/notifications",
+  "name": "@isela/config",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -11,6 +11,6 @@
   },
   "dependencies": {
     "@isela/shared": "workspace:*",
-    "nodemailer": "10.0.10"
+    "zod": "4.6.5"
   }
 }

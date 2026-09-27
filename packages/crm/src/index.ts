@@ -16,8 +16,26 @@ export {
   UNIQUE_IDENTITY_KINDS,
   assertCrmConfig,
   hashIdentity,
+  keyedHash,
   identityHashesFor,
   normalizeAddress,
   normalizeTaxId,
 } from "./identity.ts";
 export type { CrmConfig, IdentityHash, IdentityKind } from "./identity.ts";
+export {
+  REQUEST_CUSTOMER_TYPES,
+  REQUEST_FREQUENCIES,
+  REQUEST_PROPERTY_TYPES,
+  WEBSITE_REQUEST_SOURCE_KEY,
+  getLeadOverview,
+  listCustomerServiceRequests,
+  serviceRequestInputSchema,
+  submitServiceRequest,
+} from "./service-requests.ts";
+export type {
+  CustomerRequestView,
+  LeadOverview,
+  ServiceRequestInput,
+  SubmitServiceRequestDeps,
+  SubmitServiceRequestResult,
+} from "./service-requests.ts";

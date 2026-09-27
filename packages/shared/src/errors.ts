@@ -7,6 +7,7 @@ export type ErrorCode =
   | "CONFLICT"
   | "INVALID_STATE_TRANSITION"
   | "POLICY_VIOLATION"
+  | "RATE_LIMITED"
   | "CONFIGURATION_ERROR";
 
 /**

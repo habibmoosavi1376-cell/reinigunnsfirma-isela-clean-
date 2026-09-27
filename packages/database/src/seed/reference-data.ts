@@ -4,17 +4,48 @@
  */
 
 export const SEED_SERVICE_CATEGORIES = [
-  { key: "building-cleaning", name: "Gebäudereinigung", sortOrder: 10 },
-  { key: "office-cleaning", name: "Büroreinigung", sortOrder: 20 },
-  { key: "maintenance-cleaning", name: "Unterhaltsreinigung", sortOrder: 30 },
-  { key: "window-cleaning", name: "Fensterreinigung", sortOrder: 40 },
-  { key: "deep-cleaning", name: "Grundreinigung", sortOrder: 50 },
-  { key: "stairwell-cleaning", name: "Treppenhausreinigung", sortOrder: 60 },
-  { key: "apartment-cleaning", name: "Wohnungsreinigung", sortOrder: 70 },
-  { key: "medical-practice-cleaning", name: "Praxisreinigung", sortOrder: 80 },
-  { key: "hospitality-cleaning", name: "Gastronomiereinigung", sortOrder: 90 },
+  {
+    key: "building-cleaning",
+    urlSlug: "gebaeudereinigung",
+    name: "Gebäudereinigung",
+    sortOrder: 10,
+  },
+  { key: "office-cleaning", urlSlug: "bueroreinigung", name: "Büroreinigung", sortOrder: 20 },
+  {
+    key: "maintenance-cleaning",
+    urlSlug: "unterhaltsreinigung",
+    name: "Unterhaltsreinigung",
+    sortOrder: 30,
+  },
+  { key: "window-cleaning", urlSlug: "fensterreinigung", name: "Fensterreinigung", sortOrder: 40 },
+  { key: "deep-cleaning", urlSlug: "grundreinigung", name: "Grundreinigung", sortOrder: 50 },
+  {
+    key: "stairwell-cleaning",
+    urlSlug: "treppenhausreinigung",
+    name: "Treppenhausreinigung",
+    sortOrder: 60,
+  },
+  {
+    key: "apartment-cleaning",
+    urlSlug: "wohnungsreinigung",
+    name: "Wohnungsreinigung",
+    sortOrder: 70,
+  },
+  {
+    key: "medical-practice-cleaning",
+    urlSlug: "praxisreinigung",
+    name: "Praxisreinigung",
+    sortOrder: 80,
+  },
+  {
+    key: "hospitality-cleaning",
+    urlSlug: "gastronomiereinigung",
+    name: "Gastronomiereinigung",
+    sortOrder: 90,
+  },
   {
     key: "property-management-service",
+    urlSlug: "hausverwaltungsservice",
     name: "Immobilien-/Hausverwaltungsservice",
     sortOrder: 100,
   },

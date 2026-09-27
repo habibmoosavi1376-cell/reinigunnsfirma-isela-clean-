@@ -1,5 +1,6 @@
 import { syncRbacCatalog } from "@isela/auth";
-import { createDatabase, runMigrations, seedReferenceData, sql } from "@isela/database";
+import { createDatabase, seedReferenceData, sql } from "@isela/database";
+import { runMigrations } from "@isela/database/migrate";
 import { requireTestDatabaseUrl } from "./env.ts";
 
 /**

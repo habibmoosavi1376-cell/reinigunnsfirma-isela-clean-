@@ -1,5 +1,5 @@
 {
-  "name": "@isela/notifications",
+  "name": "@isela/partners",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -10,7 +10,9 @@
     "serverOnly": true
   },
   "dependencies": {
+    "@isela/auth": "workspace:*",
+    "@isela/database": "workspace:*",
     "@isela/shared": "workspace:*",
-    "nodemailer": "10.0.10"
+    "@isela/validation": "workspace:*"
   }
 }

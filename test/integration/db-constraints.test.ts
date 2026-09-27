@@ -1,5 +1,8 @@
 import { afterAll, describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { eq, schema, sql } from "@isela/database";
+import { migrationsFolder } from "@isela/database/migrate";
 import { expectPgError } from "../support/assertions.ts";
 import { createUser, openTestDatabase } from "../support/fixtures.ts";
 
@@ -23,11 +26,15 @@ async function createCustomer(): Promise<string> {
 }
 
 describe("migrations", () => {
-  it("applied all three migrations and the required extensions", async () => {
+  it("applied every journaled migration and the required extensions", async () => {
+    const journal = JSON.parse(
+      readFileSync(join(migrationsFolder, "meta", "_journal.json"), "utf8"),
+    ) as { entries: unknown[] };
     const migrations = await db.execute<{ count: string }>(
       sql`SELECT count(*)::text AS count FROM drizzle.__drizzle_migrations`,
     );
-    expect(migrations.rows[0]?.count).toBe("3");
+    expect(journal.entries.length).toBeGreaterThanOrEqual(4);
+    expect(migrations.rows[0]?.count).toBe(String(journal.entries.length));
     const extensions = await db.execute<{ extname: string }>(
       sql`SELECT extname FROM pg_extension ORDER BY extname`,
     );
