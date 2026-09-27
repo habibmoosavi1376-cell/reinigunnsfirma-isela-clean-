@@ -1,5 +1,5 @@
 {
-  "name": "@isela/crm",
+  "name": "@isela/geocoding",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -10,12 +10,6 @@
     "serverOnly": true
   },
   "dependencies": {
-    "@isela/audit": "workspace:*",
-    "@isela/auth": "workspace:*",
-    "@isela/catalog": "workspace:*",
-    "@isela/database": "workspace:*",
-    "@isela/geocoding": "workspace:*",
-    "@isela/lead-finder": "workspace:*",
     "@isela/shared": "workspace:*",
     "@isela/validation": "workspace:*"
   }

@@ -20,6 +20,7 @@
     "@isela/config": "workspace:*",
     "@isela/crm": "workspace:*",
     "@isela/database": "workspace:*",
+    "@isela/geocoding": "workspace:*",
     "@isela/notifications": "workspace:*",
     "@isela/partners": "workspace:*",
     "@isela/shared": "workspace:*",

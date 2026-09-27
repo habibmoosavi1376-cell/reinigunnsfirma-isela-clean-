@@ -75,12 +75,19 @@ export const emailEnvSchema = z.object({
   SMTP_PASSWORD: optionalString,
 });
 
-/** No geocoding provider is integrated yet – configuring one is rejected (no fake geocoding). */
+/**
+ * Geocoding (address → coordinates). Supported: "geoapify" (EU, see
+ * docs/PHASE_1_DAY_3_REPORT.md §2). Unset = geocoding disabled: requests keep
+ * geocoding_status PENDING and service availability UNKNOWN – there is no fake geocoding.
+ */
 export const geoEnvSchema = z.object({
   GEOCODING_PROVIDER: z.preprocess(
     emptyToUndefined,
-    z.undefined({ error: "GEOCODING_PROVIDER is not supported yet" }),
+    z.enum(["geoapify"], { error: 'GEOCODING_PROVIDER must be "geoapify" or empty' }).optional(),
   ),
+  GEOCODING_API_KEY: z.preprocess(emptyToUndefined, z.string().trim().min(16).max(200).optional()),
+  GEOCODING_TIMEOUT_MS: z.coerce.number().int().min(500).max(15_000).default(4000),
+  GEOCODING_MAX_REQUESTS_PER_MINUTE: z.coerce.number().int().min(1).max(600).default(60),
 });
 
 /** No payment provider is integrated yet – configuring one is rejected (no fake payments). */
@@ -146,6 +153,13 @@ export const serverEnvSchema = applicationEnvSchema
   .extend(observabilityEnvSchema.shape)
   .extend(legalEnvSchema.shape)
   .superRefine((env, ctx) => {
+    if ((env.GEOCODING_PROVIDER === undefined) !== (env.GEOCODING_API_KEY === undefined)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["GEOCODING_API_KEY"],
+        message: "GEOCODING_PROVIDER and GEOCODING_API_KEY must be set together",
+      });
+    }
     if (env.NODE_ENV !== "production") return;
     // Loopback hosts are exempt so that production builds can be tested locally/in CI (E2E);
     // a real deployment is never served from a loopback address.

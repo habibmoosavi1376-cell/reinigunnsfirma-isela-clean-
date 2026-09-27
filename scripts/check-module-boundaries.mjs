@@ -19,9 +19,10 @@ const ALLOWED = {
   auth: ["audit", "database", "notifications", "shared", "validation"],
   catalog: ["audit", "auth", "database", "shared", "validation"],
   settings: ["audit", "auth", "database", "lead-finder", "payment-risk", "shared", "validation"],
-  crm: ["audit", "auth", "catalog", "database", "lead-finder", "shared", "validation"],
+  crm: ["audit", "auth", "catalog", "database", "geocoding", "lead-finder", "shared", "validation"],
   config: ["shared"],
   partners: ["auth", "database", "shared", "validation"],
+  geocoding: ["shared", "validation"],
 };
 
 const root = new URL("..", import.meta.url).pathname;

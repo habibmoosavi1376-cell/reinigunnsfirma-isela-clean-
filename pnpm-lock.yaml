@@ -32,6 +32,9 @@ importers:
       '@isela/database':
         specifier: workspace:*
         version: link:packages/database
+      '@isela/geocoding':
+        specifier: workspace:*
+        version: link:packages/geocoding
       '@isela/lead-finder':
         specifier: workspace:*
         version: link:packages/lead-finder
@@ -95,6 +98,9 @@ importers:
       '@isela/database':
         specifier: workspace:*
         version: link:../../packages/database
+      '@isela/geocoding':
+        specifier: workspace:*
+        version: link:../../packages/geocoding
       '@isela/notifications':
         specifier: workspace:*
         version: link:../../packages/notifications
@@ -210,6 +216,9 @@ importers:
       '@isela/database':
         specifier: workspace:*
         version: link:../database
+      '@isela/geocoding':
+        specifier: workspace:*
+        version: link:../geocoding
       '@isela/lead-finder':
         specifier: workspace:*
         version: link:../lead-finder
@@ -238,6 +247,15 @@ importers:
       drizzle-kit:
         specifier: 0.31.11
         version: 0.31.11
+
+  packages/geocoding:
+    dependencies:
+      '@isela/shared':
+        specifier: workspace:*
+        version: link:../shared
+      '@isela/validation':
+        specifier: workspace:*
+        version: link:../validation
 
   packages/lead-finder:
     dependencies:
