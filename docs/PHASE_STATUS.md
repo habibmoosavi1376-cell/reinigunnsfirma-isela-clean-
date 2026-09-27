@@ -3,7 +3,7 @@
 | Feld | Wert |
 | --- | --- |
 | Stand | 2026-09-26 |
-| Aktuelle Phase | **Phase 0 – Foundation Audit** (abgeschlossen, siehe [`PHASE_0_REPORT.md`](PHASE_0_REPORT.md)) |
+| Aktuelle Phase | **Phase 0 – Foundation Audit** (abgeschlossen, siehe [`PHASE_0_REPORT.md`](PHASE_0_REPORT.md)); **Phase 0.1 – Repository Handover** (siehe [`PHASE_0_1_REPORT.md`](PHASE_0_1_REPORT.md)) |
 | Nächste Phase | Phase 1 / Tag 1 – Foundation, Architektur, Security, CI (wartet auf Freigabe) |
 | Repository | `habibmoosavi1376-cell/reinigunnsfirma-isela-clean-` (öffentlich) |
 | Arbeitsbranch | `claude/untitled-session-mhhecl` |

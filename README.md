@@ -7,6 +7,20 @@ B2B-Kundschaft.
 > **Status:** Phase 0 (Foundation) – es existiert noch **kein** ausführbarer
 > Anwendungscode. Siehe [`docs/PHASE_STATUS.md`](docs/PHASE_STATUS.md).
 
+## Offizielles Repository
+
+```text
+Official Project Repository:
+reinigunnsfirma-isela-clean-
+
+Project:
+ISELA CLEAN
+```
+
+Dies ist das **einzige** Repository für ISELA CLEAN. Es werden keine weiteren
+Repositories, Kopien oder parallelen Foundations angelegt. Entwicklung erfolgt
+ausschließlich über Feature-Branches und Pull Requests gegen `main`.
+
 ## Markt
 
 Startmarkt ist **Gelsenkirchen**. Die Architektur ist von Beginn an **nicht** auf
