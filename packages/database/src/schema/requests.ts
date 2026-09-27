@@ -14,16 +14,15 @@ import {
 } from "drizzle-orm/pg-core";
 import { createdAt, geographyPoint } from "./columns.ts";
 import { serviceArea, serviceCategory } from "./catalog.ts";
-import { customer, geocodingStatus, propertyType } from "./crm.ts";
+import {
+  customer,
+  customerAddress,
+  geocodingStatus,
+  property,
+  propertyType,
+  requestFrequency,
+} from "./crm.ts";
 import { lead } from "./leads.ts";
-
-export const requestFrequency = pgEnum("request_frequency", [
-  "ONCE",
-  "WEEKLY",
-  "BIWEEKLY",
-  "MONTHLY",
-  "CUSTOM",
-]);
 
 export const requestCustomerType = pgEnum("request_customer_type", [
   "PRIVATE",
@@ -53,6 +52,12 @@ export const serviceRequest = pgTable(
       .notNull()
       .references(() => lead.id, { onDelete: "restrict" }),
     customerId: uuid("customer_id").references(() => customer.id, { onDelete: "restrict" }),
+    /** Customer address created from this request's service address (lead → customer). */
+    customerAddressId: uuid("customer_address_id").references(() => customerAddress.id, {
+      onDelete: "restrict",
+    }),
+    /** Property created from this request (lead → property); set at most once. */
+    propertyId: uuid("property_id").references(() => property.id, { onDelete: "restrict" }),
     submittedByUserId: text("submitted_by_user_id"),
     customerType: requestCustomerType("customer_type").notNull(),
     serviceCategoryId: uuid("service_category_id")

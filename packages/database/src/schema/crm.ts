@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  boolean,
   char,
   check,
   index,
@@ -145,6 +146,10 @@ export const customerAddress = pgTable(
     geocodingStatus: geocodingStatus("geocoding_status").notNull().default("PENDING"),
     geocodedAt: timestamp("geocoded_at", { withTimezone: true, mode: "date" }),
     source: addressSource("source").notNull(),
+    /** Main address of the customer (at most one active per customer). */
+    isPrimary: boolean("is_primary").notNull().default(false),
+    /** Normalised street/number/postcode/country for duplicate detection (day 4+). */
+    normalizedKey: text("normalized_key"),
     verificationStatus: addressVerificationStatus("verification_status")
       .notNull()
       .default("UNVERIFIED"),
@@ -154,6 +159,12 @@ export const customerAddress = pgTable(
   },
   (t) => [
     index("customer_address_customer_idx").on(t.customerId),
+    uniqueIndex("customer_address_primary_uq")
+      .on(t.customerId)
+      .where(sql`${t.isPrimary} AND ${t.archivedAt} IS NULL`),
+    uniqueIndex("customer_address_dedupe_uq")
+      .on(t.customerId, t.addressType, t.normalizedKey)
+      .where(sql`${t.archivedAt} IS NULL AND ${t.normalizedKey} IS NOT NULL`),
     index("customer_address_location_gix").using("gist", t.location),
     check(
       "customer_address_coordinates_chk",
@@ -170,14 +181,32 @@ export const customerAddress = pgTable(
   ],
 );
 
+/**
+ * Property types (day 4: HOUSE renamed to PRIVATE_HOME via RENAME VALUE; further types appended).
+ * Shared by the public request form and the property register.
+ */
 export const propertyType = pgEnum("property_type", [
   "APARTMENT",
-  "HOUSE",
+  "PRIVATE_HOME",
   "OFFICE",
   "PRACTICE",
   "STAIRWELL",
   "COMMERCIAL",
   "OTHER",
+  "RETAIL",
+  "GASTRONOMY",
+  "GYM",
+  "HOLIDAY_RENTAL",
+  "PROPERTY_MANAGEMENT",
+]);
+
+/** Cleaning interval (request form and properties). */
+export const requestFrequency = pgEnum("request_frequency", [
+  "ONCE",
+  "WEEKLY",
+  "BIWEEKLY",
+  "MONTHLY",
+  "CUSTOM",
 ]);
 
 export const property = pgTable(
@@ -193,6 +222,14 @@ export const property = pgTable(
     name: text("name").notNull(),
     propertyType: propertyType("property_type").notNull(),
     areaSqm: numeric("area_sqm", { precision: 10, scale: 2, mode: "number" }),
+    rooms: integer("rooms"),
+    bathrooms: integer("bathrooms"),
+    /** Agreed or requested cleaning interval of this property. */
+    serviceFrequency: requestFrequency("service_frequency"),
+    /** Free-text service requirements (e.g. access, materials); no personal data. */
+    serviceRequirements: text("service_requirements"),
+    notes: text("notes"),
+    active: boolean("active").notNull().default(true),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
     archivedAt: archivedAt(),
@@ -200,6 +237,15 @@ export const property = pgTable(
   (t) => [
     index("property_customer_idx").on(t.customerId),
     check("property_area_chk", sql`${t.areaSqm} IS NULL OR ${t.areaSqm} > 0`),
+    check("property_rooms_chk", sql`${t.rooms} IS NULL OR ${t.rooms} BETWEEN 0 AND 10000`),
+    check(
+      "property_bathrooms_chk",
+      sql`${t.bathrooms} IS NULL OR ${t.bathrooms} BETWEEN 0 AND 10000`,
+    ),
+    check(
+      "property_text_chk",
+      sql`(${t.serviceRequirements} IS NULL OR length(${t.serviceRequirements}) <= 2000) AND (${t.notes} IS NULL OR length(${t.notes}) <= 2000)`,
+    ),
   ],
 );
 

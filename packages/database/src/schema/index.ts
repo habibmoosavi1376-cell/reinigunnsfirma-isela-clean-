@@ -4,3 +4,4 @@ export * from "./crm.ts";
 export * from "./leads.ts";
 export * from "./governance.ts";
 export * from "./requests.ts";
+export * from "./quotes.ts";

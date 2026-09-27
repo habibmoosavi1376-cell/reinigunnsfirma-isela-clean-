@@ -71,7 +71,12 @@ export const FREQUENCY_LABELS: Record<string, string> = {
 
 export const PROPERTY_TYPE_LABELS: Record<string, string> = {
   APARTMENT: "Wohnung",
-  HOUSE: "Haus",
+  PRIVATE_HOME: "Haus (privat)",
+  RETAIL: "Einzelhandel",
+  GASTRONOMY: "Gastronomie",
+  GYM: "Fitnessstudio",
+  HOLIDAY_RENTAL: "Ferienwohnung",
+  PROPERTY_MANAGEMENT: "Hausverwaltung/Wohnanlage",
   OFFICE: "Büro",
   PRACTICE: "Praxis",
   STAIRWELL: "Treppenhaus",

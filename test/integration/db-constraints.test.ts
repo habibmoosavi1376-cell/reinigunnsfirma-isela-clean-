@@ -248,7 +248,7 @@ describe("customer data constraints", () => {
         customerId: other,
         addressId: address?.id ?? "",
         name: "p",
-        propertyType: "HOUSE",
+        propertyType: "PRIVATE_HOME",
       }),
       FK_VIOLATION,
     );

@@ -271,7 +271,7 @@ export function RequestForm({
               Bitte wählen
             </option>
             <option value="APARTMENT">Wohnung</option>
-            <option value="HOUSE">Haus</option>
+            <option value="PRIVATE_HOME">Haus (privat)</option>
             <option value="OFFICE">Büro</option>
             <option value="PRACTICE">Praxis</option>
             <option value="STAIRWELL">Treppenhaus</option>

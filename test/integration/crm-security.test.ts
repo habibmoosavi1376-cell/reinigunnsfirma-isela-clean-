@@ -83,7 +83,7 @@ describe("authorization", () => {
         customerId: customerB,
         addressId: addressB,
         name: "x",
-        propertyType: "HOUSE",
+        propertyType: "PRIVATE_HOME",
       }),
       "FORBIDDEN",
     );
@@ -99,7 +99,7 @@ describe("authorization", () => {
         customerId: customerA,
         addressId: addressB,
         name: "x",
-        propertyType: "HOUSE",
+        propertyType: "PRIVATE_HOME",
       }),
       "NOT_FOUND",
     );
