@@ -35,10 +35,11 @@ export {
   createQuoteDraft,
   expireQuotes,
   getQuote,
+  listQuoteServiceOptions,
   listQuotes,
   quoteListQuerySchema,
   removeQuoteItem,
   transitionQuote,
   updateQuoteDetails,
 } from "./quotes.ts";
-export type { QuoteItemView, QuoteListItem, QuoteView } from "./quotes.ts";
+export type { QuoteItemView, QuoteListItem, QuoteServiceOptions, QuoteView } from "./quotes.ts";

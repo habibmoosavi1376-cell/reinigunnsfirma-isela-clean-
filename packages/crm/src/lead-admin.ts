@@ -230,6 +230,7 @@ export interface LeadDetail {
     readonly privacyNoticeAcknowledgedAt: Date;
     readonly customerId: string | null;
     readonly customerName: string | null;
+    readonly propertyId: string | null;
   } | null;
   /** null without lead_contact:read. */
   readonly contacts:
@@ -341,6 +342,7 @@ export async function getLeadDetail(ctx: ServiceContext, input: unknown): Promis
       privacyNoticeAcknowledgedAt: r.privacyNoticeAcknowledgedAt,
       customerId: r.customerId,
       customerName: schema.customer.displayName,
+      propertyId: r.propertyId,
     })
     .from(r)
     .innerJoin(schema.serviceCategory, eq(schema.serviceCategory.id, r.serviceCategoryId))

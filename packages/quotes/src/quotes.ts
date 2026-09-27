@@ -741,3 +741,37 @@ export async function listQuotes(
     .offset((f.page - 1) * f.pageSize);
   return { items, total: totalRow?.total ?? 0, page: f.page, pageSize: f.pageSize };
 }
+
+export interface QuoteServiceOptions {
+  readonly categories: readonly { readonly id: string; readonly name: string }[];
+  readonly services: readonly {
+    readonly id: string;
+    readonly categoryId: string;
+    readonly name: string;
+    readonly unit: (typeof SERVICE_UNITS)[number];
+  }[];
+}
+
+/** Active catalogue entries that can be used for quote items (staff with quote:write). */
+export async function listQuoteServiceOptions(ctx: ServiceContext): Promise<QuoteServiceOptions> {
+  const actor = requireActor(ctx.actor);
+  requireStaff(actor, "quote:write");
+  const [categories, services] = await Promise.all([
+    ctx.db
+      .select({ id: schema.serviceCategory.id, name: schema.serviceCategory.name })
+      .from(schema.serviceCategory)
+      .where(eq(schema.serviceCategory.active, true))
+      .orderBy(asc(schema.serviceCategory.sortOrder), asc(schema.serviceCategory.key)),
+    ctx.db
+      .select({
+        id: schema.service.id,
+        categoryId: schema.service.categoryId,
+        name: schema.service.name,
+        unit: schema.service.unit,
+      })
+      .from(schema.service)
+      .where(eq(schema.service.active, true))
+      .orderBy(asc(schema.service.name)),
+  ]);
+  return { categories, services };
+}
