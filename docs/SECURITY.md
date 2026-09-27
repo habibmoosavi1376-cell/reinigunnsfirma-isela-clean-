@@ -118,6 +118,41 @@ Notwendige Ausnahmen:
 - **Statuscodes:** Loading-Boundaries liegen nur dort, wo keine Seite `notFound()`/
   `forbidden()` aufruft (sonst würde HTTP 200 gestreamt; Befund Tag 3, behoben).
 
+### 3.5 Umsetzungsstand (Phase 1, Tag 4 – Kunden-CRM, Objekte, Angebote)
+
+- **Server leitet Eigentum ab:** Kunden-ID von Adressen, Objekten und Angeboten wird aus dem
+  gespeicherten Datensatz gelesen, nie aus Formularen übernommen. Fremde Adressen/Objekte/
+  Leads werden als `NOT_FOUND` abgewiesen; zusätzlich erzwingen DB-Trigger
+  (`property_address_owner`, `quote_property_owner`, `service_request_owner`) die
+  Zugehörigkeit. Alle Eingaben sind `z.strictObject` (Mass Assignment → `VALIDATION_FAILED`).
+- **Neue Rechte:** `quote:read` (ADMIN, SUPER_ADMIN, DISPATCHER, FINANCE; CUSTOMER nur OWN),
+  `quote:write` (ADMIN, SUPER_ADMIN, DISPATCHER), `quote:approve` (nur ADMIN/SUPER_ADMIN,
+  MFA-pflichtig). STAFF und PARTNER haben keinen Angebotszugriff; FINANCE liest Finanzdaten,
+  ändert aber keine Stammdaten.
+- **Staff-Sichten nur mit GLOBAL-Recht:** Kundenliste/-akte, Objektsuche und Angebotsliste
+  verlangen die globale Berechtigung; ein CUSTOMER-Scope (OWN) reicht nicht.
+- **Angebote:** Beträge werden ausschließlich serverseitig in Cent berechnet (BigInt,
+  kaufmännisch gerundet, Steuer je Satz); zulässige Steuersätze sind Konfiguration. Status nur
+  über die State Machine, Übergänge append-only protokolliert, Freigabe nur mit
+  `quote:approve` (optional Vier-Augen-Prinzip). Kunden sehen nur eigene, freigegebene
+  Angebote – fremde IDs, Entwürfe und Prüfungen liefern `NOT_FOUND` (kein ID-Probing).
+- **Einladung aus dem Lead:** nur ADMIN/SUPER_ADMIN (`customer:link_account`), nur an die
+  Lead-E-Mail, wenn sie registrierte Identität genau dieses Kunden ist; ältere offene
+  Einladungen werden widerrufen; Rate-Limit je Kunde (3/Tag) und Mitarbeitendem (20/h) mit
+  gehashten Schlüsseln. Token: 32 Byte Zufall, nur SHA-256-Hash gespeichert, 7 Tage, einmalig.
+  Annahme nur per POST (`/account/invitation`, `Referrer-Policy: no-referrer`), einheitliche
+  Fehlermeldung ohne Enumeration; eine schon anderweitig verknüpfte Rolle bricht die Annahme
+  vollständig ab (Befund Tag 4, behoben).
+- **Nebenläufigkeit:** Kundenregistrierung je eindeutiger Identität per
+  `pg_advisory_xact_lock` serialisiert (Unique-Index bleibt letzte Verteidigung);
+  Angebotsübergänge per `SELECT … FOR UPDATE` plus Statusbedingung im `UPDATE`.
+- **Zahlungsrisiko:** Zahlungsbedingung wird rein aus der Kundenhistorie berechnet; ohne
+  Auftrags-/Rechnungsdaten gilt Vorkasse (fail-safe). Gesperrte Kunden und offene
+  Dublettenprüfungen erzwingen Vorkasse; neue Anfragen mit bekannter Identität landen beim
+  bestehenden (auch gesperrten) Kunden.
+- **Statuscodes:** Die Loading-Boundary des Kundenbereichs liegt in einer Route-Group ohne
+  `notFound()`-Seiten, damit unbekannte Angebots-IDs HTTP 404 liefern.
+
 ## 4. Anforderungskatalog
 
 | Thema | Maßnahme | Nachweis |

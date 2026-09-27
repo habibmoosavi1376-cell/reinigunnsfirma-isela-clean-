@@ -275,8 +275,14 @@ Fachliche Definitionen:
 - **Dubletten:** siehe §5 – neue Konten erben die Historie über eindeutige Merkmale;
   Signal-Treffer erzwingen Vorkasse bis zur Prüfung.
 
-Die Entscheidungslogik (`evaluatePaymentTerms`) wird an Tag 6 implementiert; an Tag 1
-existieren Richtlinien-Schema, Validator und die Dubletten-Erkennung.
+Die Entscheidungslogik `evaluatePaymentTerms(history, policy)` existiert seit Tag 4 als reine
+Funktion (Gründe: `CUSTOMER_BLOCKED`, `PENDING_DUPLICATE_REVIEW`, `NEW_CUSTOMER`,
+`INSUFFICIENT_PAID_ORDERS`, `OPEN_OVERDUE_INVOICE`, `LATE_PAYMENT_HISTORY`,
+`RECENT_CHARGEBACK`, `TRUST_SCORE_TOO_LOW`, `CREDIT_LIMIT_EXCEEDED`,
+`B2C_INVOICE_TERMS_DISABLED`). Rechnungskauf wird nie automatisch gewährt, solange
+`requireManualApproval` gilt. **Lücke:** Aufträge, Rechnungen, Zahlungen und Chargebacks sind
+noch nicht modelliert; die Historie ist daher leer (`historySource = NO_ORDER_DATA`) und es gilt
+immer Vorkasse. Die Anbindung an echte Auftrags-/Rechnungsdaten folgt mit diesen Modulen.
 
 ## 12. LeadFinder – Provider-Vertrag
 
@@ -322,3 +328,35 @@ Keine automatische Massenansprache: Der höchste automatisch erreichbare Status 
   (partieller Unique-Index `user_role_one_customer_per_user_uq`).
 - `landing_page`: DRAFT/PUBLISHED; PUBLISHED nur mit Inhalt, Prüfung und
   Veröffentlichungszeitpunkt (CHECK) und bestandener Veröffentlichungsprüfung.
+
+## 14. Kunden-CRM, Objekte und Angebote (Phase 1, Tag 4)
+
+- `customer_address`: Typen `SERVICE`, `BILLING`, `OTHER`; `is_primary` (höchstens eine aktive
+  Hauptadresse je Kunde, partieller Unique-Index) und `normalized_key` (Straße|Nr.|PLZ|Land)
+  mit partiellem Unique-Index je Kunde und Typ. Im Lead-Fluss wird eine gleichwertige
+  Adresse wiederverwendet; manuell angelegte Duplikate werden gemeldet, nicht verhindert.
+  Lageänderung setzt Koordinaten auf `PENDING` zurück.
+- `property`: Kunde, Adresse (desselben Kunden), Name, Objektart (`PRIVATE_HOME` – vormals
+  `HOUSE`, per `RENAME VALUE` –, `APARTMENT`, `OFFICE`, `PRACTICE`, `STAIRWELL`, `RETAIL`,
+  `GASTRONOMY`, `GYM`, `HOLIDAY_RENTAL`, `COMMERCIAL`, `PROPERTY_MANAGEMENT`, `OTHER`),
+  Fläche, Räume, Bäder, Intervall, Leistungsanforderungen, Notiz, aktiv/inaktiv. Viele Objekte
+  je Kunde mit eigenen Adressen und Intervallen; abgerechnet wird zentral über den Kunden.
+- `service_request.customer_address_id`/`property_id`: Verknüpfung der Anfrage mit Adresse und
+  Objekt; Trigger `service_request_owner` erzwingt denselben Kunden.
+- `quote`: Kunde, optional Objekt/Lead, Status, Währung, Netto/Steuer/Brutto (Cent, CHECK
+  Brutto = Netto + Steuer), Gültigkeit, Notiz, Ersteller, `sent_at`, `decided_at`.
+  `SENT` und später nur mit Gültigkeit und `sent_at` (CHECK).
+- `quote_item`: Position, Leistungsbereich, optional Katalogleistung (gleiche Einheit),
+  Beschreibung, Menge (3 Nachkommastellen), Einheit, Einzelpreis, Steuersatz (Basispunkte),
+  Netto/Steuer/Brutto.
+- `quote_status_transition` (append-only): Übergänge `DRAFT → PENDING_REVIEW | CANCELLED`,
+  `PENDING_REVIEW → DRAFT | SENT | CANCELLED`, `SENT → ACCEPTED | DECLINED | EXPIRED |
+  CANCELLED`; Endzustände ohne Ausgang. Begründung Pflicht für `ACCEPTED`, `DECLINED`,
+  `CANCELLED`; `EXPIRED` nur nach Ablauf (auch automatisch durch das System).
+- Einstellung `quote.defaults`: zulässige USt-Sätze (Standard 19 %, 7 %, 0 %), Standardsatz,
+  Gültigkeit (30 Tage), max. Positionen (50), Vier-Augen-Freigabe (aus), Zeitzone.
+  Die Werte sind vom Inhaber bzw. der Steuerberatung zu bestätigen.
+- Preislogik: `PricingEngine` (Eingaben: Leistung, Objekt, Fläche, Räume, Bäder, Fenster,
+  Intervall, Extras, Dringlichkeit, Entfernung, Region, Arbeitszeit, Direktkosten; Ausgaben:
+  Netto, Steuer, Brutto, Arbeitszeit, Direktkosten, Deckungsbeitrag) ist nur als Vertrag
+  definiert. Ein Vorschlag ist nie eine Preiszusage.

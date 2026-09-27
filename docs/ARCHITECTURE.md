@@ -130,6 +130,35 @@ Formular → Validierung (Zod, Kundenart-Regeln) → Lead + Kontakt + Anfrage (T
 - Landingpages: Tabelle `landing_page` + Veröffentlichungsprüfung (echter Service, Standort
   im aktiven Servicegebiet per PostGIS, geprüfter Inhalt); noch keine Seiten.
 
+### 2.5 Kunden-CRM, Objekte und Angebote (Phase 1, Tag 4)
+
+```text
+Lead/Anfrage → linkLeadToCustomer (Identitäts-Lock, Dublettenerkennung)
+  → ensureAddressFromRequest (gleichwertige Adresse wiederverwenden, Koordinaten nur aus
+    vertrauenswürdigem Geocoding) → optional createPropertyFromLead
+  → Angebotsentwurf (@isela/quotes) → Prüfung → Freigabe (quote:approve)
+```
+
+- **`@isela/crm`:** Lesemodelle `listCustomers`/`getCustomerDetail` (Aggregation je Seite in
+  gruppierten Abfragen über max. 50 IDs statt korrelierter Unterabfragen),
+  Adress-/Objektverwaltung, Lead → Objekt, Einladung aus dem Lead. Neue Abhängigkeiten:
+  `@isela/payment-risk` (Zahlungsbedingung) und `@isela/settings` (versionierte Richtlinie).
+- **`@isela/quotes` (neu):** State Machine, Cent-Arithmetik, `PricingEngine`-Schnittstelle
+  (nur Vertrag, kein Preisalgorithmus), Services für Entwurf/Positionen/Übergänge/Ablauf.
+  Abhängigkeiten: `audit`, `auth`, `database`, `shared`, `validation`. Die Konfiguration
+  `quote.defaults` liegt im Settings-Register (`settings → quotes`); die Web-App lädt sie und
+  übergibt sie den Services (kein Zyklus).
+- **`@isela/payment-risk`:** reine Funktion `evaluatePaymentTerms(history, policy)`.
+- **Web:** `/admin/customers`, `/admin/customers/[id]`, `/admin/properties`, `/admin/quotes`,
+  `/admin/quotes/[id]`, `/account/invitation`, `/customer/quotes[/id]`. Server Actions lesen
+  nur Whitelist-Felder und melden Ergebnisse über Whitelist-Codes.
+- **Suche:** ILIKE mit escapten Wildcards. `pg_trgm` wurde gemessen (200 000 synthetische
+  Kunden): Mit der aktuellen OR/EXISTS-Abfrage nutzt der Planer die Trigram-Indizes nicht
+  (≈ 380 ms → ≈ 330 ms, im Rauschen) bei +52 MB Indexgröße (Tabellen: 55 MB). Nur mit
+  umgebauter UNION-Abfrage sinkt eine selektive Suche von ≈ 115 ms auf < 1 ms. Entscheidung:
+  **noch nicht eingeführt**; Einführung (Migration `CREATE EXTENSION pg_trgm` + GIN-Indizes +
+  UNION-Abfrage) sobald > 50 000 Kunden oder p95 der Kundensuche > 200 ms.
+
 ## 3. Ziel-Repository-Struktur
 
 ```text

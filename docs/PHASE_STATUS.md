@@ -2,10 +2,11 @@
 
 | Feld | Wert |
 | --- | --- |
-| Stand | 2026-09-26 |
+| Stand | 2026-09-27 |
 | Aktuelle Phase | **Phase 0 – Foundation Audit** (abgeschlossen, siehe [`PHASE_0_REPORT.md`](PHASE_0_REPORT.md)); **Phase 0.1 – Repository Handover** (siehe [`PHASE_0_1_REPORT.md`](PHASE_0_1_REPORT.md)) |
 | Phase 1 / Tag 1 | Spezifikation, Stack Gate, Datenbank, Auth, RBAC, CRM – siehe [`PHASE_1_DAY_1_REPORT.md`](PHASE_1_DAY_1_REPORT.md) (Branch `phase-1-foundation`) |
-| Nächste Phase | Phase 1 / Tag 2 gemäß ROADMAP – erst nach Review des Tag-1-Reports |
+| Phase 1 / Tag 4 | Kunden-CRM, Adressen, Objekte, Angebotsgrundlage – siehe [`PHASE_1_DAY_4_REPORT.md`](PHASE_1_DAY_4_REPORT.md) (Branch `phase-1-day-4`) |
+| Nächste Phase | Phase 1 / Tag 5 gemäß ROADMAP – erst nach Review des Tag-4-Reports |
 | Repository | `habibmoosavi1376-cell/reinigunnsfirma-isela-clean-` (öffentlich) |
 | Arbeitsbranch | `claude/untitled-session-mhhecl` |
 
@@ -150,3 +151,14 @@ Website, Worker, Deployment, Monitoring, Backups.
 | Kundenverknüpfung | Lead → Kunde (Dublettenerkennung), Konto ↔ Kunde (verifiziert, eindeutig, auditiert) |
 | Datenbank | 36 Tabellen, 5 Migrationen (neu: `0004_geocoding_crm`, additiv bzw. `RENAME VALUE`) |
 | Noch nicht vorhanden | Geocoding-Credentials/AVV, Angebote/Aufträge/Rechnungen, Zahlungen, LeadFinder-Provider, Landingpage-Inhalte und -Route |
+
+## 11. Stand nach Phase 1 / Tag 4
+
+| Bereich | Stand |
+| --- | --- |
+| Kunden-CRM | `/admin/customers` (Suche inkl. E-Mail-Hash, Filter, Pagination, Kennzahlen), `/admin/customers/[id]` (Stammdaten, Zahlungsstatus, Kontakte, Adressen, Objekte, Anfragen, Angebote, Consent, Audit) |
+| Adressen/Objekte | Haupt-, Rechnungs-, Service-Adressen; Dublettenvermeidung im Lead-Fluss; Objektregister `/admin/properties`; Lead → Kunde → Adresse → Objekt |
+| Angebote | Paket `@isela/quotes` (State Machine, Cent-Arithmetik, Pricing-Vertrag), `/admin/quotes`, Kundenansicht `/customer/quotes` |
+| Einladung | Lead → Kunde → Einladung (gehashter Einmal-Token, Rate-Limit, Audit), Annahme `/account/invitation` |
+| Datenbank | 39 Tabellen, 6 Migrationen (neu: `0005_customer_property_quotes`, additiv bzw. `RENAME VALUE`) |
+| Noch nicht vorhanden | Aufträge, Rechnungen, Zahlungen (Zahlungshistorie daher leer → Vorkasse), Preis-Engine-Implementierung, Online-Annahme durch Kunden, E-Mail-Versand von Angeboten, pg_trgm (gemessen, zurückgestellt) |
