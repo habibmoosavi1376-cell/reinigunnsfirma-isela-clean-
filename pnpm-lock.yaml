@@ -222,6 +222,12 @@ importers:
       '@isela/lead-finder':
         specifier: workspace:*
         version: link:../lead-finder
+      '@isela/payment-risk':
+        specifier: workspace:*
+        version: link:../payment-risk
+      '@isela/settings':
+        specifier: workspace:*
+        version: link:../settings
       '@isela/shared':
         specifier: workspace:*
         version: link:../shared

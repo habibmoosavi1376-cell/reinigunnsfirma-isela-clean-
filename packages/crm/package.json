@@ -16,6 +16,8 @@
     "@isela/database": "workspace:*",
     "@isela/geocoding": "workspace:*",
     "@isela/lead-finder": "workspace:*",
+    "@isela/payment-risk": "workspace:*",
+    "@isela/settings": "workspace:*",
     "@isela/shared": "workspace:*",
     "@isela/validation": "workspace:*"
   }

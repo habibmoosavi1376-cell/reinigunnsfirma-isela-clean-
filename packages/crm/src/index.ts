@@ -6,9 +6,23 @@ export {
   updateCustomer,
 } from "./customers.ts";
 export type { CustomerView, RegisterCustomerResult } from "./customers.ts";
-export { addCustomerAddress, checkAddressServiceArea } from "./addresses.ts";
-export { createProperty, listProperties } from "./properties.ts";
-export type { PropertyView } from "./properties.ts";
+export {
+  ADDRESS_TYPES,
+  addCustomerAddress,
+  checkAddressServiceArea,
+  setPrimaryAddress,
+  updateCustomerAddress,
+} from "./addresses.ts";
+export {
+  PROPERTY_FREQUENCIES,
+  PROPERTY_TYPES,
+  createProperty,
+  listProperties,
+  propertySearchSchema,
+  searchProperties,
+  updateProperty,
+} from "./properties.ts";
+export type { PropertySearchItem, PropertyView } from "./properties.ts";
 export { addLeadContact, createLead, suppressLeadContact, transitionLead } from "./leads.ts";
 export { getEffectiveConsent, recordConsent, withdrawLeadContactConsent } from "./consent.ts";
 export {
@@ -63,5 +77,30 @@ export {
   offeredTransitions,
 } from "./lead-admin.ts";
 export type { LeadDetail, LeadListItem, LeadListPage, LeadListQuery } from "./lead-admin.ts";
-export { linkAccountToCustomer, linkLeadToCustomer } from "./customer-linking.ts";
-export type { LinkAccountResult, LinkLeadResult } from "./customer-linking.ts";
+export {
+  INVITATION_LIMITS,
+  createPropertyFromLead,
+  inviteLeadContact,
+  linkAccountToCustomer,
+  linkLeadToCustomer,
+} from "./customer-linking.ts";
+export type {
+  LeadInvitationDeps,
+  LinkAccountResult,
+  LinkLeadResult,
+  PropertyFromLeadResult,
+} from "./customer-linking.ts";
+export {
+  CUSTOMER_KINDS,
+  CUSTOMER_PAGE_SIZE_MAX,
+  CUSTOMER_STATUSES,
+  customerListQuerySchema,
+  getCustomerDetail,
+  listCustomers,
+} from "./customer-admin.ts";
+export type {
+  CustomerDetail,
+  CustomerListItem,
+  CustomerListPage,
+  CustomerListQuery,
+} from "./customer-admin.ts";

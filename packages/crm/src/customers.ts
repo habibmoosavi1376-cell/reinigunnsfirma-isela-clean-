@@ -1,6 +1,6 @@
 import { recordAudit } from "@isela/audit";
 import { auditActorOf, authorize, requireActor, type ServiceContext } from "@isela/auth";
-import { and, eq, inArray, isNull, ne, schema, type Transaction } from "@isela/database";
+import { and, eq, inArray, isNull, ne, schema, sql, type Transaction } from "@isela/database";
 import type { Actor } from "@isela/auth";
 import { DomainError } from "@isela/shared";
 import { emailSchema, parseInput, phoneSchema, trimmedText, z } from "@isela/validation";
@@ -72,6 +72,14 @@ export async function registerCustomerInTransaction(
 ): Promise<RegisterCustomerResult> {
   const hashes = identityHashesFor(config, data);
   const uniqueHashes = hashes.filter((h) => UNIQUE_IDENTITY_KINDS.has(h.kind));
+  // Serialise concurrent registrations of the same identity: the second transaction waits,
+  // then finds the first one's customer instead of creating a duplicate (the unique identity
+  // index stays the last line of defence). Sorted to avoid lock-order deadlocks.
+  for (const valueHash of uniqueHashes.map((h) => h.valueHash).sort()) {
+    await tx.execute(
+      sql`SELECT pg_advisory_xact_lock(hashtextextended(${`customer-identity:${valueHash}`}, 0))`,
+    );
+  }
   if (uniqueHashes.length > 0) {
     const matches = await tx
       .select({
