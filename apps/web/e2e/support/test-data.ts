@@ -1,4 +1,4 @@
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import pg from "pg";
 import { findLink, type SinkMessage } from "../../tests/support/smtp-sink.ts";
 
@@ -113,4 +113,41 @@ export async function grantGlobalRole(email: string, role: "DISPATCHER"): Promis
       [email, role],
     );
   });
+}
+
+/**
+ * Creates a TEST-DATA customer and an open CUSTOMER invitation for `email` directly in the E2E
+ * database (stands in for an admin with MFA sending it). Only the SHA-256 hash of the token is
+ * stored, exactly like the production flow; the plain token is returned to the test.
+ */
+export async function createTestInvitation(email: string, displayName: string): Promise<string> {
+  const token = randomBytes(32).toString("base64url");
+  const tokenHash = createHash("sha256").update(token).digest("hex");
+  // The inviting staff member is a plain TEST-DATA user row without credentials: it never signs
+  // in, so no sign-up is spent on it (the sign-up rate limit stays untouched).
+  const inviterId = `e2e-inviter-${randomBytes(6).toString("hex")}`;
+  await withClient(async (client) => {
+    await client.query("BEGIN");
+    try {
+      await client.query(
+        `INSERT INTO "user" (id, name, email, email_verified) VALUES ($1, 'E2E-Testdaten Einladende', $2, true)`,
+        [inviterId, uniqueTestEmail("e2e-inviter")],
+      );
+      const customer = await client.query<{ id: string }>(
+        "INSERT INTO customer (kind, display_name) VALUES ('PRIVATE', $1) RETURNING id",
+        [displayName],
+      );
+      await client.query(
+        `INSERT INTO invitation
+           (email_normalized, token_hash, role_key, customer_id, invited_by_user_id, expires_at)
+         VALUES ($1, $2, 'CUSTOMER', $3, $4, now() + interval '1 day')`,
+        [email.toLowerCase(), tokenHash, customer.rows[0]?.id, inviterId],
+      );
+      await client.query("COMMIT");
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    }
+  });
+  return token;
 }
