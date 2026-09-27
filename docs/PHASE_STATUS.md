@@ -3,8 +3,9 @@
 | Feld | Wert |
 | --- | --- |
 | Stand | 2026-09-26 |
-| Aktuelle Phase | **Phase 0 – Foundation Audit** (abgeschlossen, siehe [`PHASE_0_REPORT.md`](PHASE_0_REPORT.md)) |
-| Nächste Phase | Phase 1 / Tag 1 – Foundation, Architektur, Security, CI (wartet auf Freigabe) |
+| Aktuelle Phase | **Phase 0 – Foundation Audit** (abgeschlossen, siehe [`PHASE_0_REPORT.md`](PHASE_0_REPORT.md)); **Phase 0.1 – Repository Handover** (siehe [`PHASE_0_1_REPORT.md`](PHASE_0_1_REPORT.md)) |
+| Phase 1 / Tag 1 | Spezifikation, Stack Gate, Datenbank, Auth, RBAC, CRM – siehe [`PHASE_1_DAY_1_REPORT.md`](PHASE_1_DAY_1_REPORT.md) (Branch `phase-1-foundation`) |
+| Nächste Phase | Phase 1 / Tag 2 gemäß ROADMAP – erst nach Review des Tag-1-Reports |
 | Repository | `habibmoosavi1376-cell/reinigunnsfirma-isela-clean-` (öffentlich) |
 | Arbeitsbranch | `claude/untitled-session-mhhecl` |
 
@@ -116,3 +117,25 @@ Website, Worker, Deployment, Monitoring, Backups.
 4. CI erweitern: `pnpm install --frozen-lockfile`, Typecheck, Lint, Test, Build,
    Dependency Review, CodeQL; npm-Ökosystem in Dependabot.
 5. Branch-Schutz, Secret Scanning + Push Protection, Private Vulnerability Reporting aktivieren.
+
+## 8. Stand nach Phase 1 / Tag 1
+
+| Bereich | Stand |
+| --- | --- |
+| Spezifikation | `docs/DOMAIN_MODEL.md` (Adressen, Referenzdaten, Einsatzgebiete, Leistungen, Leads, Consent, Settings, Auth, Payment-Risk-Invarianten, LeadFinder) |
+| Pakete | 11 Workspace-Pakete unter `packages/*` (siehe `ARCHITECTURE.md` §2.2) |
+| Datenbank | 32 Tabellen, 3 Migrationen (Extensions, Schema, Integritäts-Guards), idempotente Seeds |
+| Tests | Unit, Integration (PostgreSQL + PostGIS), Security; Zahlen im Tag-1-Report |
+| CI | zusätzlich Typecheck, Lint, Unit, Integration, Build, Drift, Grenzen, Hardcoding, Audit, Lizenzen, Dependency Review, CodeQL |
+| Noch nicht vorhanden | Benutzeroberfläche (`apps/web`), Worker (`apps/worker`), E-Mail-Anbieter-Adapter, Geocoding-Adapter, Zahlungsanbieter |
+
+## 9. Stand nach Phase 1 / Tag 2
+
+| Bereich | Stand |
+| --- | --- |
+| Web-App | `apps/web` (Next.js 16.3): Startseite, Anfrageformular, Auth-Seiten, Kundenbereich, Admin-Dashboard, Impressum/Datenschutz (Entwurf), Fehlerseiten, robots/sitemap |
+| Pakete | 13 Workspace-Pakete (neu: `@isela/config`, `@isela/partners`) |
+| Datenbank | 34 Tabellen, 4 Migrationen (neu: `0003_web_requests`, rein additiv) |
+| Tests | Unit, Integration, Web-Integration, E2E (Playwright); Zahlen im Tag-2-Report |
+| CI | zusätzlich Web-Build mit Client-Bundle-Secret-Scan und E2E-Job |
+| Noch nicht vorhanden | Geocoding-Adapter, Angebote/Aufträge/Rechnungen, Zahlungsanbieter, Worker, Kunden-Selbstverknüpfung |

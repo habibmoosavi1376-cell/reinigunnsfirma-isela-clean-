@@ -4,8 +4,22 @@ Softwareplattform für **ISELA CLEAN**: Reinigungsunternehmen mit eigener Reinig
 Vermittlung geprüfter Reinigungspartner (Marketplace), wiederkehrenden Aufträgen und
 B2B-Kundschaft.
 
-> **Status:** Phase 0 (Foundation) – es existiert noch **kein** ausführbarer
-> Anwendungscode. Siehe [`docs/PHASE_STATUS.md`](docs/PHASE_STATUS.md).
+> **Status:** Phase 1 / Tag 1 – Datenbank-, Auth-, RBAC- und CRM-Fundament (Pakete unter
+> `packages/*`, noch **keine** Benutzeroberfläche). Siehe [`docs/PHASE_STATUS.md`](docs/PHASE_STATUS.md).
+
+## Offizielles Repository
+
+```text
+Official Project Repository:
+reinigunnsfirma-isela-clean-
+
+Project:
+ISELA CLEAN
+```
+
+Dies ist das **einzige** Repository für ISELA CLEAN. Es werden keine weiteren
+Repositories, Kopien oder parallelen Foundations angelegt. Entwicklung erfolgt
+ausschließlich über Feature-Branches und Pull Requests gegen `main`.
 
 ## Markt
 
@@ -36,12 +50,28 @@ Gelsenkirchen → 25 km → 50 km → Ruhrgebiet → NRW → Deutschland
 - Jede Änderung muss die CI bestehen (Secret-Scan, Repo-Guard, Lint).
 - Secrets gehören **niemals** ins Repository. Vorlage: [`.env.example`](.env.example).
 
-## Lokale Prüfungen (aktueller Stand)
+## Entwicklung
 
-Solange kein Anwendungscode existiert, laufen nur Repository-Prüfungen:
+Voraussetzungen: Node.js 24 (`.nvmrc`), pnpm 10.33 (`packageManager`), PostgreSQL 16 mit
+PostGIS 3.4 für Integrations- und E2E-Tests. Die Web-App startet nur mit vollständiger
+Konfiguration (siehe `.env.example`); `pnpm --filter @isela/web dev` für die Entwicklung.
 
 ```bash
-./scripts/check-forbidden-files.sh      # verbotene Dateien (.env, Schlüssel, Dumps)
-npx markdownlint-cli2 "**/*.md"         # Markdown-Lint
-gitleaks git . --no-banner              # Secret-Scan (gitleaks >= 8.30)
+pnpm install --frozen-lockfile
+pnpm run typecheck && pnpm run lint && pnpm run build
+pnpm run test:unit
+TEST_DATABASE_URL=postgres://…/isela_test pnpm run test:integration   # DB-Name muss "test" enthalten
+DATABASE_URL=… pnpm run db:migrate && DATABASE_URL=… pnpm run db:seed
+pnpm run db:check                      # Migrations-Drift
+pnpm run check:boundaries              # Modulgrenzen
+pnpm run check:hardcoding              # keine standortspezifische Logik
+pnpm run check:audit && pnpm run check:licenses
+pnpm --filter @isela/web run build    # Web-App (Produktions-Build, ohne Env möglich)
+pnpm run check:client-bundle           # keine Server-Secrets in Client-Assets (nach dem Build)
+E2E_DATABASE_URL=postgres://…/isela_e2e pnpm run test:e2e   # DB-Name muss "e2e" enthalten
+./scripts/check-forbidden-files.sh     # verbotene Dateien (.env, Schlüssel, Dumps)
+npx markdownlint-cli2 "**/*.md"        # Markdown-Lint
+gitleaks git . --no-banner             # Secret-Scan (gitleaks >= 8.30)
 ```
+
+Fachliches Datenmodell: [`docs/DOMAIN_MODEL.md`](docs/DOMAIN_MODEL.md).
