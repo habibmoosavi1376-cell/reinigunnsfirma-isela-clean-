@@ -47,6 +47,11 @@ export function normalizeTaxId(raw: string): string {
   return raw.replace(/[\s.-]/g, "").toUpperCase();
 }
 
+/** Payment references (e.g. IBAN, mandate reference): spaces/dots/dashes removed, upper case. */
+export function normalizePaymentReference(raw: string): string {
+  return raw.replace(/[\s.-]/g, "").toUpperCase();
+}
+
 export function normalizeAddress(address: {
   street: string;
   houseNumber: string;
@@ -70,6 +75,7 @@ export interface IdentityInput {
   readonly email?: string | null | undefined;
   readonly phone?: string | null | undefined;
   readonly taxId?: string | null | undefined;
+  readonly paymentReference?: string | null | undefined;
 }
 
 export interface IdentityHash {
@@ -89,6 +95,16 @@ export function identityHashesFor(config: CrmConfig, input: IdentityInput): Iden
     hashes.push({
       kind: "TAX_ID",
       valueHash: hashIdentity(config, "TAX_ID", normalizeTaxId(input.taxId)),
+    });
+  }
+  if (input.paymentReference != null) {
+    hashes.push({
+      kind: "PAYMENT_REFERENCE",
+      valueHash: hashIdentity(
+        config,
+        "PAYMENT_REFERENCE",
+        normalizePaymentReference(input.paymentReference),
+      ),
     });
   }
   if (input.phone != null) {

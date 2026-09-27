@@ -22,6 +22,7 @@ import {
   z,
 } from "@isela/validation";
 import { keyedHash, type CrmConfig } from "./identity.ts";
+import { geocodeSubmittedRequest, type GeocodingDeps } from "./request-geocoding.ts";
 import { loadUsableLeadSource, suppressionHashes } from "./leads.ts";
 import type { LeadStatus } from "./lead-state-machine.ts";
 
@@ -65,15 +66,23 @@ export const serviceRequestInputSchema = z
     propertyType: z.enum(REQUEST_PROPERTY_TYPES),
     approximateAreaSqm: z.number().positive().max(1_000_000).optional(),
     frequency: z.enum(REQUEST_FREQUENCIES),
+    /** Property management only (optional, prepares multi-property handling). */
+    numberOfProperties: z.number().int().min(1).max(100_000).optional(),
     message: z.string().trim().max(2000).optional(),
     privacyNoticeAcknowledged: z.literal(true, { error: "Privacy notice must be acknowledged" }),
     privacyNoticeVersion: z.string().trim().min(1).max(50),
     marketingConsent: z.boolean().default(false),
     marketingConsentTextVersion: z.string().trim().min(1).max(50).optional(),
   })
+  // Customer-type rules: companies need a company name (fullName is then the contact person);
+  // property counts only make sense for property management.
   .refine((r) => r.customerType === "PRIVATE" || r.companyName !== undefined, {
     message: "companyName is required for business requests",
     path: ["companyName"],
+  })
+  .refine((r) => r.numberOfProperties === undefined || r.customerType === "PROPERTY_MANAGEMENT", {
+    message: "numberOfProperties is only allowed for property management",
+    path: ["numberOfProperties"],
   })
   .refine((r) => isValidPostalCode(r.postalCode, r.country), {
     message: "Invalid postal code for country",
@@ -96,13 +105,17 @@ export interface SubmitServiceRequestDeps {
   readonly clientKey: string;
   readonly rateLimitPerHour: number;
   readonly correlationId?: string | undefined;
+  /** Geocoding + service-area check after storing; omitted or provider null = not configured. */
+  readonly geocoding?: GeocodingDeps;
 }
 
 export interface SubmitServiceRequestResult {
   readonly requestId: string;
   readonly leadId: string;
-  /** Always UNKNOWN until the address is geocoded and checked against active service areas. */
-  readonly serviceAreaStatus: "UNKNOWN";
+  /** UNKNOWN unless the address was geocoded with sufficient quality. */
+  readonly serviceAreaStatus: "AVAILABLE" | "NOT_AVAILABLE" | "UNKNOWN";
+  /** true if the post-commit geocoding step failed unexpectedly (caller logs it). */
+  readonly geocodingFailed: boolean;
 }
 
 /**
@@ -158,7 +171,7 @@ export async function submitServiceRequest(
   const auditActor: AuditActor =
     deps.requester === null ? { type: "SYSTEM" } : { type: "USER", id: deps.requester.userId };
 
-  return deps.db.transaction(async (tx) => {
+  const stored = await deps.db.transaction(async (tx) => {
     const [lead] = await tx
       .insert(schema.lead)
       .values({
@@ -220,6 +233,7 @@ export async function submitServiceRequest(
         propertyType: data.propertyType,
         approximateAreaSqm: data.approximateAreaSqm ?? null,
         frequency: data.frequency,
+        numberOfProperties: data.numberOfProperties ?? null,
         message: data.message === undefined || data.message === "" ? null : data.message,
         street: data.street,
         houseNumber: data.houseNumber,
@@ -250,6 +264,14 @@ export async function submitServiceRequest(
 
     await recordAudit(tx, {
       actor: auditActor,
+      action: "lead.created",
+      entityType: "lead",
+      entityId: lead.id,
+      after: { source: WEBSITE_REQUEST_SOURCE_KEY, status: "DISCOVERED" },
+      correlationId: deps.correlationId,
+    });
+    await recordAudit(tx, {
+      actor: auditActor,
       action: "service_request.submitted",
       entityType: "service_request",
       entityId: request.id,
@@ -264,8 +286,26 @@ export async function submitServiceRequest(
       correlationId: deps.correlationId,
     });
 
-    return { requestId: request.id, leadId: lead.id, serviceAreaStatus: "UNKNOWN" };
+    return { requestId: request.id, leadId: lead.id };
   });
+
+  // Geocoding runs after the commit (external HTTP call, never inside a DB transaction). The
+  // request is already stored: a failure here must not lose it – staff can re-run geocoding.
+  let serviceAreaStatus: SubmitServiceRequestResult["serviceAreaStatus"] = "UNKNOWN";
+  let geocodingFailed = false;
+  if (deps.geocoding !== undefined) {
+    try {
+      const run = await geocodeSubmittedRequest(
+        { db: deps.db, clock: deps.clock, actor: auditActor, correlationId: deps.correlationId },
+        stored.requestId,
+        deps.geocoding,
+      );
+      serviceAreaStatus = run.serviceAvailability;
+    } catch {
+      geocodingFailed = true;
+    }
+  }
+  return { ...stored, serviceAreaStatus, geocodingFailed };
 }
 
 export interface CustomerRequestView {
@@ -310,7 +350,7 @@ export interface LeadOverview {
     serviceName: string;
     customerType: (typeof REQUEST_CUSTOMER_TYPES)[number];
     city: string;
-    serviceAreaStatus: "UNKNOWN" | "IN_AREA" | "OUTSIDE";
+    serviceAreaStatus: "UNKNOWN" | "AVAILABLE" | "NOT_AVAILABLE";
   }[];
 }
 

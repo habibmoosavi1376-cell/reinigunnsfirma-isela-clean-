@@ -1,6 +1,7 @@
 import { recordAudit } from "@isela/audit";
 import { auditActorOf, authorize, requireActor, type ServiceContext } from "@isela/auth";
 import { and, eq, inArray, isNull, ne, schema, type Transaction } from "@isela/database";
+import type { Actor } from "@isela/auth";
 import { DomainError } from "@isela/shared";
 import { emailSchema, parseInput, phoneSchema, trimmedText, z } from "@isela/validation";
 import {
@@ -11,14 +12,15 @@ import {
   type IdentityKind,
 } from "./identity.ts";
 
-const registerCustomerInput = z
+export const registerCustomerInput = z
   .strictObject({
-    kind: z.enum(["PRIVATE", "BUSINESS"]),
+    kind: z.enum(["PRIVATE", "BUSINESS", "PROPERTY_MANAGEMENT"]),
     displayName: trimmedText(200),
     companyName: trimmedText(200).nullable().default(null),
     email: emailSchema.nullable().default(null),
     phone: phoneSchema.nullable().default(null),
     taxId: trimmedText(40).nullable().default(null),
+    paymentReference: trimmedText(64).nullable().default(null),
   })
   .refine((c) => c.kind === "PRIVATE" || c.companyName !== null, {
     message: "companyName is required for business customers",
@@ -51,84 +53,98 @@ export async function registerCustomer(
   const actor = requireActor(ctx.actor);
   authorize(actor, "customer:create");
   const data = parseInput(registerCustomerInput, input);
+  return ctx.db.transaction((tx) =>
+    registerCustomerInTransaction(tx, actor, data, config, ctx.correlationId),
+  );
+}
+
+/**
+ * Transaction-scoped core of `registerCustomer` (callers must have authorized
+ * `customer:create`). Used by lead → customer linking so that matching/creating the customer
+ * and linking the request happen atomically.
+ */
+export async function registerCustomerInTransaction(
+  tx: Transaction,
+  actor: Actor,
+  data: z.output<typeof registerCustomerInput>,
+  config: CrmConfig,
+  correlationId: string | undefined,
+): Promise<RegisterCustomerResult> {
   const hashes = identityHashesFor(config, data);
-
-  return ctx.db.transaction(async (tx) => {
-    const uniqueHashes = hashes.filter((h) => UNIQUE_IDENTITY_KINDS.has(h.kind));
-    if (uniqueHashes.length > 0) {
-      const matches = await tx
-        .select({
-          customerId: schema.customerIdentity.customerId,
-          kind: schema.customerIdentity.kind,
-        })
-        .from(schema.customerIdentity)
-        .where(
-          and(
-            inArray(
-              schema.customerIdentity.kind,
-              uniqueHashes.map((h) => h.kind),
-            ),
-            inArray(
-              schema.customerIdentity.valueHash,
-              uniqueHashes.map((h) => h.valueHash),
-            ),
-          ),
-        );
-      // Hashes are keyed by kind (HMAC over "KIND:value"), so cross-kind matches cannot occur.
-      const matched = matches;
-      const distinctCustomers = new Set(matched.map((m) => m.customerId));
-      if (distinctCustomers.size > 1) {
-        throw new DomainError(
-          "CONFLICT",
-          "Identity attributes belong to different customers; manual review required",
-        );
-      }
-      const first = matched[0];
-      if (first !== undefined) {
-        await recordAudit(tx, {
-          actor: auditActorOf(actor),
-          action: "customer.registration_matched_existing",
-          entityType: "customer",
-          entityId: first.customerId,
-          after: { matchedBy: first.kind },
-          correlationId: ctx.correlationId,
-        });
-        return {
-          outcome: "EXISTING_CUSTOMER",
-          customerId: first.customerId,
-          matchedBy: first.kind,
-        };
-      }
-    }
-
-    const [created] = await tx
-      .insert(schema.customer)
-      .values({
-        kind: data.kind,
-        displayName: data.displayName,
-        companyName: data.companyName,
-        createdByUserId: actor.userId,
+  const uniqueHashes = hashes.filter((h) => UNIQUE_IDENTITY_KINDS.has(h.kind));
+  if (uniqueHashes.length > 0) {
+    const matches = await tx
+      .select({
+        customerId: schema.customerIdentity.customerId,
+        kind: schema.customerIdentity.kind,
       })
-      .returning({ id: schema.customer.id });
-    if (created === undefined) {
-      throw new DomainError("CONFLICT", "Customer could not be created");
+      .from(schema.customerIdentity)
+      .where(
+        and(
+          inArray(
+            schema.customerIdentity.kind,
+            uniqueHashes.map((h) => h.kind),
+          ),
+          inArray(
+            schema.customerIdentity.valueHash,
+            uniqueHashes.map((h) => h.valueHash),
+          ),
+        ),
+      );
+    // Hashes are keyed by kind (HMAC over "KIND:value"), so cross-kind matches cannot occur.
+    const matched = matches;
+    const distinctCustomers = new Set(matched.map((m) => m.customerId));
+    if (distinctCustomers.size > 1) {
+      throw new DomainError(
+        "CONFLICT",
+        "Identity attributes belong to different customers; manual review required",
+      );
     }
-    const duplicateReviewRequired = await attachIdentities(tx, created.id, hashes);
+    const first = matched[0];
+    if (first !== undefined) {
+      await recordAudit(tx, {
+        actor: auditActorOf(actor),
+        action: "customer.registration_matched_existing",
+        entityType: "customer",
+        entityId: first.customerId,
+        after: { matchedBy: first.kind },
+        correlationId,
+      });
+      return {
+        outcome: "EXISTING_CUSTOMER",
+        customerId: first.customerId,
+        matchedBy: first.kind,
+      };
+    }
+  }
 
-    await recordAudit(tx, {
-      actor: auditActorOf(actor),
-      action: "customer.created",
-      entityType: "customer",
-      entityId: created.id,
-      after: {
-        kind: data.kind,
-        identityKinds: hashes.map((h) => h.kind),
-        duplicateReviewRequired,
-      },
-      correlationId: ctx.correlationId,
-    });
-    return { outcome: "CREATED", customerId: created.id, duplicateReviewRequired };
+  const [created] = await tx
+    .insert(schema.customer)
+    .values({
+      kind: data.kind,
+      displayName: data.displayName,
+      companyName: data.companyName,
+      createdByUserId: actor.userId,
+    })
+    .returning({ id: schema.customer.id });
+  if (created === undefined) {
+    throw new DomainError("CONFLICT", "Customer could not be created");
+  }
+  const duplicateReviewRequired = await attachIdentities(tx, created.id, hashes);
+
+  await recordAudit(tx, {
+    actor: auditActorOf(actor),
+    action: "customer.created",
+    entityType: "customer",
+    entityId: created.id,
+    after: {
+      kind: data.kind,
+      identityKinds: hashes.map((h) => h.kind),
+      duplicateReviewRequired,
+    },
+    correlationId,
   });
+  return { outcome: "CREATED", customerId: created.id, duplicateReviewRequired };
 }
 
 /**
@@ -183,7 +199,7 @@ export async function attachIdentities(
 
 export interface CustomerView {
   readonly id: string;
-  readonly kind: "PRIVATE" | "BUSINESS";
+  readonly kind: "PRIVATE" | "BUSINESS" | "PROPERTY_MANAGEMENT";
   readonly displayName: string;
   readonly companyName: string | null;
   readonly status: "ACTIVE" | "INACTIVE" | "BLOCKED";

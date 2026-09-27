@@ -117,3 +117,67 @@ export async function getEffectiveConsent(
     .limit(1);
   return latest?.status ?? "NONE";
 }
+
+const withdrawInput = z.strictObject({ contactId: z.uuid(), purpose: z.enum(PURPOSES) });
+
+/**
+ * Staff records a withdrawal (e.g. by phone or letter) for a lead contact. Consent records
+ * stay immutable: a new WITHDRAWN record is appended with the withdrawn text version, the
+ * contact's consent status follows, and both are audited.
+ */
+export async function withdrawLeadContactConsent(
+  ctx: ServiceContext,
+  input: unknown,
+): Promise<string> {
+  const actor = requireActor(ctx.actor);
+  authorize(actor, "consent:record");
+  const data = parseInput(withdrawInput, input);
+  return ctx.db.transaction(async (tx) => {
+    const [latest] = await tx
+      .select({ status: schema.consent.status, textVersion: schema.consent.textVersion })
+      .from(schema.consent)
+      .where(
+        and(
+          eq(schema.consent.subjectType, "LEAD_CONTACT"),
+          eq(schema.consent.subjectId, data.contactId),
+          eq(schema.consent.purpose, data.purpose),
+        ),
+      )
+      .orderBy(desc(schema.consent.createdAt), desc(schema.consent.id))
+      .limit(1);
+    if (latest?.status !== "GRANTED") {
+      throw new DomainError("INVALID_STATE_TRANSITION", "There is no granted consent to withdraw");
+    }
+    const now = ctx.clock.now();
+    const [row] = await tx
+      .insert(schema.consent)
+      .values({
+        subjectType: "LEAD_CONTACT",
+        subjectId: data.contactId,
+        purpose: data.purpose,
+        legalBasis: legalBasisFor(data.purpose),
+        status: "WITHDRAWN",
+        withdrawnAt: now,
+        source: "STAFF_RECORDED",
+        textVersion: latest.textVersion,
+        recordedByUserId: actor.userId,
+      })
+      .returning({ id: schema.consent.id });
+    if (row === undefined) {
+      throw new DomainError("CONFLICT", "Consent could not be recorded");
+    }
+    await tx
+      .update(schema.leadContact)
+      .set({ consentStatus: "WITHDRAWN", updatedAt: now })
+      .where(eq(schema.leadContact.id, data.contactId));
+    await recordAudit(tx, {
+      actor: auditActorOf(actor),
+      action: "consent.withdrawn",
+      entityType: "consent",
+      entityId: row.id,
+      after: { subjectType: "LEAD_CONTACT", subjectId: data.contactId, purpose: data.purpose },
+      correlationId: ctx.correlationId,
+    });
+    return row.id;
+  });
+}

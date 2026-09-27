@@ -130,3 +130,19 @@ export async function setServiceAreaActive(ctx: ServiceContext, input: unknown):
     });
   });
 }
+
+export interface ServiceAreaOption {
+  readonly id: string;
+  readonly name: string;
+  readonly active: boolean;
+}
+
+/** Staff: all service areas (incl. inactive) for filters and reports. */
+export async function listServiceAreaOptions(ctx: ServiceContext): Promise<ServiceAreaOption[]> {
+  authorize(ctx.actor, "catalog:read");
+  const a = schema.serviceArea;
+  return ctx.db
+    .select({ id: a.id, name: a.name, active: a.active })
+    .from(a)
+    .orderBy(a.priority, a.key);
+}
