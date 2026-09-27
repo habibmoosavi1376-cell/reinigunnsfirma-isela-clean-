@@ -109,6 +109,19 @@ export function RequestForm({
           />
           <FieldError state={state} name="companyName" />
         </div>
+        <div className="field">
+          <label htmlFor="numberOfProperties">Anzahl Objekte (optional, nur Hausverwaltung)</label>
+          <input
+            id="numberOfProperties"
+            name="numberOfProperties"
+            defaultValue={value("numberOfProperties")}
+            inputMode="numeric"
+            maxLength={6}
+            aria-invalid={invalid("numberOfProperties")}
+            aria-describedby={describedBy(state, "numberOfProperties")}
+          />
+          <FieldError state={state} name="numberOfProperties" />
+        </div>
       </fieldset>
 
       <fieldset>
@@ -123,8 +136,11 @@ export function RequestForm({
             autoComplete="name"
             maxLength={120}
             aria-invalid={invalid("fullName")}
-            aria-describedby={describedBy(state, "fullName")}
+            aria-describedby={describedBy(state, "fullName", "fullName-hint")}
           />
+          <p className="hint" id="fullName-hint">
+            Bei Gewerbe und Hausverwaltung: Ihre Ansprechpartnerin bzw. Ihr Ansprechpartner.
+          </p>
           <FieldError state={state} name="fullName" />
         </div>
         <div className="field">

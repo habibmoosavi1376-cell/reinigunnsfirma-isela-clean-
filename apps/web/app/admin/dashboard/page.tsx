@@ -1,13 +1,14 @@
 import { isAuthorized } from "@isela/auth";
 import { getLeadOverview } from "@isela/crm";
+import Link from "next/link";
+import {
+  AVAILABILITY_LABELS,
+  CUSTOMER_TYPE_LABELS,
+  LEAD_STATUS_LABELS,
+  label,
+} from "@/lib/admin/labels";
 import { requireAdminArea } from "@/lib/server/guards";
 import { getServiceContext } from "@/lib/server/session";
-
-const AREA_STATUS: Record<string, string> = {
-  UNKNOWN: "noch nicht geprüft",
-  IN_AREA: "im Gebiet",
-  OUTSIDE: "außerhalb",
-};
 
 export default async function AdminDashboardPage() {
   const actor = await requireAdminArea();
@@ -31,7 +32,10 @@ export default async function AdminDashboardPage() {
         <ul>
           {overview.byStatus.map((row) => (
             <li key={row.status}>
-              {row.status}: {row.count}
+              <Link href={`/admin/leads?status=${row.status}`}>
+                {label(LEAD_STATUS_LABELS, row.status)}
+              </Link>
+              : {row.count}
             </li>
           ))}
         </ul>
@@ -55,9 +59,9 @@ export default async function AdminDashboardPage() {
               <tr key={request.id}>
                 <td>{request.createdAt.toLocaleString("de-DE")}</td>
                 <td>{request.serviceName}</td>
-                <td>{request.customerType}</td>
+                <td>{label(CUSTOMER_TYPE_LABELS, request.customerType)}</td>
                 <td>{request.city}</td>
-                <td>{AREA_STATUS[request.serviceAreaStatus]}</td>
+                <td>{label(AVAILABILITY_LABELS, request.serviceAreaStatus)}</td>
               </tr>
             ))}
           </tbody>

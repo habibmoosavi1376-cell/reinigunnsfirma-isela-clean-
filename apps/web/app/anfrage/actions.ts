@@ -31,7 +31,7 @@ export async function submitRequestAction(
   const services = getServices();
   const correlationId = crypto.randomUUID();
   try {
-    await submitServiceRequest(input, {
+    const result = await submitServiceRequest(input, {
       db: services.database.db,
       clock: services.clock,
       config: services.crmConfig,
@@ -39,7 +39,17 @@ export async function submitRequestAction(
       clientKey: await getClientKey(),
       rateLimitPerHour: services.env.PUBLIC_REQUEST_RATE_LIMIT_PER_HOUR,
       correlationId,
+      geocoding: services.geocoding,
     });
+    if (result.geocodingFailed) {
+      // The request is stored; staff can re-run geocoding. Logged without personal data.
+      logServerError(
+        "service_request.geocoding_failed",
+        new Error("geocoding step failed"),
+        correlationId,
+      );
+    }
+    // The visitor gets the same answer regardless of availability: staff confirm coverage.
     return { status: "success" };
   } catch (error) {
     if (isDomainError(error, "VALIDATION_FAILED")) {

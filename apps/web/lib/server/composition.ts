@@ -1,7 +1,8 @@
 import "server-only";
 import { createAuth, type Auth } from "@isela/auth";
 import { isLoopbackHost, type ServerEnv } from "@isela/config";
-import type { CrmConfig } from "@isela/crm";
+import type { CrmConfig, GeocodingDeps } from "@isela/crm";
+import { createGeoapifyProvider, type GeocodingProvider } from "@isela/geocoding";
 import { createDatabase, type DatabaseHandle } from "@isela/database";
 import { createSmtpEmailSender, type EmailSender } from "@isela/notifications";
 import { systemClock, type Clock } from "@isela/shared";
@@ -14,6 +15,7 @@ export interface WebServices {
   readonly emailSender: EmailSender;
   readonly crmConfig: CrmConfig;
   readonly clock: Clock;
+  readonly geocoding: GeocodingDeps;
 }
 
 export interface CompositionOverrides {
@@ -21,6 +23,8 @@ export interface CompositionOverrides {
   readonly emailSender?: EmailSender;
   readonly clock?: Clock;
   readonly database?: DatabaseHandle;
+  /** Test code only: a geocoding test double (production uses the configured provider). */
+  readonly geocodingProvider?: GeocodingProvider | null;
 }
 
 export function createWebServices(
@@ -57,6 +61,15 @@ export function createWebServices(
     ...(env.AUTH_TRUSTED_PROXIES.length > 0 ? { trustedProxies: env.AUTH_TRUSTED_PROXIES } : {}),
     clock,
   });
+  const geocodingProvider =
+    overrides.geocodingProvider !== undefined
+      ? overrides.geocodingProvider
+      : env.GEOCODING_PROVIDER === "geoapify" && env.GEOCODING_API_KEY !== undefined
+        ? createGeoapifyProvider({
+            apiKey: env.GEOCODING_API_KEY,
+            timeoutMs: env.GEOCODING_TIMEOUT_MS,
+          })
+        : null;
   return {
     env,
     database,
@@ -64,5 +77,9 @@ export function createWebServices(
     emailSender,
     crmConfig: { identityPepper: env.IDENTITY_HASH_PEPPER },
     clock,
+    geocoding: {
+      provider: geocodingProvider,
+      maxRequestsPerMinute: env.GEOCODING_MAX_REQUESTS_PER_MINUTE,
+    },
   };
 }

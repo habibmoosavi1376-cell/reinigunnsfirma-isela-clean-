@@ -16,6 +16,7 @@ const nextConfig: NextConfig = {
     "@isela/auth",
     "@isela/catalog",
     "@isela/config",
+    "@isela/geocoding",
     "@isela/crm",
     "@isela/database",
     "@isela/lead-finder",

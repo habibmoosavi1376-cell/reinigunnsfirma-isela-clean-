@@ -52,6 +52,12 @@ export function mapRequestForm(form: FormValues): {
     const parsed = Number(area.replace(",", "."));
     input["approximateAreaSqm"] = Number.isFinite(parsed) ? parsed : area;
   }
+  // Only meaningful for property management; the domain rejects it for other customer types.
+  const properties = text(form, "numberOfProperties");
+  if (properties !== undefined) {
+    const parsed = Number(properties);
+    input["numberOfProperties"] = Number.isInteger(parsed) ? parsed : properties;
+  }
   // Checkbox: only the literal "on"/"true" counts as an acknowledgement.
   const acknowledged = form.get("privacyNoticeAcknowledged");
   input["privacyNoticeAcknowledged"] = acknowledged === "on" || acknowledged === "true";
@@ -72,7 +78,7 @@ export function mapRequestForm(form: FormValues): {
  * form reset does not wipe the form. Whitelisted fields only (never the honeypot), capped.
  */
 export type RequestFormValues = Partial<
-  Record<(typeof TEXT_FIELDS)[number] | "approximateAreaSqm", string>
+  Record<(typeof TEXT_FIELDS)[number] | "approximateAreaSqm" | "numberOfProperties", string>
 > & {
   readonly marketingConsent?: boolean;
 };
@@ -81,7 +87,7 @@ const MAX_ECHO_LENGTH = 2000;
 
 export function echoRequestFormValues(form: FormValues): RequestFormValues {
   const values: Partial<Record<string, string>> = {};
-  for (const field of [...TEXT_FIELDS, "approximateAreaSqm"] as const) {
+  for (const field of [...TEXT_FIELDS, "approximateAreaSqm", "numberOfProperties"] as const) {
     const value = form.get(field);
     if (typeof value === "string" && value !== "") values[field] = value.slice(0, MAX_ECHO_LENGTH);
   }
@@ -112,6 +118,8 @@ const FIELD_MESSAGES: Partial<Record<string, string>> = {
   serviceCategoryKey: "Bitte wählen Sie eine Leistung.",
   propertyType: "Bitte wählen Sie die Objektart.",
   approximateAreaSqm: "Bitte geben Sie die Fläche als Zahl in m² an.",
+  numberOfProperties:
+    "Die Anzahl der Objekte (ganze Zahl) ist nur bei Hausverwaltungen/Immobilien möglich.",
   frequency: "Bitte wählen Sie die gewünschte Häufigkeit.",
   message: "Die Nachricht darf höchstens 2000 Zeichen lang sein.",
   privacyNoticeAcknowledged:

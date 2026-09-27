@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { PRIVACY_NOTICE_VERSION } from "@/lib/forms/request-form";
+import { getServices } from "@/lib/server/services";
 
 export const metadata: Metadata = { title: "Datenschutzhinweise" };
 
@@ -8,6 +9,7 @@ export const metadata: Metadata = { title: "Datenschutzhinweise" };
  * policy must be provided and approved by the controller before go-live (see report).
  */
 export default function PrivacyPage() {
+  const geocodingProvider = getServices().geocoding.provider?.id ?? null;
   return (
     <section className="section">
       <div className="container">
@@ -22,6 +24,13 @@ export default function PrivacyPage() {
           Telefonnummer und Firma, die Adresse des Objekts sowie Ihre Angaben zur gewünschten
           Leistung, um Ihre Anfrage zu prüfen und Ihnen ein Angebot zu machen (vorvertragliche
           Maßnahme).
+        </p>
+        <p>
+          Um zu prüfen, ob wir an der Adresse des Objekts tätig sein können, wird die Adresse in
+          Koordinaten umgerechnet (Geocoding) und mit unseren Servicegebieten abgeglichen.
+          {geocodingProvider === "geoapify"
+            ? " Dafür wird ausschließlich die Objektadresse (ohne Name und Kontaktdaten) an den Dienstleister Geoapify GmbH (Deutschland) übermittelt."
+            : " Derzeit ist dafür kein externer Dienstleister angebunden; die Prüfung erfolgt manuell."}
         </p>
         <p>
           Eine Einwilligung in Informationen per E-Mail ist freiwillig, wird gesondert gespeichert

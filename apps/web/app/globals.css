@@ -332,3 +332,117 @@ a {
     transition: none !important;
   }
 }
+
+/* --- Back office ------------------------------------------------------------------------- */
+.admin-shell {
+  display: grid;
+  gap: var(--space-4);
+}
+@media (min-width: 60rem) {
+  .admin-shell {
+    grid-template-columns: 14rem minmax(0, 1fr);
+    align-items: start;
+  }
+}
+.admin-nav ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+}
+@media (min-width: 60rem) {
+  .admin-nav ul {
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+}
+.admin-nav a,
+.admin-nav .admin-nav__soon {
+  display: block;
+  padding: var(--space-1) var(--space-2);
+  border-radius: 6px;
+}
+.admin-nav a[aria-current="page"] {
+  background: var(--color-surface);
+  font-weight: 600;
+}
+.admin-nav__soon {
+  color: var(--color-muted);
+}
+.admin-nav__soon small {
+  display: block;
+  font-size: 0.75rem;
+}
+.table-scroll {
+  overflow-x: auto;
+}
+.badge {
+  display: inline-block;
+  padding: 0 var(--space-2);
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+.badge--ok {
+  border-color: var(--color-success);
+  color: var(--color-success);
+}
+.badge--warn {
+  border-color: #8a5a00;
+  color: #8a5a00;
+}
+.filters {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  align-items: end;
+  margin-bottom: var(--space-4);
+}
+.pagination {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  margin-top: var(--space-3);
+}
+.detail-grid {
+  display: grid;
+  gap: var(--space-4);
+}
+@media (min-width: 60rem) {
+  .detail-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.panel {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: var(--space-3) var(--space-4);
+}
+.panel h2 {
+  margin-top: 0;
+  font-size: 1.15rem;
+}
+.facts {
+  display: grid;
+  grid-template-columns: minmax(8rem, max-content) 1fr;
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+}
+.facts dt {
+  color: var(--color-muted);
+}
+.facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.inline-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: end;
+  margin-top: var(--space-2);
+}
