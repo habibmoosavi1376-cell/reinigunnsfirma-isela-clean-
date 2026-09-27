@@ -145,6 +145,27 @@ export async function acceptInvitation(ctx: ServiceContext, input: unknown): Pro
         grantedByUserId: invitation.invitedByUserId,
       })
       .onConflictDoNothing();
+    // ON CONFLICT DO NOTHING also swallows the "one customer per account" unique index. Only
+    // accept when exactly this assignment exists now; otherwise nothing is accepted (rollback).
+    const [granted] = await tx
+      .select({ id: schema.userRole.id })
+      .from(schema.userRole)
+      .where(
+        and(
+          eq(schema.userRole.userId, actor.userId),
+          eq(schema.userRole.roleKey, invitation.roleKey),
+          invitation.customerId === null
+            ? isNull(schema.userRole.customerId)
+            : eq(schema.userRole.customerId, invitation.customerId),
+          invitation.partnerId === null
+            ? isNull(schema.userRole.partnerId)
+            : eq(schema.userRole.partnerId, invitation.partnerId),
+        ),
+      )
+      .limit(1);
+    if (granted === undefined) {
+      throw new DomainError("CONFLICT", "Account is already linked to another customer");
+    }
     await tx
       .update(schema.invitation)
       .set({ acceptedAt: now, acceptedByUserId: actor.userId })
