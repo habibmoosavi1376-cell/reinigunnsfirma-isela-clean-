@@ -6,3 +6,5 @@ export {
   paymentPolicySchema,
 } from "./policy.ts";
 export type { PaymentPolicy, PaymentTerms, PaymentTermsReasonCode } from "./policy.ts";
+export { evaluatePaymentTerms, historyWithoutOrders, paymentHistorySchema } from "./evaluate.ts";
+export type { PaymentHistory, PaymentTermsDecision } from "./evaluate.ts";

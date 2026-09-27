@@ -65,6 +65,7 @@ export const PAYMENT_TERMS_REASON_CODES = [
   "PENDING_DUPLICATE_REVIEW",
   "B2C_INVOICE_TERMS_DISABLED",
   "MANUAL_OVERRIDE",
+  "CUSTOMER_BLOCKED",
 ] as const;
 
 export type PaymentTermsReasonCode = (typeof PAYMENT_TERMS_REASON_CODES)[number];
