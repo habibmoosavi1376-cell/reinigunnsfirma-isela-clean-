@@ -286,7 +286,7 @@ Test-Double abgedeckt.
   - Markdown- und Workflow-Lint
   - Audit/Lizenzen
   - CodeQL (Analyse und Check)
-  - E2E (siehe PR-Checks)
+  - E2E (Playwright, in CI bestanden)
 - „Dependency review“ schlägt weiterhin nur wegen des deaktivierten Dependency Graph fehl
   (Owner-Einstellung). Der Check ist nicht abgeschaltet.
 
