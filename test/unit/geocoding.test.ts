@@ -136,7 +136,7 @@ describe("Geoapify adapter", () => {
   it("calls only the fixed HTTPS endpoint with encoded parameters and no redirects (SSRF)", async () => {
     const { calls, fetchImpl } = fakeFetch(() => json({ results: [building] }));
     const provider = createGeoapifyProvider({
-      apiKey: "test-key-0123456789",
+      apiKey: "test-key-0123456789", // gitleaks:allow – dummy value for a fake fetch
       timeoutMs: 1000,
       fetch: fetchImpl,
     });
