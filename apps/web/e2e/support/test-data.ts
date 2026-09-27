@@ -76,3 +76,41 @@ export async function countServiceRequestsFor(email: string): Promise<number> {
     return Number(result.rows[0]?.n ?? "0");
   });
 }
+
+/**
+ * Creates a verified account through the real auth API (sign-up + e-mail link from the local
+ * TEST-ONLY SMTP sink). Returns nothing; sign in via the UI afterwards.
+ */
+export async function createVerifiedAccount(
+  request: {
+    post: (
+      url: string,
+      options: { data: unknown; headers: Record<string, string> },
+    ) => Promise<{ status: () => number }>;
+    get: (url: string) => Promise<{ status: () => number }>;
+  },
+  email: string,
+  password: string,
+): Promise<void> {
+  const response = await request.post("/api/auth/sign-up/email", {
+    data: {
+      name: "E2E-Testdaten Konto",
+      email,
+      password,
+      callbackURL: "/auth/verify-email?status=verified",
+    },
+    headers: { origin: E2E_BASE_URL },
+  });
+  if (response.status() !== 200) throw new Error(`sign-up failed: ${String(response.status())}`);
+  await request.get(await waitForMailLink(email, "/api/auth/verify-email"));
+}
+
+/** Grants a global staff role (TEST DATA ONLY; stands in for the invitation flow). */
+export async function grantGlobalRole(email: string, role: "DISPATCHER"): Promise<void> {
+  await withClient(async (client) => {
+    await client.query(
+      `INSERT INTO user_role (user_id, role_key) SELECT id, $2 FROM "user" WHERE email = $1`,
+      [email, role],
+    );
+  });
+}

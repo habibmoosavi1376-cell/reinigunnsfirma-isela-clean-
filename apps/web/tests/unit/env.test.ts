@@ -171,3 +171,34 @@ describe(".env.example", () => {
     }
   });
 });
+
+describe("geocoding configuration", () => {
+  it("accepts geoapify with an API key and applies safe defaults", () => {
+    const env = parseServerEnv({
+      ...valid,
+      GEOCODING_PROVIDER: "geoapify",
+      GEOCODING_API_KEY: "k".repeat(32),
+    });
+    expect(env).toMatchObject({
+      GEOCODING_PROVIDER: "geoapify",
+      GEOCODING_TIMEOUT_MS: 4000,
+      GEOCODING_MAX_REQUESTS_PER_MINUTE: 60,
+    });
+  });
+
+  it("keeps geocoding disabled when nothing is configured", () => {
+    expect(parseServerEnv(valid).GEOCODING_PROVIDER).toBeUndefined();
+  });
+
+  it.each([
+    [{ GEOCODING_PROVIDER: "geoapify" }],
+    [{ GEOCODING_API_KEY: "k".repeat(32) }],
+    [{ GEOCODING_PROVIDER: "nominatim", GEOCODING_API_KEY: "k".repeat(32) }],
+    [{ GEOCODING_PROVIDER: "geoapify", GEOCODING_API_KEY: "short" }],
+    [{ GEOCODING_TIMEOUT_MS: "100000" }],
+  ])("rejects inconsistent geocoding settings %j (names only, no values)", (overrides) => {
+    const error = errorOf({ ...valid, ...overrides });
+    expect(error.variables.some((name: string) => name.startsWith("GEOCODING_"))).toBe(true);
+    expect(JSON.stringify(error)).not.toContain("k".repeat(32));
+  });
+});
