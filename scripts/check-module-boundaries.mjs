@@ -18,7 +18,17 @@ const ALLOWED = {
   "lead-finder": ["shared", "validation"],
   auth: ["audit", "database", "notifications", "shared", "validation"],
   catalog: ["audit", "auth", "database", "shared", "validation"],
-  settings: ["audit", "auth", "database", "lead-finder", "payment-risk", "shared", "validation"],
+  quotes: ["audit", "auth", "database", "shared", "validation"],
+  settings: [
+    "audit",
+    "auth",
+    "database",
+    "lead-finder",
+    "payment-risk",
+    "quotes",
+    "shared",
+    "validation",
+  ],
   crm: [
     "audit",
     "auth",

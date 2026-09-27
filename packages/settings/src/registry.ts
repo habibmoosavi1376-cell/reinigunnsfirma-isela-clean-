@@ -1,6 +1,7 @@
 import type { Permission } from "@isela/auth";
 import { DEFAULT_LEAD_SCORING, leadScoringSchema } from "@isela/lead-finder";
 import { DEFAULT_PAYMENT_POLICY, paymentPolicySchema } from "@isela/payment-risk";
+import { DEFAULT_QUOTE_CONFIG, quoteConfigSchema } from "@isela/quotes";
 import type { z } from "@isela/validation";
 
 export type SettingScopeType = "GLOBAL" | "SERVICE_AREA" | "CUSTOMER";
@@ -36,6 +37,13 @@ export const SETTING_DEFINITIONS = {
     permission: "settings:manage",
     defaultValue: DEFAULT_LEAD_SCORING,
     description: "Gewichte des erklärbaren Lead-Scores",
+  }),
+  "quote.defaults": define({
+    schema: quoteConfigSchema,
+    scopes: ["GLOBAL"],
+    permission: "settings:manage",
+    defaultValue: DEFAULT_QUOTE_CONFIG,
+    description: "Angebote: zulässige USt-Sätze, Gültigkeit, Positionslimit, Vier-Augen-Freigabe",
   }),
 } as const;
 

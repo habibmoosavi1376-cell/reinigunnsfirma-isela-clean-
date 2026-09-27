@@ -7,7 +7,16 @@ import {
   type ServiceContext,
 } from "@isela/auth";
 import { isAddressInServiceArea, type ServiceAreaMembership } from "@isela/catalog";
-import { and, eq, isNull, ne, schema, sql, type DbExecutor, type Transaction } from "@isela/database";
+import {
+  and,
+  eq,
+  isNull,
+  ne,
+  schema,
+  sql,
+  type DbExecutor,
+  type Transaction,
+} from "@isela/database";
 import { DomainError } from "@isela/shared";
 import {
   countryCodeSchema,
@@ -257,7 +266,9 @@ export async function setPrimaryAddress(ctx: ServiceContext, input: unknown): Pr
     const [address] = await tx
       .select({ customerId: schema.customerAddress.customerId })
       .from(schema.customerAddress)
-      .where(and(eq(schema.customerAddress.id, addressId), isNull(schema.customerAddress.archivedAt)))
+      .where(
+        and(eq(schema.customerAddress.id, addressId), isNull(schema.customerAddress.archivedAt)),
+      )
       .for("update")
       .limit(1);
     if (address === undefined) {
@@ -306,7 +317,10 @@ export async function updateCustomerAddress(ctx: ServiceContext, input: unknown)
       .select()
       .from(schema.customerAddress)
       .where(
-        and(eq(schema.customerAddress.id, data.addressId), isNull(schema.customerAddress.archivedAt)),
+        and(
+          eq(schema.customerAddress.id, data.addressId),
+          isNull(schema.customerAddress.archivedAt),
+        ),
       )
       .for("update")
       .limit(1);
@@ -343,7 +357,12 @@ export async function updateCustomerAddress(ctx: ServiceContext, input: unknown)
             ? null
             : normalizeAddress({ ...next, country: before.country }),
         ...(locationChanged
-          ? { latitude: null, longitude: null, geocodingStatus: "PENDING" as const, geocodedAt: null }
+          ? {
+              latitude: null,
+              longitude: null,
+              geocodingStatus: "PENDING" as const,
+              geocodedAt: null,
+            }
           : {}),
         updatedAt: ctx.clock.now(),
       })
@@ -416,7 +435,7 @@ export async function ensureAddressFromRequest(
       cityId: refs.cityId,
       latitude: trusted ? request.latitude : null,
       longitude: trusted ? request.longitude : null,
-      geocodingStatus: trusted ? (request.geocodingStatus as "SUCCEEDED" | "MANUAL") : "PENDING",
+      geocodingStatus: trusted ? request.geocodingStatus : "PENDING",
       geocodedAt: trusted ? (request.serviceAreaCheckedAt ?? now) : null,
       source: "CUSTOMER_INPUT",
       isPrimary: hasPrimary === undefined,
@@ -432,4 +451,3 @@ export async function ensureAddressFromRequest(
   }
   return { addressId: raced, created: false };
 }
-

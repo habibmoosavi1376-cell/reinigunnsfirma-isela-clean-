@@ -39,6 +39,7 @@
     "@isela/notifications": "workspace:*",
     "@isela/partners": "workspace:*",
     "@isela/payment-risk": "workspace:*",
+    "@isela/quotes": "workspace:*",
     "@isela/settings": "workspace:*",
     "@isela/shared": "workspace:*",
     "@isela/validation": "workspace:*",

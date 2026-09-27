@@ -39,9 +39,8 @@ export function evaluatePaymentTerms(
   const h = paymentHistorySchema.parse(history);
   const reasons: PaymentTermsReasonCode[] = [];
   if (h.customerStatus === "BLOCKED") reasons.push("CUSTOMER_BLOCKED");
-  if (h.duplicateReviewPending && policy.pendingDuplicateReviewForcesPrepayment) {
-    reasons.push("PENDING_DUPLICATE_REVIEW");
-  }
+  // policy.pendingDuplicateReviewForcesPrepayment is the literal `true` (cannot be disabled).
+  if (h.duplicateReviewPending) reasons.push("PENDING_DUPLICATE_REVIEW");
   if (h.completedPaidOrders === 0) {
     reasons.push("NEW_CUSTOMER");
   } else if (h.completedPaidOrders < policy.minSuccessfulPaidOrders) {

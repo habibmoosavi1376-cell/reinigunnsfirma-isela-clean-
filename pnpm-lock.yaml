@@ -47,6 +47,9 @@ importers:
       '@isela/payment-risk':
         specifier: workspace:*
         version: link:packages/payment-risk
+      '@isela/quotes':
+        specifier: workspace:*
+        version: link:packages/quotes
       '@isela/settings':
         specifier: workspace:*
         version: link:packages/settings
@@ -302,6 +305,24 @@ importers:
         specifier: workspace:*
         version: link:../validation
 
+  packages/quotes:
+    dependencies:
+      '@isela/audit':
+        specifier: workspace:*
+        version: link:../audit
+      '@isela/auth':
+        specifier: workspace:*
+        version: link:../auth
+      '@isela/database':
+        specifier: workspace:*
+        version: link:../database
+      '@isela/shared':
+        specifier: workspace:*
+        version: link:../shared
+      '@isela/validation':
+        specifier: workspace:*
+        version: link:../validation
+
   packages/settings:
     dependencies:
       '@isela/audit':
@@ -319,6 +340,9 @@ importers:
       '@isela/payment-risk':
         specifier: workspace:*
         version: link:../payment-risk
+      '@isela/quotes':
+        specifier: workspace:*
+        version: link:../quotes
       '@isela/shared':
         specifier: workspace:*
         version: link:../shared

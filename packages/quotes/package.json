@@ -1,5 +1,5 @@
 {
-  "name": "@isela/settings",
+  "name": "@isela/quotes",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -13,9 +13,6 @@
     "@isela/audit": "workspace:*",
     "@isela/auth": "workspace:*",
     "@isela/database": "workspace:*",
-    "@isela/lead-finder": "workspace:*",
-    "@isela/payment-risk": "workspace:*",
-    "@isela/quotes": "workspace:*",
     "@isela/shared": "workspace:*",
     "@isela/validation": "workspace:*"
   }

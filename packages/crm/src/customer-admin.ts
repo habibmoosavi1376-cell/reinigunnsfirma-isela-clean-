@@ -543,9 +543,7 @@ export async function getCustomerDetail(
     })
     .from(schema.userRole)
     .innerJoin(schema.user, eq(schema.user.id, schema.userRole.userId))
-    .where(
-      and(eq(schema.userRole.customerId, customerId), eq(schema.userRole.roleKey, "CUSTOMER")),
-    )
+    .where(and(eq(schema.userRole.customerId, customerId), eq(schema.userRole.roleKey, "CUSTOMER")))
     .orderBy(asc(schema.userRole.createdAt));
   const accounts = accountRows.map((row) => ({
     ...row,

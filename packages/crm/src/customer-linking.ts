@@ -92,14 +92,22 @@ export async function linkLeadToCustomer(
         request,
         ctx.clock.now(),
       );
-      await tx.update(r).set({ customerId, customerAddressId: addressId }).where(eq(r.id, request.id));
+      await tx
+        .update(r)
+        .set({ customerId, customerAddressId: addressId })
+        .where(eq(r.id, request.id));
       if (created) {
         await recordAudit(tx, {
           actor: auditActorOf(actor),
           action: "customer_address.created",
           entityType: "customer_address",
           entityId: addressId,
-          after: { customerId, addressType: "SERVICE", source: "service_request", serviceRequestId: request.id },
+          after: {
+            customerId,
+            addressType: "SERVICE",
+            source: "service_request",
+            serviceRequestId: request.id,
+          },
           correlationId: ctx.correlationId,
         });
       }
@@ -490,4 +498,3 @@ export async function inviteLeadContact(
   });
   return result;
 }
-
