@@ -139,3 +139,14 @@ Website, Worker, Deployment, Monitoring, Backups.
 | Tests | Unit, Integration, Web-Integration, E2E (Playwright); Zahlen im Tag-2-Report |
 | CI | zusätzlich Web-Build mit Client-Bundle-Secret-Scan und E2E-Job |
 | Noch nicht vorhanden | Geocoding-Adapter, Angebote/Aufträge/Rechnungen, Zahlungsanbieter, Worker, Kunden-Selbstverknüpfung |
+
+## 10. Stand nach Phase 1 / Tag 3
+
+| Bereich | Stand |
+| --- | --- |
+| Geocoding | Vertrag `GeocodingProvider`, Geoapify-Adapter (aktiv nur mit Credentials), Qualitätsbewertung, menschliche Prüfung |
+| Servicegebiet | `AVAILABLE`/`NOT_AVAILABLE`/`UNKNOWN` über PostGIS, gespeichert mit Gebiet und Zeitpunkt |
+| Backoffice | `/admin/leads` (Filter, Suche, Pagination), `/admin/leads/[id]` (Kontakt, Anfrage, Adresse, Geocoding, Gebiet, Consent, Historie, Audit, Aktionen) |
+| Kundenverknüpfung | Lead → Kunde (Dublettenerkennung), Konto ↔ Kunde (verifiziert, eindeutig, auditiert) |
+| Datenbank | 36 Tabellen, 5 Migrationen (neu: `0004_geocoding_crm`, additiv bzw. `RENAME VALUE`) |
+| Noch nicht vorhanden | Geocoding-Credentials/AVV, Angebote/Aufträge/Rechnungen, Zahlungen, LeadFinder-Provider, Landingpage-Inhalte und -Route |

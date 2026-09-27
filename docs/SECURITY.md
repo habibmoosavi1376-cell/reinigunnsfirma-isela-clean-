@@ -93,6 +93,31 @@ Notwendige Ausnahmen:
 6. **Bilder:** `images.unoptimized` – keine serverseitige Bildoptimierung (vermeidet den
    optionalen LGPL-Baustein sharp/libvips und einen Bild-Proxy-Endpunkt).
 
+### 3.4 Umsetzungsstand (Phase 1, Tag 3 – Backoffice, Geocoding)
+
+- **Browser bestimmt nichts Sicherheitsrelevantes:** Koordinaten, Servicegebiet, Kunden-
+  und Nutzerzuordnung, Lead-Owner, Lead-Status (nur über die State Machine) und
+  Risikostatus werden ausschließlich serverseitig abgeleitet; alle Eingaben sind
+  `z.strictObject` (gefälschte Felder → `VALIDATION_FAILED`). Aktionen im Backoffice
+  lesen nur Whitelist-Felder; Request-IDs werden serverseitig aus der Lead-ID ermittelt.
+- **Neue Rechte:** `lead:update` (DISPATCHER, ADMIN, SUPER_ADMIN) für Adresskorrektur und
+  Geocoding-Prüfung; `customer:link_account` (nur ADMIN/SUPER_ADMIN, MFA-pflichtig), weil
+  die Kontoverknüpfung Zugriff auf Kundendaten gewährt.
+- **Kontoverknüpfung:** nur verifizierte Konten, deren E-Mail eine registrierte Identität
+  genau dieses Kunden ist; ein Konto höchstens ein Kunde (Unique-Index); Rollenvergabe über
+  `assertCanGrantRole`; auditiert.
+- **Geocoding-Adapter:** fester HTTPS-Endpunkt im Code (keine konfigurierbare URL → kein
+  SSRF), Eingaben nur als kodierte Query-Parameter, `redirect: "error"`, Timeout,
+  Größenlimit, strikte Schema-Validierung der Antwort; API-Key und Adressen werden nicht
+  geloggt; globales Provider-Budget (Rate-Limit) in der Datenbank.
+- **Suche/Filter:** Zod-validiert, parametrisierte Drizzle-Ausdrücke, LIKE-Wildcards
+  escaped, Pagination begrenzt (max. 50 pro Seite, max. Seite 10 000).
+- **Datenminimierung:** Lead-Liste ohne E-Mail/Telefon; Kontaktdaten, Einwilligungen und
+  Audit nur mit `lead_contact:read`, `consent:read`, `audit:read`; Audit ohne Adresswerte
+  (nur geänderte Feldnamen).
+- **Statuscodes:** Loading-Boundaries liegen nur dort, wo keine Seite `notFound()`/
+  `forbidden()` aufruft (sonst würde HTTP 200 gestreamt; Befund Tag 3, behoben).
+
 ## 4. Anforderungskatalog
 
 | Thema | Maßnahme | Nachweis |

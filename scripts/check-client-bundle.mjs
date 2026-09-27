@@ -18,6 +18,7 @@ const SECRET_VARIABLES = [
   "DATABASE_URL",
   "SMTP_PASSWORD",
   "SMTP_USER",
+  "GEOCODING_API_KEY",
 ];
 const PATTERNS = [/postgres(ql)?:\/\//i, /-----BEGIN [A-Z ]*PRIVATE KEY-----/];
 

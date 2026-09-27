@@ -172,6 +172,7 @@ jobs:
             echo "DATABASE_URL=postgres://canary:canary-$(openssl rand -hex 8)@db.invalid:5432/canary"
             echo "SMTP_USER=canary-user-$(openssl rand -hex 4)"
             echo "SMTP_PASSWORD=canary-$(openssl rand -hex 16)"
+            echo "GEOCODING_API_KEY=canary-$(openssl rand -hex 16)"
           } >> "$GITHUB_ENV"
 
       - name: Build web app (next build)

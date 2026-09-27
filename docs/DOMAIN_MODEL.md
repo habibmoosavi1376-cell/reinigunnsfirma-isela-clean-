@@ -301,3 +301,24 @@ ToS-Umgehung.
 
 Keine automatische Massenansprache: Der höchste automatisch erreichbare Status ist
 `OUTREACH_DRAFTED`; `CONTACTED` setzt eine menschliche Aktion voraus.
+
+## 13. Adressprüfung und Verfügbarkeit (Phase 1, Tag 3)
+
+- `service_request.service_area_status`: `UNKNOWN` | `AVAILABLE` | `NOT_AVAILABLE`
+  (vormals `IN_AREA`/`OUTSIDE`, per `RENAME VALUE` umbenannt). `AVAILABLE` ⇔
+  `service_area_id` gesetzt (höchste Priorität unter den aktiven Gebieten, CHECK).
+- `service_request.geocoding_status`: `PENDING` (nicht versucht/Anbieter nicht verfügbar),
+  `SUCCEEDED`, `NEEDS_REVIEW`, `MANUAL`, `FAILED`. Koordinaten nur bei `SUCCEEDED`/`MANUAL`
+  (CHECK).
+- `geocoding_attempt` (append-only): Anbieter, Ergebnis (`ACCEPTED`, `NEEDS_REVIEW`,
+  `NO_MATCH`, `UNAVAILABLE`, `MANUAL_CONFIRMED`, `MANUAL_REJECTED`), Präzision, Konfidenz,
+  normalisierte Adresse (Straße, Hausnummer, PLZ, Ort, Region, Land), Gründe, ggf. Person.
+- Automatische Übernahme nur bei gebäudegenauem Treffer, Konfidenz ≥ 0,8, gleicher PLZ,
+  Straße und Hausnummer im selben Land; sonst menschliche Prüfung.
+- Kundenarten der Anfrage: `PRIVATE` (Privatkunde), `BUSINESS`, `PROPERTY_MANAGEMENT`
+  (Firma Pflicht; `fullName` = Ansprechpartner; optional `number_of_properties`).
+  `customer_kind` kennt nun ebenfalls `PROPERTY_MANAGEMENT`.
+- Konto ↔ Kunde: `user_role` (CUSTOMER, `customer_id`), höchstens ein Kunde je Konto
+  (partieller Unique-Index `user_role_one_customer_per_user_uq`).
+- `landing_page`: DRAFT/PUBLISHED; PUBLISHED nur mit Inhalt, Prüfung und
+  Veröffentlichungszeitpunkt (CHECK) und bestandener Veröffentlichungsprüfung.

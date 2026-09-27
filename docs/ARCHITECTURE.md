@@ -82,6 +82,7 @@ PostGIS-Service-Container.
 | `@isela/settings` | Typisierte, versionierte Settings | ja |
 | `@isela/config` | Typisiertes Server-Env-Schema (Tag 2), Fail-fast | ja |
 | `@isela/partners` | Partner-Lesezugriff mit Scope-Prüfung (Tag 2) | ja |
+| `@isela/geocoding` | Geocoding-Vertrag, Normalisierung, Qualitätsbewertung, Geoapify-Adapter (Tag 3) | ja |
 
 Die Grenzen werden per `scripts/check-module-boundaries.mjs` (Abhängigkeits-Allowlist,
 keine Deep-Imports, client-sichere Pakete nicht von Server-only-Paketen abhängig) und
@@ -107,6 +108,27 @@ ESLint (`no-restricted-imports`) in CI geprüft. Die sensiblen Module `auth`,
 - Grenzen: `scripts/check-module-boundaries.mjs` prüft auch Apps – nur deklarierte Pakete,
   nur öffentliche Exports, und `"use client"`-Dateien dürfen weder Server-only-Pakete noch
   `@/lib/server` importieren.
+
+### 2.4 Adress-Pipeline und Backoffice (Phase 1, Tag 3)
+
+```text
+Formular → Validierung (Zod, Kundenart-Regeln) → Lead + Kontakt + Anfrage (Transaktion)
+  → Normalisierung → GeocodingProvider (außerhalb der Transaktion, austauschbar)
+  → Bewertung (Präzision, Konfidenz, PLZ/Straße/Hausnummer) → geocoding_attempt (append-only)
+  → nur ACCEPTED/MANUAL_CONFIRMED setzen Koordinaten → PostGIS-Servicegebiet
+  → AVAILABLE | NOT_AVAILABLE | UNKNOWN (+ Audit)
+```
+
+- Unsichere Treffer (`NEEDS_REVIEW`) setzen **keine** Koordinaten; ein Mensch bestätigt oder
+  verwirft im Backoffice.
+- Ohne konfigurierten Anbieter bleibt der Status `PENDING`/`UNKNOWN` (kein Fake-Geocoding).
+- Backoffice `/admin/leads` und `/admin/leads/[id]`: Lesemodelle in `@isela/crm`
+  (`listLeads`, `getLeadDetail`), Änderungen nur über Domänenfunktionen (State Machine,
+  Geocoding-Prüfung, Adresskorrektur, Kunden-/Kontoverknüpfung, Widerruf).
+- LeadFinder: Provider-Verträge und reine Pipeline-Stufen (Compliance → Normalisierung →
+  Deduplizierung → Scoring → menschliche Prüfung); kein Provider implementiert.
+- Landingpages: Tabelle `landing_page` + Veröffentlichungsprüfung (echter Service, Standort
+  im aktiven Servicegebiet per PostGIS, geprüfter Inhalt); noch keine Seiten.
 
 ## 3. Ziel-Repository-Struktur
 
