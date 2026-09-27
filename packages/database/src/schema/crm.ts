@@ -16,7 +16,7 @@ import {
 import { archivedAt, createdAt, geographyPoint, updatedAt } from "./columns.ts";
 import { city, postalCode } from "./catalog.ts";
 
-export const customerKind = pgEnum("customer_kind", ["PRIVATE", "BUSINESS"]);
+export const customerKind = pgEnum("customer_kind", ["PRIVATE", "BUSINESS", "PROPERTY_MANAGEMENT"]);
 export const customerStatus = pgEnum("customer_status", ["ACTIVE", "INACTIVE", "BLOCKED"]);
 export const duplicateReviewStatus = pgEnum("duplicate_review_status", ["NONE", "PENDING"]);
 
@@ -110,6 +110,7 @@ export const geocodingStatus = pgEnum("geocoding_status", [
   "SUCCEEDED",
   "FAILED",
   "MANUAL",
+  "NEEDS_REVIEW",
 ]);
 export const addressSource = pgEnum("address_source", ["CUSTOMER_INPUT", "STAFF_INPUT", "IMPORT"]);
 export const addressVerificationStatus = pgEnum("address_verification_status", [

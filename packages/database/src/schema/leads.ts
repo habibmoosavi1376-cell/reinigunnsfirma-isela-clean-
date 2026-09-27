@@ -104,6 +104,8 @@ export const lead = pgTable(
       .on(t.sourceId, t.sourceReference)
       .where(sql`${t.sourceReference} IS NOT NULL`),
     index("lead_status_idx").on(t.status),
+    // Back-office list: newest first with pagination.
+    index("lead_created_idx").on(t.createdAt),
     index("lead_location_gix").using("gist", t.location),
     check("lead_score_chk", sql`${t.score} IS NULL OR ${t.score} BETWEEN 0 AND 100`),
   ],

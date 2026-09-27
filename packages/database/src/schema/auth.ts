@@ -10,6 +10,7 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 import { createdAt, updatedAt } from "./columns.ts";
@@ -174,6 +175,10 @@ export const userRole = pgTable(
     unique("user_role_assignment_uq")
       .on(t.userId, t.roleKey, t.customerId, t.partnerId)
       .nullsNotDistinct(),
+    // An account is linked to at most one customer record (docs/DOMAIN_MODEL.md §10).
+    uniqueIndex("user_role_one_customer_per_user_uq")
+      .on(t.userId)
+      .where(sql`${t.roleKey} = 'CUSTOMER'`),
     index("user_role_user_id_idx").on(t.userId),
     check("user_role_scope_chk", scopeCheck(t.roleKey, t.customerId, t.partnerId)),
     check(

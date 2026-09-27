@@ -8,7 +8,9 @@ import {
   pgEnum,
   pgTable,
   primaryKey,
+  jsonb,
   text,
+  timestamp,
   unique,
   uuid,
 } from "drizzle-orm/pg-core";
@@ -125,4 +127,47 @@ export const service = pgTable(
     updatedAt: updatedAt(),
   },
   (t) => [index("service_category_idx").on(t.categoryId)],
+);
+
+export const landingPageStatus = pgEnum("landing_page_status", ["DRAFT", "PUBLISHED"]);
+
+/**
+ * Local service page "/<service>-<city>" as data. Nothing is generated automatically: a page
+ * can only be PUBLISHED with reviewed, real content (CHECK below); availability is verified
+ * against active service areas in PostGIS before publishing (catalog: landing-pages.ts).
+ */
+export const landingPage = pgTable(
+  "landing_page",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    serviceCategoryId: uuid("service_category_id")
+      .notNull()
+      .references(() => serviceCategory.id, { onDelete: "restrict" }),
+    cityId: uuid("city_id")
+      .notNull()
+      .references(() => city.id, { onDelete: "restrict" }),
+    serviceAreaId: uuid("service_area_id")
+      .notNull()
+      .references(() => serviceArea.id, { onDelete: "restrict" }),
+    slug: text("slug").notNull().unique(),
+    status: landingPageStatus("status").notNull().default("DRAFT"),
+    /** Reviewed page content (headline, sections); NULL until written by a person. */
+    content: jsonb("content").$type<Record<string, unknown>>(),
+    contentReviewedAt: timestamp("content_reviewed_at", { withTimezone: true, mode: "date" }),
+    contentReviewedByUserId: text("content_reviewed_by_user_id"),
+    publishedAt: timestamp("published_at", { withTimezone: true, mode: "date" }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    unique("landing_page_category_city_uq").on(t.serviceCategoryId, t.cityId),
+    check(
+      "landing_page_publish_chk",
+      sql`${t.status} = 'DRAFT' OR (
+        ${t.content} IS NOT NULL AND ${t.contentReviewedAt} IS NOT NULL AND
+        ${t.contentReviewedByUserId} IS NOT NULL AND ${t.publishedAt} IS NOT NULL
+      )`,
+    ),
+    check("landing_page_slug_chk", sql`${t.slug} ~ '^[a-z0-9]+(-[a-z0-9]+)*$'`),
+  ],
 );
