@@ -121,6 +121,10 @@ export function createAuth(options: AuthOptions) {
       },
     },
     advanced: {
+      // Better Auth silently disables origin/CSRF checks when NODE_ENV=test or TEST is set.
+      // Security must never depend on environment flags, so both are pinned explicitly.
+      disableOriginCheck: false,
+      disableCSRFCheck: false,
       useSecureCookies: options.secureCookies ?? true,
       ipAddress: {
         ipAddressHeaders: [...(options.ipAddressHeaders ?? ["x-forwarded-for"])],
