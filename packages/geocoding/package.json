@@ -1,0 +1,16 @@
+{
+  "name": "@isela/geocoding",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "isela": {
+    "serverOnly": true
+  },
+  "dependencies": {
+    "@isela/shared": "workspace:*",
+    "@isela/validation": "workspace:*"
+  }
+}

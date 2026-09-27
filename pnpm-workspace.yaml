@@ -1,0 +1,20 @@
+packages:
+  - "packages/*"
+  - "apps/*"
+
+# Supply-chain protection: do not resolve package versions younger than 48 h.
+minimumReleaseAge: 2880
+
+# Lifecycle scripts of dependencies are blocked unless explicitly allowed.
+onlyBuiltDependencies: []
+
+# Security fix: drizzle-kit's deprecated @esbuild-kit loader pins esbuild 0.18, affected by
+# GHSA-67mh-4wv8-2f99 (dev server CORS). Force the patched 0.25 line used elsewhere in the tree.
+overrides:
+  "@esbuild-kit/core-utils>esbuild": "0.25.12"
+
+# License policy: sharp (libvips, LGPL-3.0) is an optional Next.js dependency for image
+# optimization. The web app does not use it (next.config.ts: images.unoptimized), so it is
+# never installed.
+ignoredOptionalDependencies:
+  - sharp

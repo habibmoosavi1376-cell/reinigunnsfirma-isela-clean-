@@ -7,4 +7,14 @@ updates:
       interval: "weekly"
     commit-message:
       prefix: "ci"
-  # npm ecosystem is added in Phase 1 once package.json and a lockfile exist.
+  # npm dependencies of the pnpm workspace (lockfile: pnpm-lock.yaml).
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "deps"
+    open-pull-requests-limit: 10
+    groups:
+      tooling:
+        dependency-type: "development"
