@@ -32,6 +32,21 @@ sein (siehe [`PHASE_0_REPORT.md`](PHASE_0_REPORT.md), offene Punkte).
 - Eine **RBAC-Testmatrix** (Rolle × Permission × Ressourcenbesitz) ist Teil der
   Integrationstests und muss bei jeder neuen Permission erweitert werden.
 
+### 3.1 Umsetzungsstand (Phase 1, Tag 1)
+
+- Rechte-Matrix als Code: `packages/auth/src/permissions.ts`; zentrale Prüfung
+  `authorize()` in `packages/auth/src/policy.ts` (OWN-Scopes gegen IDOR, MFA-Pflicht für
+  `SUPER_ADMIN`/`ADMIN`/`FINANCE`, Schutz gegen Rechteausweitung bei Rollenvergabe).
+- Authentifizierung mit Better Auth 1.7.6: E-Mail-Verifizierung, Passwort-Reset mit
+  Session-Widerruf, DB-Sessions ohne Cookie-Cache, IP-Rate-Limits, Konto-Sperre,
+  TOTP-MFA, Einladungen mit gehashten Einmal-Token (Details: `docs/DOMAIN_MODEL.md` §10).
+- Mass-Assignment-Schutz: alle Service-Eingaben über `z.strictObject`; unbekannte Felder
+  führen zu `VALIDATION_FAILED`, es wird nichts geschrieben.
+- Audit-Log append-only per DB-Trigger; Redaction sensibler Felder.
+- Nachweis: RBAC-Matrix- und Security-Tests in `test/unit/rbac-policy.test.ts`,
+  `test/integration/*.test.ts`; Mutationstests belegen, dass die Tests Sicherheitslücken
+  erkennen (siehe `docs/PHASE_1_DAY_1_REPORT.md`).
+
 ## 4. Anforderungskatalog
 
 | Thema | Maßnahme | Nachweis |
@@ -81,8 +96,10 @@ sein (siehe [`PHASE_0_REPORT.md`](PHASE_0_REPORT.md), offene Punkte).
 - GitHub Actions sind auf **Commit-SHAs** gepinnt; Dependabot aktualisiert sie.
 - Heruntergeladene Werkzeuge in der CI werden per SHA-256-Prüfsumme verifiziert.
 - Workflows laufen mit minimalen `permissions` (Standard: `contents: read`).
-- Ab Phase 1: Lockfile verpflichtend (`--frozen-lockfile`), Dependency Review für PRs,
-  CodeQL-Analyse.
+- Lockfile verpflichtend (`--frozen-lockfile`), Dependency Review für PRs, CodeQL,
+  `pnpm audit`, Lizenz-Allowlist (`scripts/check-licenses.mjs`), Dependabot für npm.
+- `minimumReleaseAge` (48 h) in `pnpm-workspace.yaml`; Install-Skripte von Abhängigkeiten
+  sind blockiert; Kernbibliotheken exakt gepinnt (`save-exact`).
 
 ## 8. Repository-Einstellungen (Empfehlung)
 

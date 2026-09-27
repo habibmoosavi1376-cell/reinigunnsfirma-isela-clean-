@@ -13,14 +13,22 @@ KI-Agenten stehen in [`AGENTS.md`](AGENTS.md) – sie gelten hier vollständig.
 
 ## Befehle
 
-Aktuell (Phase 0, kein Anwendungscode):
-
 ```bash
+pnpm install --frozen-lockfile
+pnpm run typecheck
+pnpm run lint                 # ESLint (strict, typbasiert) + Prettier
+pnpm run test:unit
+pnpm run test:integration     # benötigt TEST_DATABASE_URL (PostgreSQL + PostGIS, DB-Name mit "test")
+pnpm run build
+pnpm run db:generate          # neue Migration aus Schemaänderung – SQL immer reviewen
+pnpm run db:check             # Drift zwischen Schema und Migrationen
+pnpm run check:boundaries && pnpm run check:hardcoding
+pnpm run check:audit && pnpm run check:licenses
 ./scripts/check-forbidden-files.sh
 npx markdownlint-cli2 "**/*.md"
 ```
 
-Ab Phase 1 werden hier `pnpm`-Befehle für Typecheck, Lint, Test und Build ergänzt.
+Pflichtlektüre zusätzlich: [`docs/DOMAIN_MODEL.md`](docs/DOMAIN_MODEL.md).
 
 ## Kurzfassung der wichtigsten Regeln
 

@@ -1,0 +1,27 @@
+{
+  "name": "@isela/database",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "isela": {
+    "serverOnly": true
+  },
+  "dependencies": {
+    "@isela/shared": "workspace:*",
+    "drizzle-orm": "0.45.3",
+    "pg": "8.23.0"
+  },
+  "devDependencies": {
+    "@types/pg": "8.23.1",
+    "drizzle-kit": "0.31.11"
+  },
+  "scripts": {
+    "db:generate": "drizzle-kit generate",
+    "db:check": "drizzle-kit check && node ../../scripts/check-migration-drift.mjs",
+    "db:migrate": "node src/cli/migrate.ts",
+    "db:seed": "node src/cli/seed.ts"
+  }
+}
