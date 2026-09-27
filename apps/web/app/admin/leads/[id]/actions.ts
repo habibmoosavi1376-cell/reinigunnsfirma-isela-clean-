@@ -1,9 +1,12 @@
 "use server";
 
 import type { ServiceContext } from "@isela/auth";
+import { createInvitation } from "@isela/auth";
 import {
   correctRequestAddress,
+  createPropertyFromLead,
   getLeadDetail,
+  inviteLeadContact,
   linkAccountToCustomer,
   linkLeadToCustomer,
   rerunRequestGeocoding,
@@ -154,4 +157,31 @@ export async function withdrawConsentAction(form: FormData): Promise<void> {
     }
     return withdrawLeadContactConsent(ctx, { contactId, purpose: field(form, "purpose") });
   });
+}
+
+export async function createPropertyFromLeadAction(form: FormData): Promise<void> {
+  const leadId = leadIdOf(form);
+  await run(leadId, "property_created", (ctx) => createPropertyFromLead(ctx, { leadId }));
+}
+
+export async function inviteCustomerAction(form: FormData): Promise<void> {
+  const leadId = leadIdOf(form);
+  const services = getServices();
+  await run(leadId, "customer_invited", (ctx) =>
+    inviteLeadContact(
+      ctx,
+      { leadId },
+      {
+        config: services.crmConfig,
+        // Existing invitation flow: random one-time token, hashed at rest, 7-day expiry,
+        // delivered only by the configured e-mail sender.
+        invite: (inviteCtx, input) =>
+          createInvitation(inviteCtx, input, {
+            emailSender: services.emailSender,
+            acceptUrl: (token) =>
+              `${services.env.APP_BASE_URL}/account/invitation?token=${encodeURIComponent(token)}`,
+          }),
+      },
+    ),
+  );
 }

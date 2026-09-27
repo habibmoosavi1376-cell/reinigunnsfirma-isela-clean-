@@ -110,6 +110,15 @@ importers:
       '@isela/partners':
         specifier: workspace:*
         version: link:../../packages/partners
+      '@isela/payment-risk':
+        specifier: workspace:*
+        version: link:../../packages/payment-risk
+      '@isela/quotes':
+        specifier: workspace:*
+        version: link:../../packages/quotes
+      '@isela/settings':
+        specifier: workspace:*
+        version: link:../../packages/settings
       '@isela/shared':
         specifier: workspace:*
         version: link:../../packages/shared

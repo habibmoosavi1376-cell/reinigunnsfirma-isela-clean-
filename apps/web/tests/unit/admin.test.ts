@@ -63,8 +63,27 @@ describe("admin navigation", () => {
 
   it("activates only implemented modules", () => {
     const modules = visibleModules(actor("SUPER_ADMIN"));
-    expect(modules.filter((m) => m.active).map((m) => m.key)).toEqual(["dashboard", "leads"]);
+    expect(modules.filter((m) => m.active).map((m) => m.key)).toEqual([
+      "dashboard",
+      "leads",
+      "customers",
+      "properties",
+      "quotes",
+    ]);
     expect(modules.find((m) => m.key === "invoices")?.active).toBe(false);
+    expect(modules.find((m) => m.key === "jobs")?.active).toBe(false);
+  });
+
+  it("shows customers, properties and quotes according to the permission matrix", () => {
+    expect(labels("DISPATCHER")).toEqual(
+      expect.arrayContaining(["customers", "properties", "quotes"]),
+    );
+    expect(labels("FINANCE")).toEqual(expect.arrayContaining(["customers", "quotes"]));
+    expect(labels("FINANCE")).not.toContain("properties");
+    for (const role of ["STAFF", "PARTNER"] as const) {
+      expect(labels(role)).not.toContain("customers");
+      expect(labels(role)).not.toContain("quotes");
+    }
   });
 
   it("shows leads only to roles with lead:read", () => {

@@ -93,6 +93,84 @@ export const CONSENT_PURPOSE_LABELS: Record<string, string> = {
   OTHER_COMMUNICATION: "Sonstige Kommunikation",
 };
 
+export const CUSTOMER_STATUS_LABELS: Record<string, string> = {
+  ACTIVE: "Aktiv",
+  INACTIVE: "Inaktiv",
+  BLOCKED: "Gesperrt",
+};
+
+export const ADDRESS_TYPE_LABELS: Record<string, string> = {
+  SERVICE: "Objekt-/Serviceadresse",
+  BILLING: "Rechnungsadresse",
+  OTHER: "Sonstige",
+};
+
+export const SERVICE_AREA_MEMBERSHIP_LABELS: Record<string, string> = {
+  IN_AREA: "Im Servicegebiet",
+  OUTSIDE: "Außerhalb",
+  UNKNOWN: "Unbekannt (keine Koordinaten)",
+};
+
+export const VERIFICATION_STATUS_LABELS: Record<string, string> = {
+  UNVERIFIED: "Ungeprüft",
+  VERIFIED: "Geprüft",
+  REJECTED: "Abgelehnt",
+};
+
+export const IDENTITY_KIND_LABELS: Record<string, string> = {
+  EMAIL: "E-Mail",
+  PHONE: "Telefon",
+  TAX_ID: "Steuernummer",
+  PAYMENT_REFERENCE: "Zahlungsreferenz",
+  ADDRESS: "Adresse",
+};
+
+export const QUOTE_STATUS_LABELS: Record<string, string> = {
+  DRAFT: "Entwurf",
+  PENDING_REVIEW: "In Prüfung",
+  SENT: "Freigegeben/versendet",
+  ACCEPTED: "Angenommen",
+  DECLINED: "Abgelehnt",
+  EXPIRED: "Abgelaufen",
+  CANCELLED: "Storniert",
+};
+
+export const QUOTE_TRANSITION_LABELS: Record<string, string> = {
+  PENDING_REVIEW: "Zur Prüfung geben",
+  DRAFT: "Zurück in Bearbeitung",
+  SENT: "Freigeben",
+  ACCEPTED: "Annahme erfassen",
+  DECLINED: "Ablehnung erfassen",
+  EXPIRED: "Als abgelaufen markieren",
+  CANCELLED: "Stornieren",
+};
+
+export const SERVICE_UNIT_LABELS: Record<string, string> = {
+  HOUR: "Stunde(n)",
+  SQUARE_METER: "m²",
+  FLAT: "pauschal",
+  UNIT: "Stück",
+};
+
+export const PAYMENT_TERMS_LABELS: Record<string, string> = {
+  PREPAYMENT: "Vorkasse",
+  INVOICE: "Rechnungskauf",
+};
+
+export const PAYMENT_REASON_LABELS: Record<string, string> = {
+  NEW_CUSTOMER: "Neukunde – noch keine bezahlten Aufträge",
+  INSUFFICIENT_PAID_ORDERS: "Weniger als die erforderlichen abgeschlossenen und bezahlten Aufträge",
+  OPEN_OVERDUE_INVOICE: "Offene überfällige Rechnung",
+  LATE_PAYMENT_HISTORY: "Verspätete Zahlungen im Betrachtungszeitraum",
+  RECENT_CHARGEBACK: "Rücklastschrift/Chargeback im Betrachtungszeitraum",
+  PENDING_DUPLICATE_REVIEW: "Dublettenprüfung offen",
+  TRUST_SCORE_TOO_LOW: "Vertrauenswert zu niedrig oder nicht vorhanden",
+  CREDIT_LIMIT_EXCEEDED: "Kreditlimit ausgeschöpft",
+  B2C_INVOICE_TERMS_DISABLED: "Rechnungskauf für Privatkunden deaktiviert",
+  CUSTOMER_BLOCKED: "Kunde gesperrt",
+  MANUAL_OVERRIDE: "Manuelle Festlegung",
+};
+
 export function label(map: Record<string, string>, value: string | null | undefined): string {
   if (value === null || value === undefined) return "–";
   return map[value] ?? value;

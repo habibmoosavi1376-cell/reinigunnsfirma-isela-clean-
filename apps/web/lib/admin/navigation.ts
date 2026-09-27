@@ -15,9 +15,9 @@ export interface AdminModule {
 export const ADMIN_MODULES: readonly AdminModule[] = [
   { key: "dashboard", label: "Dashboard", href: "/admin/dashboard", permission: null },
   { key: "leads", label: "Leads", href: "/admin/leads", permission: "lead:read" },
-  { key: "customers", label: "Kunden", href: null, permission: "customer:read" },
-  { key: "properties", label: "Objekte", href: null, permission: "property:read" },
-  { key: "quotes", label: "Angebote", href: null, permission: null },
+  { key: "customers", label: "Kunden", href: "/admin/customers", permission: "customer:read" },
+  { key: "properties", label: "Objekte", href: "/admin/properties", permission: "property:read" },
+  { key: "quotes", label: "Angebote", href: "/admin/quotes", permission: "quote:read" },
   { key: "jobs", label: "Aufträge", href: null, permission: null },
   { key: "calendar", label: "Kalender", href: null, permission: null },
   { key: "employees", label: "Mitarbeitende", href: null, permission: null },

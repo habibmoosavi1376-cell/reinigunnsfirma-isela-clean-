@@ -23,6 +23,7 @@ const nextConfig: NextConfig = {
     "@isela/notifications",
     "@isela/partners",
     "@isela/payment-risk",
+    "@isela/quotes",
     "@isela/settings",
     "@isela/shared",
     "@isela/validation",

@@ -8,6 +8,8 @@ export const LEAD_ACTION_NOTICES = {
   customer_linked: "Der Lead ist mit einem Kundendatensatz verknüpft.",
   account_linked: "Das Nutzerkonto ist mit dem Kundendatensatz verknüpft.",
   consent_withdrawn: "Der Widerruf wurde dokumentiert.",
+  property_created: "Das Objekt wurde aus der Anfrage angelegt.",
+  customer_invited: "Die Einladung wurde an die hinterlegte E-Mail-Adresse versendet.",
 } as const;
 
 export type LeadActionNotice = keyof typeof LEAD_ACTION_NOTICES;

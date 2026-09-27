@@ -30,7 +30,11 @@ export function nextActions(detail: LeadDetail, geocodingConfigured: boolean): s
       actions.push("Anfrage sichten und qualifizieren (oder als Angebotsanfrage übernehmen).");
       break;
     case "QUOTE_REQUEST":
-      actions.push("Angebot manuell erstellen – es gibt keine automatische Preiszusage.");
+      actions.push(
+        request !== null && request.customerId === null
+          ? "Kundendatensatz verknüpfen und den Angebotsentwurf in der Kundenakte manuell erstellen – es gibt keine automatische Preiszusage."
+          : "Angebotsentwurf in der Kundenakte manuell erstellen – es gibt keine automatische Preiszusage.",
+      );
       break;
     case "WON":
       if (request !== null && request.customerId === null) {

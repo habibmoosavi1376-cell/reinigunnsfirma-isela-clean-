@@ -1,4 +1,4 @@
-import { isAuthorized } from "@isela/auth";
+import { hasGlobalPermission, isAuthorized } from "@isela/auth";
 import { getLeadDetail } from "@isela/crm";
 import { isDomainError } from "@isela/shared";
 import type { Metadata } from "next";
@@ -23,6 +23,8 @@ import { getServices } from "@/lib/server/services";
 import { getServiceContext } from "@/lib/server/session";
 import {
   correctAddressAction,
+  createPropertyFromLeadAction,
+  inviteCustomerAction,
   linkAccountAction,
   linkCustomerAction,
   rerunGeocodingAction,
@@ -395,8 +397,42 @@ export default async function LeadDetailPage({
             ) : (
               <>
                 <p>
-                  Verknüpft mit: <strong>{request.customerName ?? request.customerId}</strong>
+                  Verknüpft mit:{" "}
+                  {hasGlobalPermission(actor, "customer:read") ? (
+                    <Link href={`/admin/customers/${request.customerId}`}>
+                      <strong>{request.customerName ?? request.customerId}</strong>
+                    </Link>
+                  ) : (
+                    <strong>{request.customerName ?? request.customerId}</strong>
+                  )}
                 </p>
+                {isAuthorized(actor, "property:write") ? (
+                  request.propertyId === null ? (
+                    <form action={createPropertyFromLeadAction} className="inline-form">
+                      <input type="hidden" name="leadId" value={detail.lead.id} />
+                      <button className="button button--secondary" type="submit">
+                        Objekt aus Anfrage anlegen
+                      </button>
+                      <span className="hint">
+                        Übernimmt Objektart, Fläche und Intervall an der Anfrageadresse.
+                      </span>
+                    </form>
+                  ) : (
+                    <p className="muted">Objekt aus dieser Anfrage ist angelegt.</p>
+                  )
+                ) : null}
+                {isAuthorized(actor, "customer:link_account") ? (
+                  <form action={inviteCustomerAction} className="inline-form">
+                    <input type="hidden" name="leadId" value={detail.lead.id} />
+                    <button className="button button--secondary" type="submit">
+                      Kundenkonto einladen
+                    </button>
+                    <span className="hint">
+                      Nur an die E-Mail-Adresse der Anfrage, wenn sie diesem Kunden zugeordnet ist.
+                      Einmal-Link, 7 Tage gültig.
+                    </span>
+                  </form>
+                ) : null}
                 {isAuthorized(actor, "customer:link_account") ? (
                   <form action={linkAccountAction} className="inline-form">
                     <input type="hidden" name="leadId" value={detail.lead.id} />
