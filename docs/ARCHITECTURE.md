@@ -43,6 +43,49 @@
 Versionen werden in Phase 1 über das Lockfile fixiert. Jede Abweichung von dieser
 Tabelle wird hier mit Begründung dokumentiert.
 
+### 2.1 Stack Gate Phase 1 (geprüft am 2026-09-27 gegen die npm-Registry)
+
+| Komponente | Geprüft | Entscheidung | Begründung |
+| --- | --- | --- | --- |
+| Node.js | 24.21.0 LTS | `.nvmrc` = 24, `engines` `>=24.11 <25` | LTS; pg-boss verlangt ≥ 22.12 |
+| pnpm | 10.33.0 | `packageManager` exakt | `minimumReleaseAge` (48 h) und blockierte Install-Skripte |
+| TypeScript | 7.0.2 verfügbar | **6.0.3** gepinnt | TS 7 (nativer Port) wird von `typescript-eslint` 8.70 nicht unterstützt (Peer `<6.1.0`) |
+| Next.js | 16.3.6 | Major 16 bestätigt, **noch nicht installiert** | Tag 1 enthält keine UI; exakter Pin mit `apps/web` |
+| PostgreSQL / PostGIS | 16.13 / 3.4.2 lokal; CI `postgis/postgis:16-3.4` per Digest | bestätigt | Geo-Typen als Domains `geo_point`/`geo_multipolygon` (drizzle-kit quotet Typen mit Klammern) |
+| Drizzle ORM / Kit | 0.45.3 / 0.31.11 | exakt gepinnt | vor 1.0 – Updates nur bewusst; Better-Auth-Peer `^0.45.2` erfüllt |
+| Better Auth | 1.7.6 | bestätigt, API gegen Typdefinitionen geprüft | Plugin `admin` bewusst **nicht** genutzt (zweites Rollensystem); `twoFactor` für MFA |
+| pg | 8.23.0 | exakt | Treiber für Drizzle und Better Auth |
+| Zod | 4.6.5 | exakt | Validierung und Typen |
+| pg-boss | 12.35.0 | bestätigt, **noch nicht installiert** | erst mit `apps/worker`; benötigt Dauerprozess |
+| Vitest | 5.0.2 verfügbar | **5.0.1** | 5.0.2 jünger als 48 h (`minimumReleaseAge`) |
+
+Abweichungen von der Zielstruktur (§3) an Tag 1: flache Pakete unter `packages/*` statt
+`packages/modules/*` (weniger Indirektion, gleiche Grenzen); kein Turborepo (ein Build-
+Schritt genügt, keine unnötige Abhängigkeit); keine Testcontainers (kein Docker-Daemon in
+der Entwicklungsumgebung) – Integrationstests nutzen `TEST_DATABASE_URL`, in CI einen
+PostGIS-Service-Container.
+
+### 2.2 Umgesetzte Module (Phase 1, Tag 1)
+
+| Paket | Inhalt | Server-only |
+| --- | --- | --- |
+| `@isela/shared` | Fehler, Clock, Redaction | nein |
+| `@isela/validation` | Zod-Helfer, Normalisierung (E-Mail, Telefon, PLZ) | nein |
+| `@isela/notifications` | Port `EmailSender` (ohne Default-Implementierung) | ja |
+| `@isela/database` | Drizzle-Schema, Migrationen, Seeds, Client | ja |
+| `@isela/audit` | Append-only Audit-Log mit Redaction | ja |
+| `@isela/auth` | Better Auth, RBAC-Matrix, `authorize`, Lockout, Einladungen, Sessions | ja |
+| `@isela/catalog` | Leistungen, Einsatzgebiete, Geo-Dienste | ja |
+| `@isela/crm` | Kunden, Adressen, Objekte, Leads, Kontakte, Consent | ja |
+| `@isela/lead-finder` | Provider-Vertrag, Gating, SSRF-Schutz, Scoring-Schema | ja |
+| `@isela/payment-risk` | Richtlinien-Schema mit Invarianten | ja |
+| `@isela/settings` | Typisierte, versionierte Settings | ja |
+
+Die Grenzen werden per `scripts/check-module-boundaries.mjs` (Abhängigkeits-Allowlist,
+keine Deep-Imports, client-sichere Pakete nicht von Server-only-Paketen abhängig) und
+ESLint (`no-restricted-imports`) in CI geprüft. Die sensiblen Module `auth`,
+`payment-risk` und künftig `payments`, `invoicing`, `booking`, `jobs` sind `serverOnly`.
+
 ## 3. Ziel-Repository-Struktur
 
 ```text
@@ -179,8 +222,10 @@ Integrationstests grün; Fachmodule mit hoher Abdeckung (Ziel ≥ 90 % für
 | Repo-Guard (verbotene Dateien) | ✅ aktiv | bleibt |
 | Markdown-Lint | ✅ aktiv | bleibt |
 | Workflow-Lint (actionlint) | ✅ aktiv | bleibt |
-| Typecheck / Lint / Tests / Build | – (kein Code) | Phase 1 |
-| Dependency Review, CodeQL | – | Phase 1 |
+| Typecheck / Lint / Unit-Tests / Build | ✅ aktiv (Phase 1, Tag 1) | bleibt |
+| Integrationstests gegen PostgreSQL + PostGIS, Migrations-Drift | ✅ aktiv (Phase 1, Tag 1) | bleibt |
+| Modulgrenzen, Standort-Hardcoding, Audit, Lizenzen | ✅ aktiv (Phase 1, Tag 1) | bleibt |
+| Dependency Review, CodeQL | ✅ aktiv (Phase 1, Tag 1) | bleibt |
 | E2E | – | Tag 9 |
 | Deployment staging/prod | – | Tag 10 |
 
