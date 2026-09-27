@@ -2,7 +2,9 @@
 // Enforces the module dependency graph of the modular monolith (docs/ARCHITECTURE.md §3.2):
 // 1. every internal dependency must be on the allowlist below,
 // 2. every "@isela/*" import in source files must be a declared dependency,
-// 3. client-safe packages must not depend on server-only packages.
+// 3. client-safe packages must not depend on server-only packages,
+// 4. apps may only use declared packages via their public exports, and client components
+//    ("use client") must never import server-only packages or server-side app code.
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 
@@ -18,6 +20,8 @@ const ALLOWED = {
   catalog: ["audit", "auth", "database", "shared", "validation"],
   settings: ["audit", "auth", "database", "lead-finder", "payment-risk", "shared", "validation"],
   crm: ["audit", "auth", "catalog", "database", "lead-finder", "shared", "validation"],
+  config: ["shared"],
+  partners: ["auth", "database", "shared", "validation"],
 };
 
 const root = new URL("..", import.meta.url).pathname;
@@ -61,12 +65,55 @@ for (const [name, manifest] of manifests) {
     const content = readFileSync(file, "utf8");
     for (const match of content.matchAll(/from\s+"@isela\/([a-z-]+)(\/[^"]*)?"/g)) {
       const [, dep, subpath] = match;
-      if (subpath !== undefined) {
-        errors.push(`${file.slice(root.length)}: deep import @isela/${dep}${subpath}`);
+      const exported = dep === undefined ? undefined : manifests.get(dep)?.exports;
+      if (subpath !== undefined && (exported === undefined || !(`.${subpath}` in exported))) {
+        errors.push(
+          `${file.slice(root.length)}: deep import @isela/${dep}${subpath} (not a declared export)`,
+        );
       }
       if (dep !== undefined && !declared.includes(dep)) {
         errors.push(`${file.slice(root.length)}: imports undeclared @isela/${dep}`);
       }
+    }
+  }
+}
+
+// Apps (e.g. apps/web): declared dependencies, public exports, no server code in client files.
+const appsDir = join(root, "apps");
+function appFiles(dir) {
+  return readdirSync(dir).flatMap((entry) => {
+    if (["node_modules", ".next", "test-results", "playwright-report"].includes(entry)) return [];
+    const path = join(dir, entry);
+    if (statSync(path).isDirectory()) return appFiles(path);
+    return /\.(ts|tsx)$/.test(path) && !path.endsWith(".d.ts") ? [path] : [];
+  });
+}
+for (const app of readdirSync(appsDir)) {
+  const manifest = JSON.parse(readFileSync(join(appsDir, app, "package.json"), "utf8"));
+  const declared = Object.keys({ ...manifest.dependencies, ...manifest.devDependencies })
+    .filter((dep) => dep.startsWith("@isela/"))
+    .map((dep) => dep.slice("@isela/".length));
+  for (const file of appFiles(join(appsDir, app))) {
+    const rel = file.slice(root.length);
+    const content = readFileSync(file, "utf8");
+    const isClient = /^\s*["']use client["']/.test(content);
+    for (const match of content.matchAll(/from\s+"@isela\/([a-z-]+)(\/[^"]*)?"/g)) {
+      const [, dep, subpath] = match;
+      const target = dep === undefined ? undefined : manifests.get(dep);
+      if (subpath !== undefined && (target?.exports === undefined || !(`.${subpath}` in target.exports))) {
+        errors.push(`${rel}: deep import @isela/${dep}${subpath} (not a declared export)`);
+      }
+      if (dep !== undefined && !declared.includes(dep)) {
+        errors.push(`${rel}: imports undeclared @isela/${dep}`);
+      }
+      // Type-only imports are erased at build time and never reach the client bundle.
+      const typeOnly = /import\s+type\s/.test(content.slice(content.lastIndexOf("import", match.index), match.index));
+      if (isClient && !typeOnly && target?.isela?.serverOnly === true) {
+        errors.push(`${rel}: client component imports server-only @isela/${dep}`);
+      }
+    }
+    if (isClient && /from\s+"@\/lib\/server\//.test(content)) {
+      errors.push(`${rel}: client component imports server-side app code (@/lib/server)`);
     }
   }
 }

@@ -18,7 +18,9 @@ const LOCATION_COMPARISON = /\b(city|cityName|postalCode|zip|plz)\b\s*[!=]==?\s*
 
 function files(dir) {
   return readdirSync(dir).flatMap((entry) => {
-    if (entry === "node_modules" || entry === "dist") return [];
+    if (["node_modules", "dist", ".next", "test-results", "playwright-report"].includes(entry)) {
+      return [];
+    }
     const path = join(dir, entry);
     if (statSync(path).isDirectory()) return files(path);
     return /\.(ts|tsx|js|mjs|sql)$/.test(path) ? [path] : [];
@@ -26,7 +28,7 @@ function files(dir) {
 }
 
 const findings = [];
-for (const file of files(join(root, "packages"))) {
+for (const file of [...files(join(root, "packages")), ...files(join(root, "apps"))]) {
   const rel = relative(root, file);
   if (ALLOWED.some((pattern) => pattern.test(rel))) continue;
   const lines = readFileSync(file, "utf8").split("\n");

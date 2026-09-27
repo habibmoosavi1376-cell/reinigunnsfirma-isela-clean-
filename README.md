@@ -53,7 +53,8 @@ Gelsenkirchen → 25 km → 50 km → Ruhrgebiet → NRW → Deutschland
 ## Entwicklung
 
 Voraussetzungen: Node.js 24 (`.nvmrc`), pnpm 10.33 (`packageManager`), PostgreSQL 16 mit
-PostGIS 3.4 für Integrationstests.
+PostGIS 3.4 für Integrations- und E2E-Tests. Die Web-App startet nur mit vollständiger
+Konfiguration (siehe `.env.example`); `pnpm --filter @isela/web dev` für die Entwicklung.
 
 ```bash
 pnpm install --frozen-lockfile
@@ -65,6 +66,9 @@ pnpm run db:check                      # Migrations-Drift
 pnpm run check:boundaries              # Modulgrenzen
 pnpm run check:hardcoding              # keine standortspezifische Logik
 pnpm run check:audit && pnpm run check:licenses
+pnpm --filter @isela/web run build    # Web-App (Produktions-Build, ohne Env möglich)
+pnpm run check:client-bundle           # keine Server-Secrets in Client-Assets (nach dem Build)
+E2E_DATABASE_URL=postgres://…/isela_e2e pnpm run test:e2e   # DB-Name muss "e2e" enthalten
 ./scripts/check-forbidden-files.sh     # verbotene Dateien (.env, Schlüssel, Dumps)
 npx markdownlint-cli2 "**/*.md"        # Markdown-Lint
 gitleaks git . --no-banner             # Secret-Scan (gitleaks >= 8.30)

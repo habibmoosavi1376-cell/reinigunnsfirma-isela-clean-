@@ -128,3 +128,14 @@ Website, Worker, Deployment, Monitoring, Backups.
 | Tests | Unit, Integration (PostgreSQL + PostGIS), Security; Zahlen im Tag-1-Report |
 | CI | zusätzlich Typecheck, Lint, Unit, Integration, Build, Drift, Grenzen, Hardcoding, Audit, Lizenzen, Dependency Review, CodeQL |
 | Noch nicht vorhanden | Benutzeroberfläche (`apps/web`), Worker (`apps/worker`), E-Mail-Anbieter-Adapter, Geocoding-Adapter, Zahlungsanbieter |
+
+## 9. Stand nach Phase 1 / Tag 2
+
+| Bereich | Stand |
+| --- | --- |
+| Web-App | `apps/web` (Next.js 16.3): Startseite, Anfrageformular, Auth-Seiten, Kundenbereich, Admin-Dashboard, Impressum/Datenschutz (Entwurf), Fehlerseiten, robots/sitemap |
+| Pakete | 13 Workspace-Pakete (neu: `@isela/config`, `@isela/partners`) |
+| Datenbank | 34 Tabellen, 4 Migrationen (neu: `0003_web_requests`, rein additiv) |
+| Tests | Unit, Integration, Web-Integration, E2E (Playwright); Zahlen im Tag-2-Report |
+| CI | zusätzlich Web-Build mit Client-Bundle-Secret-Scan und E2E-Job |
+| Noch nicht vorhanden | Geocoding-Adapter, Angebote/Aufträge/Rechnungen, Zahlungsanbieter, Worker, Kunden-Selbstverknüpfung |

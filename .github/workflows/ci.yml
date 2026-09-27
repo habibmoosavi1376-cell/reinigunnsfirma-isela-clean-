@@ -138,6 +138,100 @@ jobs:
       - name: Build
         run: pnpm run build
 
+  web-build:
+    name: Web build (production) and client-bundle secret scan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+
+      # Random canary values stand in for server secrets during the build; the scan below
+      # fails if any of them (or their variable names) end up in client assets.
+      - name: Generate canary secrets
+        run: |
+          {
+            echo "AUTH_SECRET=canary-$(openssl rand -hex 24)"
+            echo "IDENTITY_HASH_PEPPER=canary-$(openssl rand -hex 24)"
+            echo "DATABASE_URL=postgres://canary:canary-$(openssl rand -hex 8)@db.invalid:5432/canary"
+            echo "SMTP_USER=canary-user-$(openssl rand -hex 4)"
+            echo "SMTP_PASSWORD=canary-$(openssl rand -hex 16)"
+          } >> "$GITHUB_ENV"
+
+      - name: Build web app (next build)
+        run: pnpm --filter @isela/web run build
+
+      - name: Client bundle must not contain server secrets
+        run: pnpm run check:client-bundle
+
+  e2e:
+    name: E2E (Playwright, production build, PostgreSQL + PostGIS)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    services:
+      postgres:
+        # postgis/postgis:16-3.4, pinned by digest.
+        image: postgis/postgis@sha256:44126d872ac91993766c341e369c539e8196614321765d36a6f1bab0419a5fa5
+        env:
+          POSTGRES_USER: isela_e2e
+          POSTGRES_DB: isela_e2e
+          # Ephemeral, job-local database without credentials; not reachable from outside the job.
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U isela_e2e -d isela_e2e"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      E2E_DATABASE_URL: postgres://isela_e2e@localhost:5432/isela_e2e
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Chromium for Playwright (version from the lockfile)
+        run: pnpm --filter @isela/web exec playwright install --with-deps chromium
+
+      - name: Build web app (next build)
+        run: pnpm --filter @isela/web run build
+
+      # Resets the dedicated E2E database, applies all migrations, seeds reference data and
+      # the RBAC catalogue, starts a local TEST-ONLY SMTP sink and `next start`.
+      - name: E2E tests
+        run: pnpm run test:e2e
+
   integration:
     name: Integration tests (PostgreSQL + PostGIS)
     runs-on: ubuntu-24.04

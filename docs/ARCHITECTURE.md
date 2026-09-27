@@ -80,11 +80,33 @@ PostGIS-Service-Container.
 | `@isela/lead-finder` | Provider-Vertrag, Gating, SSRF-Schutz, Scoring-Schema | ja |
 | `@isela/payment-risk` | Richtlinien-Schema mit Invarianten | ja |
 | `@isela/settings` | Typisierte, versionierte Settings | ja |
+| `@isela/config` | Typisiertes Server-Env-Schema (Tag 2), Fail-fast | ja |
+| `@isela/partners` | Partner-Lesezugriff mit Scope-Prüfung (Tag 2) | ja |
 
 Die Grenzen werden per `scripts/check-module-boundaries.mjs` (Abhängigkeits-Allowlist,
 keine Deep-Imports, client-sichere Pakete nicht von Server-only-Paketen abhängig) und
 ESLint (`no-restricted-imports`) in CI geprüft. Die sensiblen Module `auth`,
 `payment-risk` und künftig `payments`, `invoicing`, `booking`, `jobs` sind `serverOnly`.
+
+### 2.3 Web-App (`apps/web`, Phase 1, Tag 2)
+
+- Next.js 16.3 (App Router, Turbopack), React 19.3, TypeScript strict. Fachlogik liegt
+  ausschließlich in den Paketen; Seiten und Server Actions rufen nur Paketfunktionen mit
+  einem `ServiceContext` auf. UI-Komponenten greifen nie direkt auf die Datenbank zu.
+- Composition Root: `lib/server/composition.ts` baut aus dem validierten Env (DB, SMTP,
+  Better Auth, CRM-Konfiguration) einmal pro Prozess die Dienste. `instrumentation.ts`
+  validiert beim Start und beendet den Prozess bei Fehlkonfiguration (Exit 1).
+- `proxy.ts` (ehem. Middleware): CSP-Nonce, Request-ID, Login-Redirect für geschützte
+  Bereiche ohne Session-Cookie. Rechteprüfung ausschließlich serverseitig in Layout-Guards
+  und in den Paketfunktionen.
+- Auth-Route `app/api/auth/[...all]` delegiert an die bestehende Better-Auth-Instanz aus
+  `@isela/auth` (keine zweite Auth-Implementierung).
+- Landingpages `/<leistung>-<ort>` werden später aus `service_category.url_slug` und aktiven
+  Einsatzgebieten erzeugt (`lib/seo/seo.ts`: `buildLandingPath`/`parseLandingPath`);
+  kein Ort ist im Code verankert.
+- Grenzen: `scripts/check-module-boundaries.mjs` prüft auch Apps – nur deklarierte Pakete,
+  nur öffentliche Exports, und `"use client"`-Dateien dürfen weder Server-only-Pakete noch
+  `@/lib/server` importieren.
 
 ## 3. Ziel-Repository-Struktur
 

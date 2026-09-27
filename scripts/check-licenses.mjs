@@ -13,9 +13,18 @@ const ALLOWED = new Set([
   "BlueOak-1.0.0",
   "CC0-1.0",
   "Unlicense",
+  // MIT without the attribution clause (more permissive than MIT; nodemailer).
+  "MIT-0",
   // Weak, file-level copyleft; allowed for unmodified use (lightningcss via the build toolchain).
   "MPL-2.0",
 ]);
+
+/**
+ * Documented per-package exceptions (package name → license). Each entry needs a reason.
+ * - caniuse-lite: browser-support *data* (CC-BY-4.0) read by browserslist while building;
+ *   it is not shipped to users and attribution is kept in the package metadata.
+ */
+const PACKAGE_EXCEPTIONS = new Map([["caniuse-lite", "CC-BY-4.0"]]);
 
 const output = execFileSync("pnpm", ["licenses", "list", "--json"], { encoding: "utf8" });
 const byLicense = JSON.parse(output);
@@ -27,6 +36,7 @@ for (const [license, packages] of Object.entries(byLicense)) {
   const parts = license.replace(/[()]/g, "").split(/\s+OR\s+/);
   if (!parts.some((part) => ALLOWED.has(part.trim()))) {
     for (const pkg of packages) {
+      if (PACKAGE_EXCEPTIONS.get(pkg.name) === license) continue;
       violations.push(`${pkg.name}@${pkg.versions.join(",")}: ${license}`);
     }
   }
