@@ -291,19 +291,14 @@ export async function setPrimaryAddress(ctx: ServiceContext, input: unknown): Pr
   });
 }
 
-const updateAddressInput = z
-  .strictObject({
-    addressId: z.uuid(),
-    addressType: z.enum(ADDRESS_TYPES).optional(),
-    street: trimmedText(200).optional(),
-    houseNumber: trimmedText(20).optional(),
-    postalCode: trimmedText(10).optional(),
-    city: trimmedText(120).optional(),
-  })
-  .refine((a) => a.postalCode === undefined || isValidPostalCode(a.postalCode, "DE"), {
-    message: "Invalid postal code",
-    path: ["postalCode"],
-  });
+const updateAddressInput = z.strictObject({
+  addressId: z.uuid(),
+  addressType: z.enum(ADDRESS_TYPES).optional(),
+  street: trimmedText(200).optional(),
+  houseNumber: trimmedText(20).optional(),
+  postalCode: trimmedText(10).optional(),
+  city: trimmedText(120).optional(),
+});
 
 /**
  * Updates an address. Changing the location resets its coordinates to PENDING – coordinates
@@ -328,6 +323,10 @@ export async function updateCustomerAddress(ctx: ServiceContext, input: unknown)
       throw new DomainError("NOT_FOUND", "Address not found");
     }
     authorize(actor, "customer_address:write", { customerId: before.customerId });
+    // The postal code format depends on the stored country (the country is not editable here).
+    if (data.postalCode !== undefined && !isValidPostalCode(data.postalCode, before.country)) {
+      throw new DomainError("VALIDATION_FAILED", "Invalid postal code for country");
+    }
     const locationFields = ["street", "houseNumber", "postalCode", "city"] as const;
     const changed = ([...locationFields, "addressType"] as const).filter(
       (field) => data[field] !== undefined && data[field] !== before[field],

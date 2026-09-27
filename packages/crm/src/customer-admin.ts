@@ -17,6 +17,8 @@ import {
   inArray,
   isNull,
   lt,
+  max,
+  notInArray,
   or,
   schema,
   sql,
@@ -214,43 +216,7 @@ export async function listCustomers(
       status: c.status,
       duplicateReviewStatus: c.duplicateReviewStatus,
       createdAt: c.createdAt,
-      primaryLocation: sql<string | null>`(
-        SELECT ${address.postalCode} || ' ' || ${address.city} FROM ${address}
-        WHERE ${address.customerId} = ${c.id} AND ${address.archivedAt} IS NULL
-        ORDER BY ${address.isPrimary} DESC, ${address.createdAt} ASC, ${address.id} ASC LIMIT 1
-      )`,
-      leadCount: sql<number>`(
-        SELECT count(DISTINCT ${request.leadId})::int FROM ${request}
-        WHERE ${request.customerId} = ${c.id}
-      )`,
-      openLeadCount: sql<number>`(
-        SELECT count(DISTINCT ${lead.id})::int FROM ${request}
-        INNER JOIN ${lead} ON ${lead.id} = ${request.leadId}
-        WHERE ${request.customerId} = ${c.id} AND ${lead.archivedAt} IS NULL
-          AND ${lead.status} NOT IN (${sql.join(
-            CLOSED_LEAD_STATUSES.map((s) => sql`${s}`),
-            sql`, `,
-          )})
-      )`,
-      propertyCount: sql<number>`(
-        SELECT count(*)::int FROM ${property}
-        WHERE ${property.customerId} = ${c.id} AND ${property.archivedAt} IS NULL
-      )`,
-      openQuoteCount: sql<number>`(
-        SELECT count(*)::int FROM ${quote}
-        WHERE ${quote.customerId} = ${c.id} AND ${quote.status} IN (${sql.join(
-          OPEN_QUOTE_STATUSES.map((s) => sql`${s}`),
-          sql`, `,
-        )})
-      )`,
-      // GREATEST ignores NULLs, so customers without related records fall back to updated_at.
-      lastActivityAt: sql<Date>`GREATEST(
-        ${c.updatedAt},
-        (SELECT max(${request.createdAt}) FROM ${request} WHERE ${request.customerId} = ${c.id}),
-        (SELECT max(${address.updatedAt}) FROM ${address} WHERE ${address.customerId} = ${c.id}),
-        (SELECT max(${property.updatedAt}) FROM ${property} WHERE ${property.customerId} = ${c.id}),
-        (SELECT max(${quote.updatedAt}) FROM ${quote} WHERE ${quote.customerId} = ${c.id})
-      )`.mapWith(c.updatedAt),
+      updatedAt: c.updatedAt,
     })
     .from(c)
     .where(where)
@@ -258,8 +224,94 @@ export async function listCustomers(
     .limit(f.pageSize)
     .offset((f.page - 1) * f.pageSize);
 
+  // Aggregates for the (bounded) page in a few grouped queries instead of correlated
+  // subqueries per row: typed, index-friendly (customer_id indexes) and O(page size).
+  const ids = rows.map((row) => row.id);
+  const [locations, requestStats, propertyStats, quoteStats, addressActivity] =
+    ids.length === 0
+      ? [[], [], [], [], []]
+      : await Promise.all([
+          ctx.db
+            .selectDistinctOn([address.customerId], {
+              customerId: address.customerId,
+              postalCode: address.postalCode,
+              city: address.city,
+            })
+            .from(address)
+            .where(and(inArray(address.customerId, ids), isNull(address.archivedAt)))
+            .orderBy(
+              address.customerId,
+              desc(address.isPrimary),
+              asc(address.createdAt),
+              asc(address.id),
+            ),
+          ctx.db
+            .select({
+              customerId: request.customerId,
+              leads: sql<number>`count(DISTINCT ${request.leadId})::int`,
+              openLeads: sql<number>`count(DISTINCT ${lead.id}) FILTER (WHERE ${lead.archivedAt} IS NULL AND ${notInArray(lead.status, [...CLOSED_LEAD_STATUSES])})::int`,
+              lastRequestAt: max(request.createdAt),
+            })
+            .from(request)
+            .innerJoin(lead, eq(lead.id, request.leadId))
+            .where(inArray(request.customerId, ids))
+            .groupBy(request.customerId),
+          ctx.db
+            .select({
+              customerId: property.customerId,
+              properties: sql<number>`count(*) FILTER (WHERE ${property.archivedAt} IS NULL)::int`,
+              lastPropertyAt: max(property.updatedAt),
+            })
+            .from(property)
+            .where(inArray(property.customerId, ids))
+            .groupBy(property.customerId),
+          ctx.db
+            .select({
+              customerId: quote.customerId,
+              openQuotes: sql<number>`count(*) FILTER (WHERE ${inArray(quote.status, [...OPEN_QUOTE_STATUSES])})::int`,
+              lastQuoteAt: max(quote.updatedAt),
+            })
+            .from(quote)
+            .where(inArray(quote.customerId, ids))
+            .groupBy(quote.customerId),
+          ctx.db
+            .select({ customerId: address.customerId, lastAddressAt: max(address.updatedAt) })
+            .from(address)
+            .where(inArray(address.customerId, ids))
+            .groupBy(address.customerId),
+        ]);
+  const byCustomer = <T extends { customerId: string | null }>(list: readonly T[]) =>
+    new Map(list.map((entry) => [entry.customerId, entry]));
+  const locationOf = byCustomer(locations);
+  const requestsOf = byCustomer(requestStats);
+  const propertiesOf = byCustomer(propertyStats);
+  const quotesOf = byCustomer(quoteStats);
+  const addressActivityOf = byCustomer(addressActivity);
+  const latest = (...dates: (Date | null | undefined)[]): Date =>
+    new Date(Math.max(...dates.map((d) => d?.getTime() ?? 0)));
+
   return {
-    items: rows.map((row) => ({ ...row, openQuoteCount: showQuotes ? row.openQuoteCount : null })),
+    items: rows.map(({ updatedAt, ...row }) => {
+      const location = locationOf.get(row.id);
+      const requests = requestsOf.get(row.id);
+      const properties = propertiesOf.get(row.id);
+      const quotes = quotesOf.get(row.id);
+      return {
+        ...row,
+        primaryLocation: location === undefined ? null : `${location.postalCode} ${location.city}`,
+        leadCount: requests?.leads ?? 0,
+        openLeadCount: requests?.openLeads ?? 0,
+        propertyCount: properties?.properties ?? 0,
+        openQuoteCount: showQuotes ? (quotes?.openQuotes ?? 0) : null,
+        lastActivityAt: latest(
+          updatedAt,
+          requests?.lastRequestAt,
+          properties?.lastPropertyAt,
+          quotes?.lastQuoteAt,
+          addressActivityOf.get(row.id)?.lastAddressAt,
+        ),
+      };
+    }),
     total: totalRow?.total ?? 0,
     page: f.page,
     pageSize: f.pageSize,
@@ -455,6 +507,9 @@ export async function getCustomerDetail(
       )`,
     })
     .from(a)
+    // The join makes Drizzle qualify every column, so the correlated EXISTS above can never
+    // bind a column of the wrong table.
+    .innerJoin(c, eq(c.id, a.customerId))
     .where(and(eq(a.customerId, customerId), isNull(a.archivedAt)))
     .orderBy(desc(a.isPrimary), asc(a.createdAt), asc(a.id));
   const addresses = addressRows.map(({ hasLocation, inArea, ...row }) => ({
