@@ -44,7 +44,9 @@ describe("invitation acceptance with an existing customer link", () => {
       { email, role: "CUSTOMER", customerId: b.customerId },
       { emailSender: sender, acceptUrl: (t) => `http://localhost/account/invitation?token=${t}` },
     );
-    const token = extractUrl(sender.messages[0]!).searchParams.get("token") ?? "";
+    const message = sender.messages[0];
+    if (message === undefined) throw new Error("no invitation e-mail captured");
+    const token = extractUrl(message).searchParams.get("token") ?? "";
     const ctx = { db, actor: await loadActor(db, userId), clock: systemClock };
     await expectDomainError(acceptInvitation(ctx, { token }), "CONFLICT");
 
