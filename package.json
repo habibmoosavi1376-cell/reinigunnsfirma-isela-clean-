@@ -1,0 +1,48 @@
+{
+  "name": "isela-clean",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=24.11.0 <25"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.build.json",
+    "lint": "eslint . --max-warnings=0 && prettier --check .",
+    "format": "prettier --write .",
+    "test:unit": "vitest run --project unit",
+    "test:integration": "vitest run --project integration",
+    "test": "vitest run",
+    "db:generate": "pnpm --filter @isela/database run db:generate",
+    "db:migrate": "pnpm --filter @isela/database run db:migrate",
+    "db:check": "pnpm --filter @isela/database run db:check",
+    "db:seed": "pnpm --filter @isela/database run db:seed",
+    "check:forbidden-files": "./scripts/check-forbidden-files.sh",
+    "check:boundaries": "node scripts/check-module-boundaries.mjs",
+    "check:hardcoding": "node scripts/check-hardcoded-locations.mjs",
+    "check:licenses": "node scripts/check-licenses.mjs",
+    "check:audit": "pnpm audit --audit-level=moderate"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@isela/audit": "workspace:*",
+    "@isela/auth": "workspace:*",
+    "@isela/catalog": "workspace:*",
+    "@isela/crm": "workspace:*",
+    "@isela/database": "workspace:*",
+    "@isela/lead-finder": "workspace:*",
+    "@isela/notifications": "workspace:*",
+    "@isela/payment-risk": "workspace:*",
+    "@isela/settings": "workspace:*",
+    "@isela/shared": "workspace:*",
+    "@isela/validation": "workspace:*",
+    "@types/node": "^24.13.6",
+    "eslint": "10.11.0",
+    "prettier": "3.9.9",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.70.1",
+    "vite": "8.3.1",
+    "vitest": "5.0.1"
+  }
+}

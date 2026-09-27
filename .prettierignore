@@ -1,0 +1,7 @@
+pnpm-lock.yaml
+**/dist/
+**/coverage/
+packages/database/migrations/
+*.md
+.github/
+.markdownlint-cli2.jsonc
