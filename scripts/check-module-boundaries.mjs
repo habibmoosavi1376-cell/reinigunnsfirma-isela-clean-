@@ -100,14 +100,19 @@ for (const app of readdirSync(appsDir)) {
     for (const match of content.matchAll(/from\s+"@isela\/([a-z-]+)(\/[^"]*)?"/g)) {
       const [, dep, subpath] = match;
       const target = dep === undefined ? undefined : manifests.get(dep);
-      if (subpath !== undefined && (target?.exports === undefined || !(`.${subpath}` in target.exports))) {
+      if (
+        subpath !== undefined &&
+        (target?.exports === undefined || !(`.${subpath}` in target.exports))
+      ) {
         errors.push(`${rel}: deep import @isela/${dep}${subpath} (not a declared export)`);
       }
       if (dep !== undefined && !declared.includes(dep)) {
         errors.push(`${rel}: imports undeclared @isela/${dep}`);
       }
       // Type-only imports are erased at build time and never reach the client bundle.
-      const typeOnly = /import\s+type\s/.test(content.slice(content.lastIndexOf("import", match.index), match.index));
+      const typeOnly = /import\s+type\s/.test(
+        content.slice(content.lastIndexOf("import", match.index), match.index),
+      );
       if (isClient && !typeOnly && target?.isela?.serverOnly === true) {
         errors.push(`${rel}: client component imports server-only @isela/${dep}`);
       }

@@ -109,10 +109,9 @@ export function findLink(
   for (const message of [...messages].reverse()) {
     if (!message.to.includes(to.toLowerCase())) continue;
     const body = decodeQuotedPrintable(message.raw);
-    const match = new RegExp(
-      `https?://[^\\s"<>]*${fragment.replace(/[/?.]/g, "\\$&")}[^\\s"<>]*`,
-    ).exec(body);
-    if (match !== null) return match[0];
+    // Static pattern + substring filter: no input is ever compiled into a regular expression.
+    const link = (body.match(/https?:\/\/[^\s"<>]+/g) ?? []).find((url) => url.includes(fragment));
+    if (link !== undefined) return link;
   }
   return null;
 }
