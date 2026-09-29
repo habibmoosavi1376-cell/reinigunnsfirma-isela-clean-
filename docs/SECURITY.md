@@ -153,6 +153,32 @@ Notwendige Ausnahmen:
 - **Statuscodes:** Die Loading-Boundary des Kundenbereichs liegt in einer Route-Group ohne
   `notFound()`-Seiten, damit unbekannte Angebots-IDs HTTP 404 liefern.
 
+### 3.6 Umsetzungsstand (Phase 1, Tag 5 – Pricing, Buchung, Einsätze, Zuweisung)
+
+- **Server berechnet alle Beträge:** Netto/Steuer/Brutto, Arbeitszeit, interne Kosten und
+  Deckungsbeitrag entstehen nur in der Pricing Engine aus gespeicherten Daten und
+  versionierten Regeln; gefälschte Betrags-/Kostenfelder → `VALIDATION_FAILED`.
+  Kosteneingaben nur mit `finance:internal_read`, Übersteuerung nur mit `pricing:override`
+  und Begründung (Audit). Nie 0 EUR (Engine, State Machine, DB-CHECK).
+- **Neue Rechte:** `pricing:read|manage|approve|override`, `finance:internal_read`,
+  `booking:read|write`, `payment:manage`, `job:read|write|assign|execute_own`,
+  `employee:read|manage`, `partner:manage` (Matrix in `permissions.ts`, Tests in
+  `test/unit/operations.test.ts`). `job:execute_own` ist für STAFF GLOBAL vergeben, wird aber
+  immer auf den mit dem Konto verknüpften Mitarbeitenden eingeschränkt.
+- **IDOR:** Kunden sehen nur eigene Buchungen (fremd → 404) in einer Projektion ohne
+  Personal, Partner, Notizen, Kosten; Worker nur aktiv zugewiesene Einsätze (fremd → 404);
+  Partner nur den eigenen Partner.
+- **Zuweisung:** der Browser nennt nur Kandidat und Art; der Server prüft alle harten Regeln
+  erneut unter Advisory-Lock. Doppelbuchung verhindert eine GiST-Exclusion-Constraint.
+- **Zahlung:** kein Anbieter, kein simulierter Erfolg; Statuswechsel nur `payment:manage`
+  mit Referenz; Einsatzbeginn ohne bestätigte Vorkasse wird von Service **und** Trigger
+  abgelehnt und geloggt.
+- **DB-Guards:** Besitz-Trigger für Buchungen, append-only Transitions/Berechnungen/
+  Buchungspositionen, unveränderliche aktive Preisregeln, nur freigebbare Zuweisungen,
+  ACTIVE-Partner nur verifiziert.
+- **Datenschutz:** Abwesenheiten ohne Gründe/Gesundheitsdaten; Logs nur IDs und Codes;
+  Zahlungsreferenzen nicht im Audit.
+
 ## 4. Anforderungskatalog
 
 | Thema | Maßnahme | Nachweis |

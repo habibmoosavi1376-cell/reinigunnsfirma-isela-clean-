@@ -2,11 +2,12 @@
 
 | Feld | Wert |
 | --- | --- |
-| Stand | 2026-09-27 |
+| Stand | 2026-09-29 |
 | Aktuelle Phase | **Phase 0 – Foundation Audit** (abgeschlossen, siehe [`PHASE_0_REPORT.md`](PHASE_0_REPORT.md)); **Phase 0.1 – Repository Handover** (siehe [`PHASE_0_1_REPORT.md`](PHASE_0_1_REPORT.md)) |
 | Phase 1 / Tag 1 | Spezifikation, Stack Gate, Datenbank, Auth, RBAC, CRM – siehe [`PHASE_1_DAY_1_REPORT.md`](PHASE_1_DAY_1_REPORT.md) (Branch `phase-1-foundation`) |
 | Phase 1 / Tag 4 | Kunden-CRM, Adressen, Objekte, Angebotsgrundlage – siehe [`PHASE_1_DAY_4_REPORT.md`](PHASE_1_DAY_4_REPORT.md) (Branch `phase-1-day-4`) |
-| Nächste Phase | Phase 1 / Tag 5 gemäß ROADMAP – erst nach Review des Tag-4-Reports |
+| Phase 1 / Tag 5 | Services, Pricing Engine, Buchung, Einsätze, Zuweisung – siehe [`PHASE_1_DAY_5_REPORT.md`](PHASE_1_DAY_5_REPORT.md) (Branch `phase-1-day-5`) |
+| Nächste Phase | Phase 1 / Tag 6 gemäß ROADMAP – erst nach Review des Tag-5-Reports |
 | Repository | `habibmoosavi1376-cell/reinigunnsfirma-isela-clean-` (öffentlich) |
 | Arbeitsbranch | `claude/untitled-session-mhhecl` |
 
@@ -162,3 +163,16 @@ Website, Worker, Deployment, Monitoring, Backups.
 | Einladung | Lead → Kunde → Einladung (gehashter Einmal-Token, Rate-Limit, Audit), Annahme `/account/invitation` |
 | Datenbank | 39 Tabellen, 6 Migrationen (neu: `0005_customer_property_quotes`, additiv bzw. `RENAME VALUE`) |
 | Noch nicht vorhanden | Aufträge, Rechnungen, Zahlungen (Zahlungshistorie daher leer → Vorkasse), Preis-Engine-Implementierung, Online-Annahme durch Kunden, E-Mail-Versand von Angeboten, pg_trgm (gemessen, zurückgestellt) |
+
+## 12. Stand nach Phase 1 / Tag 5
+
+| Bereich | Stand |
+| --- | --- |
+| Katalog | Service-Datenmodell (Mindestmenge, Dauermodell, Preisstrategie, Qualifikationen, Objektarten), Extras, zwölf Kategorien, `/admin/services` |
+| Pricing | Paket `@isela/pricing`: Engine v1 (BigInt-Cent), versionierte Regelwerke mit `CONFIG_REQUIRED`, append-only Berechnungen, `/admin/pricing`; Angebotspositionen aus der Engine mit auditierter Übersteuerung; nie 0 EUR |
+| Buchung | Paket `@isela/operations`: Angebot (ACCEPTED) → Buchung, Vorkasse-Pflicht aus Payment-Risk, manueller Zahlungsstatus (FINANCE, Referenz), `/admin/bookings`, Kundenportal `/customer/jobs` + `/customer/bookings/[id]` |
+| Einsätze | Buchung → Einsatz, Lebenszyklus mit Guards, Zahlungssperre (Service + Trigger), `/admin/jobs`, `/team/jobs` für STAFF/PARTNER |
+| Zuweisung | Mitarbeitende (Qualifikationen, Gebiete, Arbeitszeiten, Abwesenheiten), Partner-Verifikation, erklärbare Kandidaten/Score, Doppelbuchungsschutz (Exclusion-Constraint), Partnerzuweisung per Owner-Regel standardmäßig aus |
+| Datenbank | 55 Tabellen, 7 Migrationen (neu: `0006_day5_services_bookings_jobs`, additiv; drei Checks `NOT VALID`) |
+| Tests | 757 Unit, 203 Integration, 14 E2E |
+| Noch nicht vorhanden | Preiswerte (Owner), Zahlungsanbieter, Rechnungen, Kreditbedingungen aus Zahlungshistorie, Online-Annahme durch Kunden, Stornobedingungen, `TAX_MODE`/Steuermodi, Qualitätsdaten (Zuverlässigkeit), Serien |

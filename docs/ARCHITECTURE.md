@@ -83,6 +83,8 @@ PostGIS-Service-Container.
 | `@isela/config` | Typisiertes Server-Env-Schema (Tag 2), Fail-fast | ja |
 | `@isela/partners` | Partner-Lesezugriff mit Scope-Prüfung (Tag 2) | ja |
 | `@isela/geocoding` | Geocoding-Vertrag, Normalisierung, Qualitätsbewertung, Geoapify-Adapter (Tag 3) | ja |
+| `@isela/pricing` | Pricing Engine v1 (reine Funktion), Regeldokument mit `CONFIG_REQUIRED`, Regelwerk-Lebenszyklus (Tag 5) | ja |
+| `@isela/operations` | Buchungen, Zahlungsstatus, Einsätze, Mitarbeitende, Zuweisung/Scoring (Tag 5) | ja |
 
 Die Grenzen werden per `scripts/check-module-boundaries.mjs` (Abhängigkeits-Allowlist,
 keine Deep-Imports, client-sichere Pakete nicht von Server-only-Paketen abhängig) und
@@ -158,6 +160,31 @@ Lead/Anfrage → linkLeadToCustomer (Identitäts-Lock, Dublettenerkennung)
   umgebauter UNION-Abfrage sinkt eine selektive Suche von ≈ 115 ms auf < 1 ms. Entscheidung:
   **noch nicht eingeführt**; Einführung (Migration `CREATE EXTENSION pg_trgm` + GIN-Indizes +
   UNION-Abfrage) sobald > 50 000 Kunden oder p95 der Kundensuche > 200 ms.
+
+### 2.6 Services, Pricing, Buchung, Einsätze (Phase 1, Tag 5)
+
+```text
+Katalog (Leistung, Extras, Dauer, Qualifikationen) ─┐
+Preisregelwerk (versioniert, CONFIG_REQUIRED) ──────┼→ calculatePrice → pricing_calculation (append-only)
+Objekt/Adresse/Servicegebiet (Server) ──────────────┘        → Angebotsposition (pricing_version)
+Angebot ACCEPTED → Buchung (Payment-Risk: VORKASSE_REQUIRED | CREDIT_TERMS_APPROVED)
+  → Zahlungsstatus (FINANCE, Referenz) → Einsatz → Kandidaten (harte Regeln + Score)
+  → Zuweisung (Re-Check im Server, Exclusion-Constraint) → Ausführung (Zahlungssperre) → Abschluss
+```
+
+- **`@isela/pricing`:** reine Engine ohne I/O; Regelwerke `DRAFT → ACTIVE → RETIRED`
+  (aktive Versionen per Trigger unveränderlich); Berechnungen werden für das Angebot
+  gespeichert (`@isela/quotes` → `calculateQuoteItemPrice`, `addQuoteItemFromCalculation`).
+- **`@isela/operations`:** State Machines (Buchung, Zahlung, Einsatz) als reine Funktionen;
+  nur `applyBookingTransition`/`applyJobTransition` schreiben Status (optimistische
+  Bedingung + append-only Log + Audit). Globale Sperrreihenfolge Buchung → Einsatz.
+  Konfiguration `operations.assignment` im Settings-Register (Zeitzone, Owner-Regel
+  Partnerzuweisung, Pflichtnachweise, Score-Gewichte); die Web-App lädt sie und übergibt sie.
+- **Logging:** Port `DomainLogger` im `ServiceContext` (nur primitive Felder); die Web-App
+  schreibt JSON.
+- **Web:** `/admin/services`, `/admin/pricing`, `/admin/bookings[/id]`, `/admin/jobs[/id]`,
+  `/admin/employees[/id]`, `/admin/partners[/id]`, Angebots-Preisberechnung,
+  `/customer/jobs`, `/customer/bookings/[id]`, `/team/jobs` (geschützter Bereich `team`).
 
 ## 3. Ziel-Repository-Struktur
 

@@ -360,3 +360,30 @@ Keine automatische Massenansprache: Der höchste automatisch erreichbare Status 
   Intervall, Extras, Dringlichkeit, Entfernung, Region, Arbeitszeit, Direktkosten; Ausgaben:
   Netto, Steuer, Brutto, Arbeitszeit, Direktkosten, Deckungsbeitrag) ist nur als Vertrag
   definiert. Ein Vorschlag ist nie eine Preiszusage.
+
+## 15. Services, Pricing, Buchungen, Einsätze (Phase 1, Tag 5)
+
+- `service` (+ `sort_order`, `min_quantity`, `duration_model` `MANUAL|FIXED|PER_UNIT`,
+  `base_duration_minutes`, `duration_per_unit_seconds`, `pricing_strategy`
+  `MANUAL_QUOTE|RULE_BASED`, `required_qualifications`, `supported_property_types`),
+  `service_option` (Extras). Keine Preise im Katalog.
+- `price_rule_set` (Version, Geltungsbereich Standard/Servicegebiet, Status
+  `DRAFT|ACTIVE|RETIRED`, Regeldokument, Änderungsgrund; höchstens eine aktive Version je
+  Geltungsbereich; aktiv unveränderlich), `pricing_calculation` (append-only; Status
+  `CALCULATED|CONFIG_REQUIRED`, Engine-/Pricing-Version, Beträge, interne Kosten, Marge,
+  Eingabe, Ergebnis). `quote_item` + `pricing_source` `MANUAL|ENGINE|ENGINE_OVERRIDDEN`,
+  `pricing_calculation_id`, `pricing_version`. `quote`: 0 EUR nie in `PENDING_REVIEW|SENT|ACCEPTED`.
+- `booking` (Status `REQUESTED|PENDING_PAYMENT|CONFIRMED|SCHEDULED|CANCELLED|COMPLETED`,
+  Zahlungsbedingung `VORKASSE_REQUIRED|CREDIT_TERMS_APPROVED`, Zahlungsstatus
+  `PAYMENT_REQUIRED|PAYMENT_PENDING|PAYMENT_CONFIRMED|PAYMENT_FAILED|REFUND_PENDING|REFUNDED`),
+  `booking_item` (Snapshot), `booking_status_transition`, `payment_status_transition`.
+- `job` (Status `PLANNED|ASSIGNMENT_PENDING|ASSIGNED|IN_PROGRESS|COMPLETED|QUALITY_CHECK|CLOSED|CANCELLED`,
+  Fulfillment `IN_HOUSE|PARTNER`), `job_status_transition`, `job_assignment`
+  (genau Mitarbeitende/r oder Partner, Score + Faktoren, nur freigebbar).
+- `employee`, `employee_service_area`, `employee_working_window`,
+  `employee_unavailability` (`ABSENCE|TRAINING|OTHER`), `partner` (+ Verifikation,
+  Kapazität), `partner_service`, `partner_document`
+  (`TRADE_REGISTRATION|LIABILITY_INSURANCE|OTHER`, `PENDING|VERIFIED|REJECTED`).
+- Einstellung `operations.assignment`: Zeitzone, `partnerAssignmentEnabled` (Standard
+  `false`), Pflichtnachweise, Score-Gewichte (Summe 100), Entfernungsreferenz, maximale
+  Fensterlänge – vom Inhaber zu bestätigen.
