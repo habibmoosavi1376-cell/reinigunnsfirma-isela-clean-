@@ -353,7 +353,9 @@ export default async function QuoteDetailPage({
                 </select>
               </div>
               <div className="field">
-                <label htmlFor="engine-quantity">Menge (leer: aus Objekt bzw. pauschal)</label>
+                <label htmlFor="engine-quantity">
+                  Umfang für die Berechnung (leer: aus Objekt bzw. pauschal)
+                </label>
                 <input id="engine-quantity" name="quantity" inputMode="decimal" maxLength={12} />
               </div>
               <div className="field">

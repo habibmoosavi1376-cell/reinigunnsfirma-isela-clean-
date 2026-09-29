@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, createHmac, randomBytes } from "node:crypto";
 import pg from "pg";
 import { findLink, type SinkMessage } from "../../tests/support/smtp-sink.ts";
 
@@ -86,27 +86,35 @@ export async function createVerifiedAccount(
     post: (
       url: string,
       options: { data: unknown; headers: Record<string, string> },
-    ) => Promise<{ status: () => number }>;
+    ) => Promise<{ status: () => number; headers: () => Record<string, string> }>;
     get: (url: string) => Promise<{ status: () => number }>;
   },
   email: string,
   password: string,
 ): Promise<void> {
-  const response = await request.post("/api/auth/sign-up/email", {
-    data: {
-      name: "E2E-Testdaten Konto",
-      email,
-      password,
-      callbackURL: "/auth/verify-email?status=verified",
-    },
-    headers: { origin: E2E_BASE_URL },
-  });
+  const signUp = () =>
+    request.post("/api/auth/sign-up/email", {
+      data: {
+        name: "E2E-Testdaten Konto",
+        email,
+        password,
+        callbackURL: "/auth/verify-email?status=verified",
+      },
+      headers: { origin: E2E_BASE_URL },
+    });
+  let response = await signUp();
+  if (response.status() === 429) {
+    // The sign-up rate limit is NOT relaxed for tests: wait for the window the server names.
+    const retryAfter = Number(response.headers()["x-retry-after"] ?? "60");
+    await new Promise((resolve) => setTimeout(resolve, (Math.min(retryAfter, 90) + 1) * 1000));
+    response = await signUp();
+  }
   if (response.status() !== 200) throw new Error(`sign-up failed: ${String(response.status())}`);
   await request.get(await waitForMailLink(email, "/api/auth/verify-email"));
 }
 
 /** Grants a global staff role (TEST DATA ONLY; stands in for the invitation flow). */
-export async function grantGlobalRole(email: string, role: "DISPATCHER"): Promise<void> {
+export async function grantGlobalRole(email: string, role: "DISPATCHER" | "ADMIN"): Promise<void> {
   await withClient(async (client) => {
     await client.query(
       `INSERT INTO user_role (user_id, role_key) SELECT id, $2 FROM "user" WHERE email = $1`,
@@ -150,4 +158,115 @@ export async function createTestInvitation(email: string, displayName: string): 
     }
   });
   return token;
+}
+
+/** RFC 6238 TOTP (SHA-1, 30 s, 6 digits) – TEST-ONLY authenticator for the E2E MFA flow. */
+export function totpCode(base32Secret: string, at = Date.now()): string {
+  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+  let bits = "";
+  for (const char of base32Secret.replace(/=+$/, "").toUpperCase()) {
+    const value = alphabet.indexOf(char);
+    if (value < 0) throw new Error("invalid base32 secret");
+    bits += value.toString(2).padStart(5, "0");
+  }
+  const bytes = Buffer.from((bits.match(/.{8}/g) ?? []).map((byte) => Number.parseInt(byte, 2)));
+  const counter = Buffer.alloc(8);
+  counter.writeBigUInt64BE(BigInt(Math.floor(at / 30_000)));
+  const hmac = createHmac("sha1", bytes).update(counter).digest();
+  const offset = (hmac[hmac.length - 1] ?? 0) & 0x0f;
+  const code = (hmac.readUInt32BE(offset) & 0x7fffffff) % 1_000_000;
+  return String(code).padStart(6, "0");
+}
+
+/**
+ * Enrols TOTP for the signed-in session through the real Better Auth endpoints (the same
+ * calls the security page makes), so privileged roles are tested with genuine MFA.
+ */
+export async function enableTotp(
+  request: {
+    post: (
+      url: string,
+      options: { data: unknown; headers: Record<string, string> },
+    ) => Promise<{ status: () => number; json: () => Promise<unknown> }>;
+  },
+  password: string,
+): Promise<void> {
+  const headers = { origin: E2E_BASE_URL };
+  const enable = await request.post("/api/auth/two-factor/enable", { data: { password }, headers });
+  if (enable.status() !== 200) throw new Error(`2FA enable failed: ${String(enable.status())}`);
+  const { totpURI } = (await enable.json()) as { totpURI: string };
+  const secret = new URL(totpURI).searchParams.get("secret") ?? "";
+  const verify = await request.post("/api/auth/two-factor/verify-totp", {
+    data: { code: totpCode(secret) },
+    headers,
+  });
+  if (verify.status() !== 200) throw new Error(`2FA verify failed: ${String(verify.status())}`);
+}
+
+export interface OperationsFixture {
+  readonly propertyName: string;
+  readonly employeeName: string;
+}
+
+/**
+ * TEST DATA for the day-5 flow: an active service area, a geocoded service address and a
+ * property of the customer, and a qualified employee with working hours in that area.
+ * Coordinates stand in for trusted geocoding (no provider runs in E2E).
+ */
+export async function createOperationsFixture(
+  customerId: string,
+  marker: string,
+  qualification: string,
+): Promise<OperationsFixture> {
+  const point = { latitude: 60.17, longitude: 24.94 };
+  return withClient(async (client) => {
+    await client.query("BEGIN");
+    try {
+      const area = await client.query<{ id: string }>(
+        `INSERT INTO service_area (key, name, kind, center, radius_m, active, priority)
+         VALUES ($1, 'E2E-Testgebiet', 'CIRCLE',
+                 ST_SetSRID(ST_MakePoint($3, $2), 4326)::geography, 20000, true, 1)
+         RETURNING id`,
+        [`e2e-area-${randomBytes(4).toString("hex")}`, point.latitude, point.longitude],
+      );
+      const address = await client.query<{ id: string }>(
+        `INSERT INTO customer_address
+           (customer_id, address_type, street, house_number, postal_code, city, country,
+            latitude, longitude, geocoding_status, geocoded_at, source, is_primary)
+         VALUES ($1, 'SERVICE', 'E2E-Testweg', '5', '00000', 'Teststadt', 'DE',
+                 $2, $3, 'MANUAL', now(), 'STAFF_INPUT', true)
+         RETURNING id`,
+        [customerId, point.latitude, point.longitude],
+      );
+      const propertyName = `${marker} Wohnung`;
+      await client.query(
+        `INSERT INTO property (customer_id, address_id, name, property_type)
+         VALUES ($1, $2, $3, 'APARTMENT')`,
+        [customerId, address.rows[0]?.id, propertyName],
+      );
+      const employeeName = `${marker} Mitarbeiterin`;
+      const employee = await client.query<{ id: string }>(
+        `INSERT INTO employee (display_name, qualifications, max_jobs_per_day)
+         VALUES ($1, ARRAY[$2]::text[], 4) RETURNING id`,
+        [employeeName, qualification],
+      );
+      const employeeId = employee.rows[0]?.id;
+      await client.query(
+        "INSERT INTO employee_service_area (employee_id, service_area_id) VALUES ($1, $2)",
+        [employeeId, area.rows[0]?.id],
+      );
+      for (let weekday = 1; weekday <= 7; weekday += 1) {
+        await client.query(
+          `INSERT INTO employee_working_window (employee_id, weekday, start_minute, end_minute)
+           VALUES ($1, $2, 420, 1200)`,
+          [employeeId, weekday],
+        );
+      }
+      await client.query("COMMIT");
+      return { propertyName, employeeName };
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    }
+  });
 }
