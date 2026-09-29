@@ -2,9 +2,12 @@
 
 | Feld | Wert |
 | --- | --- |
-| Stand | 2026-09-26 |
-| Aktuelle Phase | **Phase 0 – Foundation Audit** (abgeschlossen, siehe [`PHASE_0_REPORT.md`](PHASE_0_REPORT.md)) |
-| Nächste Phase | Phase 1 / Tag 1 – Foundation, Architektur, Security, CI (wartet auf Freigabe) |
+| Stand | 2026-09-29 |
+| Aktuelle Phase | **Phase 0 – Foundation Audit** (abgeschlossen, siehe [`PHASE_0_REPORT.md`](PHASE_0_REPORT.md)); **Phase 0.1 – Repository Handover** (siehe [`PHASE_0_1_REPORT.md`](PHASE_0_1_REPORT.md)) |
+| Phase 1 / Tag 1 | Spezifikation, Stack Gate, Datenbank, Auth, RBAC, CRM – siehe [`PHASE_1_DAY_1_REPORT.md`](PHASE_1_DAY_1_REPORT.md) (Branch `phase-1-foundation`) |
+| Phase 1 / Tag 4 | Kunden-CRM, Adressen, Objekte, Angebotsgrundlage – siehe [`PHASE_1_DAY_4_REPORT.md`](PHASE_1_DAY_4_REPORT.md) (Branch `phase-1-day-4`) |
+| Phase 1 / Tag 5 | Services, Pricing Engine, Buchung, Einsätze, Zuweisung – siehe [`PHASE_1_DAY_5_REPORT.md`](PHASE_1_DAY_5_REPORT.md) (Branch `phase-1-day-5`) |
+| Nächste Phase | Phase 1 / Tag 6 gemäß ROADMAP – erst nach Review des Tag-5-Reports |
 | Repository | `habibmoosavi1376-cell/reinigunnsfirma-isela-clean-` (öffentlich) |
 | Arbeitsbranch | `claude/untitled-session-mhhecl` |
 
@@ -116,3 +119,60 @@ Website, Worker, Deployment, Monitoring, Backups.
 4. CI erweitern: `pnpm install --frozen-lockfile`, Typecheck, Lint, Test, Build,
    Dependency Review, CodeQL; npm-Ökosystem in Dependabot.
 5. Branch-Schutz, Secret Scanning + Push Protection, Private Vulnerability Reporting aktivieren.
+
+## 8. Stand nach Phase 1 / Tag 1
+
+| Bereich | Stand |
+| --- | --- |
+| Spezifikation | `docs/DOMAIN_MODEL.md` (Adressen, Referenzdaten, Einsatzgebiete, Leistungen, Leads, Consent, Settings, Auth, Payment-Risk-Invarianten, LeadFinder) |
+| Pakete | 11 Workspace-Pakete unter `packages/*` (siehe `ARCHITECTURE.md` §2.2) |
+| Datenbank | 32 Tabellen, 3 Migrationen (Extensions, Schema, Integritäts-Guards), idempotente Seeds |
+| Tests | Unit, Integration (PostgreSQL + PostGIS), Security; Zahlen im Tag-1-Report |
+| CI | zusätzlich Typecheck, Lint, Unit, Integration, Build, Drift, Grenzen, Hardcoding, Audit, Lizenzen, Dependency Review, CodeQL |
+| Noch nicht vorhanden | Benutzeroberfläche (`apps/web`), Worker (`apps/worker`), E-Mail-Anbieter-Adapter, Geocoding-Adapter, Zahlungsanbieter |
+
+## 9. Stand nach Phase 1 / Tag 2
+
+| Bereich | Stand |
+| --- | --- |
+| Web-App | `apps/web` (Next.js 16.3): Startseite, Anfrageformular, Auth-Seiten, Kundenbereich, Admin-Dashboard, Impressum/Datenschutz (Entwurf), Fehlerseiten, robots/sitemap |
+| Pakete | 13 Workspace-Pakete (neu: `@isela/config`, `@isela/partners`) |
+| Datenbank | 34 Tabellen, 4 Migrationen (neu: `0003_web_requests`, rein additiv) |
+| Tests | Unit, Integration, Web-Integration, E2E (Playwright); Zahlen im Tag-2-Report |
+| CI | zusätzlich Web-Build mit Client-Bundle-Secret-Scan und E2E-Job |
+| Noch nicht vorhanden | Geocoding-Adapter, Angebote/Aufträge/Rechnungen, Zahlungsanbieter, Worker, Kunden-Selbstverknüpfung |
+
+## 10. Stand nach Phase 1 / Tag 3
+
+| Bereich | Stand |
+| --- | --- |
+| Geocoding | Vertrag `GeocodingProvider`, Geoapify-Adapter (aktiv nur mit Credentials), Qualitätsbewertung, menschliche Prüfung |
+| Servicegebiet | `AVAILABLE`/`NOT_AVAILABLE`/`UNKNOWN` über PostGIS, gespeichert mit Gebiet und Zeitpunkt |
+| Backoffice | `/admin/leads` (Filter, Suche, Pagination), `/admin/leads/[id]` (Kontakt, Anfrage, Adresse, Geocoding, Gebiet, Consent, Historie, Audit, Aktionen) |
+| Kundenverknüpfung | Lead → Kunde (Dublettenerkennung), Konto ↔ Kunde (verifiziert, eindeutig, auditiert) |
+| Datenbank | 36 Tabellen, 5 Migrationen (neu: `0004_geocoding_crm`, additiv bzw. `RENAME VALUE`) |
+| Noch nicht vorhanden | Geocoding-Credentials/AVV, Angebote/Aufträge/Rechnungen, Zahlungen, LeadFinder-Provider, Landingpage-Inhalte und -Route |
+
+## 11. Stand nach Phase 1 / Tag 4
+
+| Bereich | Stand |
+| --- | --- |
+| Kunden-CRM | `/admin/customers` (Suche inkl. E-Mail-Hash, Filter, Pagination, Kennzahlen), `/admin/customers/[id]` (Stammdaten, Zahlungsstatus, Kontakte, Adressen, Objekte, Anfragen, Angebote, Consent, Audit) |
+| Adressen/Objekte | Haupt-, Rechnungs-, Service-Adressen; Dublettenvermeidung im Lead-Fluss; Objektregister `/admin/properties`; Lead → Kunde → Adresse → Objekt |
+| Angebote | Paket `@isela/quotes` (State Machine, Cent-Arithmetik, Pricing-Vertrag), `/admin/quotes`, Kundenansicht `/customer/quotes` |
+| Einladung | Lead → Kunde → Einladung (gehashter Einmal-Token, Rate-Limit, Audit), Annahme `/account/invitation` |
+| Datenbank | 39 Tabellen, 6 Migrationen (neu: `0005_customer_property_quotes`, additiv bzw. `RENAME VALUE`) |
+| Noch nicht vorhanden | Aufträge, Rechnungen, Zahlungen (Zahlungshistorie daher leer → Vorkasse), Preis-Engine-Implementierung, Online-Annahme durch Kunden, E-Mail-Versand von Angeboten, pg_trgm (gemessen, zurückgestellt) |
+
+## 12. Stand nach Phase 1 / Tag 5
+
+| Bereich | Stand |
+| --- | --- |
+| Katalog | Service-Datenmodell (Mindestmenge, Dauermodell, Preisstrategie, Qualifikationen, Objektarten), Extras, zwölf Kategorien, `/admin/services` |
+| Pricing | Paket `@isela/pricing`: Engine v1 (BigInt-Cent), versionierte Regelwerke mit `CONFIG_REQUIRED`, append-only Berechnungen, `/admin/pricing`; Angebotspositionen aus der Engine mit auditierter Übersteuerung; nie 0 EUR |
+| Buchung | Paket `@isela/operations`: Angebot (ACCEPTED) → Buchung, Vorkasse-Pflicht aus Payment-Risk, manueller Zahlungsstatus (FINANCE, Referenz), `/admin/bookings`, Kundenportal `/customer/jobs` + `/customer/bookings/[id]` |
+| Einsätze | Buchung → Einsatz, Lebenszyklus mit Guards, Zahlungssperre (Service + Trigger), `/admin/jobs`, `/team/jobs` für STAFF/PARTNER |
+| Zuweisung | Mitarbeitende (Qualifikationen, Gebiete, Arbeitszeiten, Abwesenheiten), Partner-Verifikation, erklärbare Kandidaten/Score, Doppelbuchungsschutz (Exclusion-Constraint), Partnerzuweisung per Owner-Regel standardmäßig aus |
+| Datenbank | 55 Tabellen, 7 Migrationen (neu: `0006_day5_services_bookings_jobs`, additiv; drei Checks `NOT VALID`) |
+| Tests | 757 Unit, 203 Integration, 14 E2E |
+| Noch nicht vorhanden | Preiswerte (Owner), Zahlungsanbieter, Rechnungen, Kreditbedingungen aus Zahlungshistorie, Online-Annahme durch Kunden, Stornobedingungen, `TAX_MODE`/Steuermodi, Qualitätsdaten (Zuverlässigkeit), Serien |

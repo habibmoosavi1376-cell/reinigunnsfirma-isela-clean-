@@ -1,0 +1,5 @@
+# Verified false positives only (exact gitleaks fingerprints: commit:file:rule:line).
+# Each entry needs a reason; never add real credentials here.
+#
+# Dummy API key of a fake fetch in the geocoding adapter unit test (no network, not a secret).
+23c9c948a43416badfa0b789d22507c03d5c3b53:test/unit/geocoding.test.ts:generic-api-key:139
