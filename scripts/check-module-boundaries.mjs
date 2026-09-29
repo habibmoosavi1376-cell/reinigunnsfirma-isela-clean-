@@ -18,12 +18,15 @@ const ALLOWED = {
   "lead-finder": ["shared", "validation"],
   auth: ["audit", "database", "notifications", "shared", "validation"],
   catalog: ["audit", "auth", "database", "shared", "validation"],
-  quotes: ["audit", "auth", "database", "shared", "validation"],
+  quotes: ["audit", "auth", "catalog", "database", "pricing", "shared", "validation"],
+  pricing: ["audit", "auth", "database", "shared", "validation"],
+  operations: ["audit", "auth", "catalog", "database", "payment-risk", "shared", "validation"],
   settings: [
     "audit",
     "auth",
     "database",
     "lead-finder",
+    "operations",
     "payment-risk",
     "quotes",
     "shared",
@@ -42,7 +45,7 @@ const ALLOWED = {
     "validation",
   ],
   config: ["shared"],
-  partners: ["auth", "database", "shared", "validation"],
+  partners: ["audit", "auth", "database", "shared", "validation"],
   geocoding: ["shared", "validation"],
 };
 

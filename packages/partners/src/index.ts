@@ -4,8 +4,9 @@ import { DomainError } from "@isela/shared";
 import { parseInput, z } from "@isela/validation";
 
 /*
- * Partner module (placeholder boundary for day 5). Only read access exists so far;
- * partner verification, assignment and settlement follow with their specifications.
+ * Partner module. Read access (OWN scope for partner users) lives here, administration and
+ * verification in admin.ts (day 5); assignment eligibility is evaluated by @isela/operations.
+ * Settlement and commission follow with their specifications.
  */
 
 export interface PartnerView {
@@ -37,3 +38,17 @@ export async function getPartner(ctx: ServiceContext, input: unknown): Promise<P
   }
   return row;
 }
+
+export {
+  PARTNER_DOCUMENT_KIND_VALUES,
+  addPartnerDocument,
+  createPartner,
+  getPartnerDetail,
+  listPartners,
+  reviewPartnerDocument,
+  setPartnerCapacity,
+  setPartnerServices,
+  suspendPartner,
+  verifyAndActivatePartner,
+} from "./admin.ts";
+export type { PartnerDetail, PartnerListItem, PartnerVerificationRules } from "./admin.ts";

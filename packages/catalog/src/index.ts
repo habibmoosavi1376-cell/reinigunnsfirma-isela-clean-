@@ -24,3 +24,13 @@ export {
   publishLandingPage,
 } from "./landing-pages.ts";
 export type { LandingPageAssessment, LandingPageBlocker } from "./landing-pages.ts";
+export {
+  createCatalogService,
+  createServiceCategory,
+  createServiceOption,
+  getCatalogAdmin,
+  setServiceOptionActive,
+  updateCatalogService,
+  updateServiceCategory,
+} from "./services-admin.ts";
+export type { CatalogAdminView, CatalogServiceView } from "./services-admin.ts";

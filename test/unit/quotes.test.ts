@@ -24,6 +24,7 @@ const TODAY = "2026-09-27";
 function ctx(overrides: Partial<QuoteTransitionContext> = {}): QuoteTransitionContext {
   return {
     itemCount: 1,
+    grossCents: 11_900,
     validUntil: "2026-10-27",
     today: TODAY,
     reason: "Kunde hat telefonisch zugestimmt",

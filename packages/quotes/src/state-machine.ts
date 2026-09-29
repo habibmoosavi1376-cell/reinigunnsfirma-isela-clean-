@@ -55,6 +55,8 @@ export function permissionForQuoteTransition(to: QuoteStatus): Permission {
 
 export interface QuoteTransitionContext {
   readonly itemCount: number;
+  /** Gross total in cents – a quote is never reviewed, sent or accepted at 0 EUR. */
+  readonly grossCents: number;
   /** ISO date (YYYY-MM-DD) the quote is valid until, after defaults were applied. */
   readonly validUntil: string | null;
   /** Today's date (YYYY-MM-DD, business time zone). */
@@ -83,6 +85,15 @@ export function assertQuoteTransition(
   }
   if ((to === "PENDING_REVIEW" || to === "SENT") && context.itemCount === 0) {
     throw new DomainError("POLICY_VIOLATION", "A quote without items cannot be reviewed or sent");
+  }
+  if (
+    (to === "PENDING_REVIEW" || to === "SENT" || to === "ACCEPTED") &&
+    (!Number.isSafeInteger(context.grossCents) || context.grossCents <= 0)
+  ) {
+    throw new DomainError(
+      "POLICY_VIOLATION",
+      "A quote of 0 EUR cannot be reviewed, sent or accepted",
+    );
   }
   if (to === "SENT") {
     if (context.validUntil === null || context.validUntil < context.today) {

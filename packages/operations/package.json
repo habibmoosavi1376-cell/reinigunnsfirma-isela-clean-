@@ -1,5 +1,5 @@
 {
-  "name": "@isela/quotes",
+  "name": "@isela/operations",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -14,7 +14,7 @@
     "@isela/auth": "workspace:*",
     "@isela/catalog": "workspace:*",
     "@isela/database": "workspace:*",
-    "@isela/pricing": "workspace:*",
+    "@isela/payment-risk": "workspace:*",
     "@isela/shared": "workspace:*",
     "@isela/validation": "workspace:*"
   }

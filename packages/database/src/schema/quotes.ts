@@ -19,6 +19,7 @@ import { service, serviceCategory, serviceUnit } from "./catalog.ts";
 import { createdAt, updatedAt } from "./columns.ts";
 import { customer, property } from "./crm.ts";
 import { lead } from "./leads.ts";
+import { pricingCalculation } from "./pricing.ts";
 
 /*
  * Quotes (manual, no automatic price promise). Amounts are integer cents and are always
@@ -69,12 +70,24 @@ export const quote = pgTable(
       sql`${t.netCents} >= 0 AND ${t.taxCents} >= 0 AND ${t.grossCents} = ${t.netCents} + ${t.taxCents}`,
     ),
     check("quote_notes_chk", sql`${t.notes} IS NULL OR length(${t.notes}) <= 4000`),
+    // Day 5: a quote under review or released to the customer is never 0 EUR (added NOT VALID).
+    check(
+      "quote_released_amount_chk",
+      sql`${t.status} NOT IN ('PENDING_REVIEW', 'SENT', 'ACCEPTED') OR ${t.grossCents} > 0`,
+    ),
     check(
       "quote_sent_chk",
       sql`${t.status} IN ('DRAFT', 'PENDING_REVIEW', 'CANCELLED') OR (${t.validUntil} IS NOT NULL AND ${t.sentAt} IS NOT NULL)`,
     ),
   ],
 );
+
+/** Origin of a quote item price (day 5). Existing items are MANUAL. */
+export const quoteItemPricingSource = pgEnum("quote_item_pricing_source", [
+  "MANUAL",
+  "ENGINE",
+  "ENGINE_OVERRIDDEN",
+]);
 
 export const quoteItem = pgTable(
   "quote_item",
@@ -96,9 +109,19 @@ export const quoteItem = pgTable(
     netCents: bigint("net_cents", { mode: "number" }).notNull(),
     taxCents: bigint("tax_cents", { mode: "number" }).notNull(),
     grossCents: bigint("gross_cents", { mode: "number" }).notNull(),
+    pricingSource: quoteItemPricingSource("pricing_source").notNull().default("MANUAL"),
+    pricingCalculationId: uuid("pricing_calculation_id").references(() => pricingCalculation.id, {
+      onDelete: "restrict",
+    }),
+    /** Copied from the calculation – old quotes keep the version they were priced with. */
+    pricingVersion: text("pricing_version"),
     createdAt: createdAt(),
   },
   (t) => [
+    check(
+      "quote_item_pricing_source_chk",
+      sql`(${t.pricingSource} = 'MANUAL') = (${t.pricingCalculationId} IS NULL AND ${t.pricingVersion} IS NULL)`,
+    ),
     unique("quote_item_position_uq").on(t.quoteId, t.position),
     check("quote_item_position_chk", sql`${t.position} >= 1`),
     check("quote_item_quantity_chk", sql`${t.quantity} > 0`),

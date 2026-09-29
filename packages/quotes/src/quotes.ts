@@ -413,6 +413,7 @@ async function applyTransition(
       : quote.validUntil;
   assertQuoteTransition(quote.status, to, {
     itemCount: items?.items ?? 0,
+    grossCents: quote.grossCents,
     validUntil,
     today,
     reason: options.reason,

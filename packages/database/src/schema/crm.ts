@@ -16,6 +16,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { archivedAt, createdAt, geographyPoint, updatedAt } from "./columns.ts";
 import { city, postalCode } from "./catalog.ts";
+import { propertyType } from "./enums.ts";
 
 export const customerKind = pgEnum("customer_kind", ["PRIVATE", "BUSINESS", "PROPERTY_MANAGEMENT"]);
 export const customerStatus = pgEnum("customer_status", ["ACTIVE", "INACTIVE", "BLOCKED"]);
@@ -181,24 +182,7 @@ export const customerAddress = pgTable(
   ],
 );
 
-/**
- * Property types (day 4: HOUSE renamed to PRIVATE_HOME via RENAME VALUE; further types appended).
- * Shared by the public request form and the property register.
- */
-export const propertyType = pgEnum("property_type", [
-  "APARTMENT",
-  "PRIVATE_HOME",
-  "OFFICE",
-  "PRACTICE",
-  "STAIRWELL",
-  "COMMERCIAL",
-  "OTHER",
-  "RETAIL",
-  "GASTRONOMY",
-  "GYM",
-  "HOLIDAY_RENTAL",
-  "PROPERTY_MANAGEMENT",
-]);
+export { propertyType };
 
 /** Cleaning interval (request form and properties). */
 export const requestFrequency = pgEnum("request_frequency", [
@@ -255,7 +239,11 @@ export const partnerStatus = pgEnum("partner_status", [
   "SUSPENDED",
 ]);
 
-/** Minimal partner master data required for geo matching; extended on day 5. */
+/**
+ * Partner master data for geo matching and assignment (day 5: verification and capacity).
+ * A partner can only be ACTIVE after a person verified it (CHECK, added NOT VALID so that the
+ * upgrade never aborts on legacy rows; the assignment rules check `verified_at` as well).
+ */
 export const partner = pgTable(
   "partner",
   {
@@ -270,6 +258,10 @@ export const partner = pgTable(
         sql`ST_SetSRID(ST_MakePoint(base_longitude::double precision, base_latitude::double precision), 4326)::geography`,
       ),
     serviceRadiusM: integer("service_radius_m").notNull(),
+    verifiedAt: timestamp("verified_at", { withTimezone: true, mode: "date" }),
+    verifiedByUserId: text("verified_by_user_id"),
+    /** Maximum number of simultaneous jobs; NULL = not configured → not assignable. */
+    maxConcurrentJobs: integer("max_concurrent_jobs"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
     archivedAt: archivedAt(),
@@ -279,6 +271,14 @@ export const partner = pgTable(
     check(
       "partner_service_radius_chk",
       sql`${t.serviceRadiusM} > 0 AND ${t.serviceRadiusM} <= 300000`,
+    ),
+    check(
+      "partner_capacity_chk",
+      sql`${t.maxConcurrentJobs} IS NULL OR ${t.maxConcurrentJobs} BETWEEN 1 AND 1000`,
+    ),
+    check(
+      "partner_active_verified_chk",
+      sql`${t.status} <> 'ACTIVE' OR (${t.verifiedAt} IS NOT NULL AND ${t.verifiedByUserId} IS NOT NULL)`,
     ),
   ],
 );

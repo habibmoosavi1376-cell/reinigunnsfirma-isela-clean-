@@ -488,6 +488,8 @@ describe("customer CRM read models", () => {
       .values({
         legalName: "Partner (Testdaten)",
         status: "ACTIVE",
+        verifiedAt: new Date(),
+        verifiedByUserId: "test-verifier",
         baseLatitude: 0,
         baseLongitude: 0,
         serviceRadiusM: 1000,

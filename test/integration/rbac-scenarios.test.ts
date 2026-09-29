@@ -58,6 +58,8 @@ beforeAll(async () => {
       {
         legalName: "Partner A (Testdaten)",
         status: "ACTIVE",
+        verifiedAt: new Date(),
+        verifiedByUserId: "test-verifier",
         baseLatitude: 51,
         baseLongitude: 7,
         serviceRadiusM: 10_000,
@@ -65,6 +67,8 @@ beforeAll(async () => {
       {
         legalName: "Partner B (Testdaten)",
         status: "ACTIVE",
+        verifiedAt: new Date(),
+        verifiedByUserId: "test-verifier",
         baseLatitude: 51.1,
         baseLongitude: 7.1,
         serviceRadiusM: 10_000,

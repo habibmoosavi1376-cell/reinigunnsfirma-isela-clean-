@@ -5,3 +5,6 @@ export * from "./leads.ts";
 export * from "./governance.ts";
 export * from "./requests.ts";
 export * from "./quotes.ts";
+export * from "./pricing.ts";
+export * from "./workforce.ts";
+export * from "./operations.ts";

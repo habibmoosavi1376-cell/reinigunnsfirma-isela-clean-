@@ -5,7 +5,12 @@ import { SETTING_DEFINITIONS, SETTING_KEYS } from "@isela/settings";
 
 describe("settings registry", () => {
   it("registers only typed keys whose defaults satisfy their schema", () => {
-    expect(SETTING_KEYS.sort()).toEqual(["lead.scoring", "payment.policy", "quote.defaults"]);
+    expect(SETTING_KEYS.sort()).toEqual([
+      "lead.scoring",
+      "operations.assignment",
+      "payment.policy",
+      "quote.defaults",
+    ]);
     for (const key of SETTING_KEYS) {
       const definition = SETTING_DEFINITIONS[key];
       expect(definition.schema.safeParse(definition.defaultValue).success, key).toBe(true);

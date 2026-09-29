@@ -46,8 +46,22 @@ export const SEED_SERVICE_CATEGORIES = [
   {
     key: "property-management-service",
     urlSlug: "hausverwaltungsservice",
-    name: "Immobilien-/Hausverwaltungsservice",
+    // Day 5: display name aligned with the service catalogue ("Hausverwaltung / Objektbetreuung").
+    // Seeds never overwrite existing names – installations keep an admin-chosen name.
+    name: "Hausverwaltung / Objektbetreuung",
     sortOrder: 100,
+  },
+  {
+    key: "holiday-rental-cleaning",
+    urlSlug: "ferienwohnungsreinigung",
+    name: "Ferienwohnungsreinigung",
+    sortOrder: 110,
+  },
+  {
+    key: "commercial-cleaning",
+    urlSlug: "gewerbliche-reinigung",
+    name: "Gewerbliche Reinigung",
+    sortOrder: 120,
   },
 ] as const;
 

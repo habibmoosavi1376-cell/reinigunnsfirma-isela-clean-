@@ -1,5 +1,6 @@
 import type { Permission } from "@isela/auth";
 import { DEFAULT_LEAD_SCORING, leadScoringSchema } from "@isela/lead-finder";
+import { DEFAULT_OPERATIONS_CONFIG, operationsConfigSchema } from "@isela/operations";
 import { DEFAULT_PAYMENT_POLICY, paymentPolicySchema } from "@isela/payment-risk";
 import { DEFAULT_QUOTE_CONFIG, quoteConfigSchema } from "@isela/quotes";
 import type { z } from "@isela/validation";
@@ -44,6 +45,14 @@ export const SETTING_DEFINITIONS = {
     permission: "settings:manage",
     defaultValue: DEFAULT_QUOTE_CONFIG,
     description: "Angebote: zulässige USt-Sätze, Gültigkeit, Positionslimit, Vier-Augen-Freigabe",
+  }),
+  "operations.assignment": define({
+    schema: operationsConfigSchema,
+    scopes: ["GLOBAL"],
+    permission: "settings:manage",
+    defaultValue: DEFAULT_OPERATIONS_CONFIG,
+    description:
+      "Disposition: Partnerzuweisung (Owner-Regel, Standard aus), Pflichtnachweise, Score-Gewichte, Zeitzone",
   }),
 } as const;
 

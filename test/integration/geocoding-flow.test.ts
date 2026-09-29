@@ -467,6 +467,8 @@ describe("request → lead → geocoding → service area", () => {
       .values({
         legalName: "Partner (Testdaten)",
         status: "ACTIVE",
+        verifiedAt: new Date(),
+        verifiedByUserId: "test-verifier",
         baseLatitude: -45,
         baseLongitude: 170,
         serviceRadiusM: 1000,

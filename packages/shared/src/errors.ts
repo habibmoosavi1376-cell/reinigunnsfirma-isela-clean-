@@ -8,7 +8,9 @@ export type ErrorCode =
   | "INVALID_STATE_TRANSITION"
   | "POLICY_VIOLATION"
   | "RATE_LIMITED"
-  | "CONFIGURATION_ERROR";
+  | "CONFIGURATION_ERROR"
+  /** A business value (e.g. a price rule) has not been decided yet – no automatic result. */
+  | "CONFIG_REQUIRED";
 
 /**
  * Error raised by domain and application services. Messages and details must never

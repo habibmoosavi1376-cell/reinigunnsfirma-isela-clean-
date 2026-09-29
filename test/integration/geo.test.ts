@@ -181,6 +181,9 @@ describe("partner proximity", () => {
     ) => ({
       legalName: name,
       status,
+      // Day 5: ACTIVE partners must be verified (partner_active_verified_chk).
+      verifiedAt: status === "ACTIVE" ? new Date() : null,
+      verifiedByUserId: status === "ACTIVE" ? "test-verifier" : null,
       baseLatitude: lat,
       baseLongitude: centre.longitude,
       serviceRadiusM: radius,

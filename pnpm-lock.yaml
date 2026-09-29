@@ -41,12 +41,18 @@ importers:
       '@isela/notifications':
         specifier: workspace:*
         version: link:packages/notifications
+      '@isela/operations':
+        specifier: workspace:*
+        version: link:packages/operations
       '@isela/partners':
         specifier: workspace:*
         version: link:packages/partners
       '@isela/payment-risk':
         specifier: workspace:*
         version: link:packages/payment-risk
+      '@isela/pricing':
+        specifier: workspace:*
+        version: link:packages/pricing
       '@isela/quotes':
         specifier: workspace:*
         version: link:packages/quotes
@@ -107,12 +113,18 @@ importers:
       '@isela/notifications':
         specifier: workspace:*
         version: link:../../packages/notifications
+      '@isela/operations':
+        specifier: workspace:*
+        version: link:../../packages/operations
       '@isela/partners':
         specifier: workspace:*
         version: link:../../packages/partners
       '@isela/payment-risk':
         specifier: workspace:*
         version: link:../../packages/payment-risk
+      '@isela/pricing':
+        specifier: workspace:*
+        version: link:../../packages/pricing
       '@isela/quotes':
         specifier: workspace:*
         version: link:../../packages/quotes
@@ -293,8 +305,35 @@ importers:
         specifier: 10.0.10
         version: 10.0.10
 
+  packages/operations:
+    dependencies:
+      '@isela/audit':
+        specifier: workspace:*
+        version: link:../audit
+      '@isela/auth':
+        specifier: workspace:*
+        version: link:../auth
+      '@isela/catalog':
+        specifier: workspace:*
+        version: link:../catalog
+      '@isela/database':
+        specifier: workspace:*
+        version: link:../database
+      '@isela/payment-risk':
+        specifier: workspace:*
+        version: link:../payment-risk
+      '@isela/shared':
+        specifier: workspace:*
+        version: link:../shared
+      '@isela/validation':
+        specifier: workspace:*
+        version: link:../validation
+
   packages/partners:
     dependencies:
+      '@isela/audit':
+        specifier: workspace:*
+        version: link:../audit
       '@isela/auth':
         specifier: workspace:*
         version: link:../auth
@@ -314,7 +353,7 @@ importers:
         specifier: workspace:*
         version: link:../validation
 
-  packages/quotes:
+  packages/pricing:
     dependencies:
       '@isela/audit':
         specifier: workspace:*
@@ -325,6 +364,30 @@ importers:
       '@isela/database':
         specifier: workspace:*
         version: link:../database
+      '@isela/shared':
+        specifier: workspace:*
+        version: link:../shared
+      '@isela/validation':
+        specifier: workspace:*
+        version: link:../validation
+
+  packages/quotes:
+    dependencies:
+      '@isela/audit':
+        specifier: workspace:*
+        version: link:../audit
+      '@isela/auth':
+        specifier: workspace:*
+        version: link:../auth
+      '@isela/catalog':
+        specifier: workspace:*
+        version: link:../catalog
+      '@isela/database':
+        specifier: workspace:*
+        version: link:../database
+      '@isela/pricing':
+        specifier: workspace:*
+        version: link:../pricing
       '@isela/shared':
         specifier: workspace:*
         version: link:../shared
@@ -346,6 +409,9 @@ importers:
       '@isela/lead-finder':
         specifier: workspace:*
         version: link:../lead-finder
+      '@isela/operations':
+        specifier: workspace:*
+        version: link:../operations
       '@isela/payment-risk':
         specifier: workspace:*
         version: link:../payment-risk

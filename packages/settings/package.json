@@ -14,6 +14,7 @@
     "@isela/auth": "workspace:*",
     "@isela/database": "workspace:*",
     "@isela/lead-finder": "workspace:*",
+    "@isela/operations": "workspace:*",
     "@isela/payment-risk": "workspace:*",
     "@isela/quotes": "workspace:*",
     "@isela/shared": "workspace:*",
