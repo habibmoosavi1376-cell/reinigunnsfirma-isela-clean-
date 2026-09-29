@@ -624,7 +624,11 @@ export async function listOwnJobs(ctx: ServiceContext, input: unknown): Promise<
     throw new DomainError("FORBIDDEN", "Not allowed", { permission: "job:execute_own" });
   }
   const condition = assignmentOfWorker(await workerScopeOf(ctx, actor));
-  if (condition === undefined) return [];
+  if (condition === undefined) {
+    // Same answer as for a foreign job: no id probing.
+    if (jobId !== undefined) throw new DomainError("NOT_FOUND", "Job not found");
+    return [];
+  }
   const j = schema.job;
   const b = schema.booking;
   const a = schema.customerAddress;
