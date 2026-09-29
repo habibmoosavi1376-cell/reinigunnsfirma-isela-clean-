@@ -179,7 +179,8 @@ describe("lead → customer → customer address", () => {
       .where(eq(schema.customer.id, customerId));
     const [before] = await db.select({ n: count() }).from(schema.customer);
 
-    const retry = await submitLead({ email: email.replace("@", "@") });
+    // Same identity in a different spelling: normalisation must resolve to the blocked customer.
+    const retry = await submitLead({ email: email.toUpperCase() });
     const linked = await linkLeadToCustomer(dispatcher, { leadId: retry.leadId }, TEST_CRM_CONFIG);
     expect(linked.customerId).toBe(customerId);
     const [after] = await db.select({ n: count() }).from(schema.customer);
