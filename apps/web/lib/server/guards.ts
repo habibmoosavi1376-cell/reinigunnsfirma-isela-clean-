@@ -43,3 +43,20 @@ export async function requireAdminArea(): Promise<Actor> {
   }
   forbidden();
 }
+
+/**
+ * Team area (STAFF and PARTNER): only users who may work on their own assigned jobs. Which
+ * jobs are visible is decided by the operations services (never "all jobs").
+ */
+export async function requireTeamArea(): Promise<Actor> {
+  const actor = await requireSignedIn();
+  const worker = actor.roles.some(
+    (r) =>
+      (r.role === "STAFF" && isAuthorized(actor, "job:execute_own")) ||
+      (r.role === "PARTNER" &&
+        r.partnerId !== null &&
+        isAuthorized(actor, "job:execute_own", { partnerId: r.partnerId })),
+  );
+  if (!worker) forbidden();
+  return actor;
+}

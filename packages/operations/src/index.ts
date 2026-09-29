@@ -47,6 +47,7 @@ export {
   canSeeInternalFinance,
   cancelBooking,
   createBookingFromQuote,
+  findBookingForQuote,
   getBooking,
   getCustomerBooking,
   listBookings,

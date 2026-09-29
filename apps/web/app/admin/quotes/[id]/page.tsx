@@ -1,10 +1,13 @@
 import { hasGlobalPermission } from "@isela/auth";
 import { listProperties } from "@isela/crm";
+import { findBookingForQuote } from "@isela/operations";
+import { FREQUENCIES, URGENCIES } from "@isela/pricing";
 import {
   QUOTE_TRANSITIONS,
   SERVICE_UNITS,
   getQuote,
   listQuoteServiceOptions,
+  listRuleBasedServices,
   permissionForQuoteTransition,
 } from "@isela/quotes";
 import { isDomainError } from "@isela/shared";
@@ -14,9 +17,12 @@ import { forbidden, notFound } from "next/navigation";
 import { crmErrorText, crmNoticeText } from "@/lib/admin/crm-actions";
 import { formatDate, formatDateTime, formatMoney, formatTaxRate } from "@/lib/admin/format";
 import {
+  BOOKING_STATUS_LABELS,
+  FREQUENCY_LABELS,
   QUOTE_STATUS_LABELS,
   QUOTE_TRANSITION_LABELS,
   SERVICE_UNIT_LABELS,
+  URGENCY_LABELS,
   label,
 } from "@/lib/admin/labels";
 import { requireAdminArea } from "@/lib/server/guards";
@@ -24,6 +30,8 @@ import { loadQuoteConfig } from "@/lib/server/quote-config";
 import { getServiceContext } from "@/lib/server/session";
 import {
   addQuoteItemAction,
+  calculatePriceAction,
+  createBookingAction,
   removeQuoteItemAction,
   transitionQuoteAction,
   updateQuoteDetailsAction,
@@ -58,11 +66,15 @@ export default async function QuoteDetailPage({
   const error = crmErrorText(query["error"]);
   const canWrite = hasGlobalPermission(actor, "quote:write");
   const editable = canWrite && quote.status === "DRAFT";
-  const [config, options, properties] = await Promise.all([
+  const canBook = quote.status === "ACCEPTED" && hasGlobalPermission(actor, "booking:read");
+  const [config, options, properties, ruleBased, booking] = await Promise.all([
     loadQuoteConfig(ctx.db, ctx.clock),
     editable ? listQuoteServiceOptions(ctx) : null,
     editable ? listProperties(ctx, { customerId: quote.customerId }) : null,
+    editable ? listRuleBasedServices(ctx) : null,
+    canBook ? findBookingForQuote(ctx, { quoteId: quote.id }) : null,
   ]);
+  const mayCreateBooking = canBook && hasGlobalPermission(actor, "booking:write");
   const transitions = QUOTE_TRANSITIONS[quote.status].filter(
     (to) => to !== "EXPIRED" && hasGlobalPermission(actor, permissionForQuoteTransition(to)),
   );
@@ -316,6 +328,133 @@ export default async function QuoteDetailPage({
           )
         ) : null}
       </section>
+
+      {editable && ruleBased !== null ? (
+        <section className="panel" aria-labelledby="engine-title">
+          <h2 id="engine-title">Preis berechnen (Pricing Engine)</h2>
+          {quote.propertyId === null ? (
+            <p className="hint">Für die Berechnung muss dem Angebot ein Objekt zugeordnet sein.</p>
+          ) : ruleBased.length === 0 ? (
+            <p className="hint">
+              Keine Leistung mit Preisregeln aktiv. Preise werden manuell erfasst oder unter
+              „Preisregeln“ freigegeben.
+            </p>
+          ) : (
+            <form action={calculatePriceAction} className="form">
+              <input type="hidden" name="quoteId" value={quote.id} />
+              <div className="field">
+                <label htmlFor="engine-service">Leistung</label>
+                <select id="engine-service" name="serviceId" required>
+                  {ruleBased.map((service) => (
+                    <option key={service.id} value={service.id}>
+                      {service.name} ({label(SERVICE_UNIT_LABELS, service.unit)})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="field">
+                <label htmlFor="engine-quantity">Menge (leer: aus Objekt bzw. pauschal)</label>
+                <input id="engine-quantity" name="quantity" inputMode="decimal" maxLength={12} />
+              </div>
+              <div className="field">
+                <label htmlFor="engine-windows">Fenster (Anzahl, optional)</label>
+                <input id="engine-windows" name="windows" inputMode="numeric" maxLength={6} />
+              </div>
+              <div className="field">
+                <label htmlFor="engine-frequency">Häufigkeit</label>
+                <select id="engine-frequency" name="frequency" defaultValue="ONCE">
+                  {FREQUENCIES.map((f) => (
+                    <option key={f} value={f}>
+                      {label(FREQUENCY_LABELS, f)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="field">
+                <label htmlFor="engine-urgency">Dringlichkeit</label>
+                <select id="engine-urgency" name="urgency" defaultValue="STANDARD">
+                  {URGENCIES.map((u) => (
+                    <option key={u} value={u}>
+                      {label(URGENCY_LABELS, u)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {ruleBased.some((service) => service.extras.length > 0) ? (
+                <fieldset className="field">
+                  <legend>Extras</legend>
+                  {ruleBased.flatMap((service) =>
+                    service.extras.map((extra) => (
+                      <label key={extra.id} className="checkbox">
+                        <input type="checkbox" name="extraIds" value={extra.id} /> {extra.name}{" "}
+                        <span className="muted">({service.name})</span>
+                      </label>
+                    )),
+                  )}
+                </fieldset>
+              ) : null}
+              <button className="button" type="submit">
+                Preis berechnen
+              </button>
+              <p className="hint">
+                Region, Entfernung, Fläche, Räume und Steuersatz ermittelt der Server. Das Ergebnis
+                ist ein Vorschlag und wird erst nach Übernahme Teil des Angebots.
+              </p>
+            </form>
+          )}
+        </section>
+      ) : null}
+
+      {canBook ? (
+        <section className="panel" aria-labelledby="booking-title">
+          <h2 id="booking-title">Buchung</h2>
+          {booking !== null ? (
+            <p>
+              <Link href={`/admin/bookings/${booking.id}`}>Buchung {booking.id.slice(0, 8)}</Link>{" "}
+              <span className="badge">{label(BOOKING_STATUS_LABELS, booking.status)}</span>
+            </p>
+          ) : mayCreateBooking ? (
+            <form action={createBookingAction} className="form">
+              <input type="hidden" name="quoteId" value={quote.id} />
+              <div className="field">
+                <label htmlFor="booking-date">Wunschtermin</label>
+                <input id="booking-date" name="date" type="date" required />
+              </div>
+              <div className="field">
+                <label htmlFor="booking-from">Zeitfenster von</label>
+                <input id="booking-from" name="from" type="time" required />
+              </div>
+              <div className="field">
+                <label htmlFor="booking-to">Zeitfenster bis</label>
+                <input id="booking-to" name="to" type="time" required />
+              </div>
+              <div className="field">
+                <label htmlFor="booking-duration">Dauer in Minuten</label>
+                <input
+                  id="booking-duration"
+                  name="durationMinutes"
+                  inputMode="numeric"
+                  required
+                  maxLength={4}
+                />
+              </div>
+              <div className="field">
+                <label htmlFor="booking-notes">Operative Hinweise (optional)</label>
+                <textarea id="booking-notes" name="operationalNotes" rows={2} maxLength={2000} />
+              </div>
+              <button className="button" type="submit">
+                Buchung anlegen
+              </button>
+              <p className="hint">
+                Zahlungsbedingung, Kunde, Objekt und Beträge übernimmt der Server aus dem Angebot
+                und der Zahlungsrichtlinie. Ohne freigegebene Kreditbedingungen gilt Vorkasse.
+              </p>
+            </form>
+          ) : (
+            <p className="muted">Noch keine Buchung.</p>
+          )}
+        </section>
+      ) : null}
 
       {editable && properties !== null ? (
         <section className="panel" aria-labelledby="details-title">

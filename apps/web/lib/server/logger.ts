@@ -1,5 +1,5 @@
 import "server-only";
-import { isDomainError } from "@isela/shared";
+import { isDomainError, type DomainLogger, type LogFields } from "@isela/shared";
 
 /**
  * Minimal structured logger. Logs error classes, codes and correlation ids – never request
@@ -16,3 +16,21 @@ export function logServerError(event: string, error: unknown, correlationId?: st
   };
   console.error(JSON.stringify(entry));
 }
+
+/**
+ * JSON logger for domain events (booking created, job created, assignment failed, payment
+ * guard blocked, …). The domain passes primitive fields only (ids, codes, counts); no
+ * names, addresses, phone numbers, e-mail addresses or secrets.
+ */
+export const domainLogger: DomainLogger = {
+  info(event: string, fields: LogFields = {}) {
+    console.info(
+      JSON.stringify({ level: "info", event, ...fields, time: new Date().toISOString() }),
+    );
+  },
+  warn(event: string, fields: LogFields = {}) {
+    console.warn(
+      JSON.stringify({ level: "warn", event, ...fields, time: new Date().toISOString() }),
+    );
+  },
+};

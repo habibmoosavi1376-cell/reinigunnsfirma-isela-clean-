@@ -626,3 +626,21 @@ export async function listCustomerBookings(ctx: ServiceContext, input: unknown) 
 export function canSeeInternalFinance(ctx: ServiceContext): boolean {
   return hasGlobalPermission(ctx.actor, "finance:internal_read");
 }
+
+const quoteIdInput = z.strictObject({ quoteId: z.uuid() });
+
+/** Booking created from a quote, if any (back office, GLOBAL booking:read). */
+export async function findBookingForQuote(
+  ctx: ServiceContext,
+  input: unknown,
+): Promise<{ id: string; status: BookingStatus } | null> {
+  const actor = requireActor(ctx.actor);
+  requireGlobal(actor, "booking:read");
+  const { quoteId } = parseInput(quoteIdInput, input);
+  const [row] = await ctx.db
+    .select({ id: schema.booking.id, status: schema.booking.status })
+    .from(schema.booking)
+    .where(eq(schema.booking.quoteId, quoteId))
+    .limit(1);
+  return row ?? null;
+}

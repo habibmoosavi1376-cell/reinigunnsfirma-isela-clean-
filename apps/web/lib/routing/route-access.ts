@@ -4,7 +4,7 @@
  * handler and server action checks the session and the RBAC policy on the server.
  */
 
-export type ProtectedArea = "customer" | "admin" | "account";
+export type ProtectedArea = "customer" | "admin" | "account" | "team";
 
 export type RouteAccess =
   { readonly kind: "public" } | { readonly kind: "protected"; readonly area: ProtectedArea };
@@ -13,6 +13,7 @@ const PROTECTED_PREFIXES: readonly { prefix: string; area: ProtectedArea }[] = [
   { prefix: "/customer", area: "customer" },
   { prefix: "/admin", area: "admin" },
   { prefix: "/account", area: "account" },
+  { prefix: "/team", area: "team" },
 ];
 
 /** Normalises a request path: decodes, collapses slashes, lower-cases for comparison. */

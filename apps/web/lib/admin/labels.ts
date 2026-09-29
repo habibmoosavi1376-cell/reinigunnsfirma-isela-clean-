@@ -171,6 +171,149 @@ export const PAYMENT_REASON_LABELS: Record<string, string> = {
   MANUAL_OVERRIDE: "Manuelle Festlegung",
 };
 
+export const BOOKING_STATUS_LABELS: Record<string, string> = {
+  REQUESTED: "Angefragt",
+  PENDING_PAYMENT: "Wartet auf Vorkasse",
+  CONFIRMED: "Bestätigt",
+  SCHEDULED: "Eingeplant",
+  CANCELLED: "Storniert",
+  COMPLETED: "Erledigt",
+};
+
+export const PAYMENT_REQUIREMENT_LABELS: Record<string, string> = {
+  VORKASSE_REQUIRED: "Vorkasse erforderlich",
+  CREDIT_TERMS_APPROVED: "Freigegebene Zahlungsbedingung (Rechnung)",
+};
+
+export const PAYMENT_STATUS_LABELS: Record<string, string> = {
+  PAYMENT_REQUIRED: "Zahlung erforderlich",
+  PAYMENT_PENDING: "Zahlung erwartet",
+  PAYMENT_CONFIRMED: "Zahlung bestätigt",
+  PAYMENT_FAILED: "Zahlung fehlgeschlagen",
+  REFUND_PENDING: "Erstattung ausstehend",
+  REFUNDED: "Erstattet",
+};
+
+export const PAYMENT_TRANSITION_LABELS: Record<string, string> = {
+  PAYMENT_PENDING: "Zahlung erwartet",
+  PAYMENT_CONFIRMED: "Zahlungseingang bestätigen",
+  PAYMENT_FAILED: "Zahlung fehlgeschlagen",
+  REFUND_PENDING: "Erstattung anstoßen",
+  REFUNDED: "Erstattung erledigt",
+};
+
+export const JOB_STATUS_LABELS: Record<string, string> = {
+  PLANNED: "Geplant",
+  ASSIGNMENT_PENDING: "Zuweisung offen",
+  ASSIGNED: "Zugewiesen",
+  IN_PROGRESS: "In Ausführung",
+  COMPLETED: "Ausgeführt",
+  QUALITY_CHECK: "Qualitätsprüfung",
+  CLOSED: "Abgeschlossen",
+  CANCELLED: "Storniert",
+};
+
+export const JOB_TRANSITION_LABELS: Record<string, string> = {
+  ASSIGNMENT_PENDING: "Zur Disposition freigeben",
+  IN_PROGRESS: "Einsatz beginnen",
+  COMPLETED: "Einsatz abschließen",
+  QUALITY_CHECK: "Qualitätsprüfung starten",
+  CLOSED: "Einsatz schließen",
+};
+
+export const FULFILLMENT_LABELS: Record<string, string> = {
+  IN_HOUSE: "Eigenes Personal",
+  PARTNER: "Partnerbetrieb",
+};
+
+export const CANDIDATE_BLOCKER_LABELS: Record<string, string> = {
+  INACTIVE: "nicht aktiv",
+  NOT_VERIFIED: "nicht verifiziert",
+  PARTNER_ASSIGNMENT_DISABLED: "Partnerzuweisung nicht freigegeben (Owner-Regel)",
+  MISSING_QUALIFICATION: "Qualifikation fehlt",
+  SERVICE_NOT_OFFERED: "Leistung nicht im Angebot",
+  SERVICE_UNKNOWN: "Position ohne Katalogleistung",
+  SERVICE_AREA_UNKNOWN: "Servicegebiet unbekannt (keine Koordinaten)",
+  OUTSIDE_SERVICE_AREA: "außerhalb des Gebiets",
+  OUTSIDE_WORKING_HOURS: "außerhalb der Arbeitszeit",
+  UNAVAILABLE: "abwesend",
+  TIME_CONFLICT: "Terminüberschneidung",
+  CAPACITY_EXHAUSTED: "Kapazität erschöpft",
+  CAPACITY_NOT_CONFIGURED: "Kapazität nicht konfiguriert",
+  DOCUMENTS_MISSING: "Nachweise fehlen/abgelaufen",
+};
+
+export const SCORE_FACTOR_LABELS: Record<string, string> = {
+  distance: "Entfernung",
+  qualification: "Qualifikation",
+  availability: "Verfügbarkeit",
+  serviceMatch: "Leistung",
+  capacity: "Kapazität",
+  reliability: "Zuverlässigkeit",
+};
+
+export const PARTNER_STATUS_LABELS: Record<string, string> = {
+  PENDING_VERIFICATION: "Prüfung ausstehend",
+  ACTIVE: "Aktiv (verifiziert)",
+  SUSPENDED: "Gesperrt",
+};
+
+export const PARTNER_DOCUMENT_KIND_LABELS: Record<string, string> = {
+  TRADE_REGISTRATION: "Gewerbenachweis",
+  LIABILITY_INSURANCE: "Betriebshaftpflicht",
+  OTHER: "Sonstiger Nachweis",
+};
+
+export const PARTNER_DOCUMENT_STATUS_LABELS: Record<string, string> = {
+  PENDING: "Ungeprüft",
+  VERIFIED: "Geprüft",
+  REJECTED: "Abgelehnt",
+};
+
+export const DURATION_MODEL_LABELS: Record<string, string> = {
+  MANUAL: "Manuell je Auftrag",
+  FIXED: "Feste Dauer",
+  PER_UNIT: "Je Einheit",
+};
+
+export const PRICING_STRATEGY_LABELS: Record<string, string> = {
+  MANUAL_QUOTE: "Manuelles Angebot",
+  RULE_BASED: "Preisregeln (Pricing Engine)",
+};
+
+export const RULE_SET_STATUS_LABELS: Record<string, string> = {
+  DRAFT: "Entwurf",
+  ACTIVE: "Aktiv",
+  RETIRED: "Abgelöst",
+};
+
+export const PRICING_SOURCE_LABELS: Record<string, string> = {
+  MANUAL: "manuell",
+  ENGINE: "Pricing Engine",
+  ENGINE_OVERRIDDEN: "Engine, übersteuert",
+};
+
+export const UNAVAILABILITY_KIND_LABELS: Record<string, string> = {
+  ABSENCE: "Abwesenheit",
+  TRAINING: "Schulung",
+  OTHER: "Sonstiges",
+};
+
+export const WEEKDAY_LABELS: Record<string, string> = {
+  "1": "Montag",
+  "2": "Dienstag",
+  "3": "Mittwoch",
+  "4": "Donnerstag",
+  "5": "Freitag",
+  "6": "Samstag",
+  "7": "Sonntag",
+};
+
+export const URGENCY_LABELS: Record<string, string> = {
+  STANDARD: "Standard",
+  EXPRESS: "Express",
+};
+
 export function label(map: Record<string, string>, value: string | null | undefined): string {
   if (value === null || value === undefined) return "–";
   return map[value] ?? value;

@@ -2,6 +2,7 @@ import "server-only";
 import { headers } from "next/headers";
 import { cache } from "react";
 import { loadActor, type Actor, type ServiceContext } from "@isela/auth";
+import { domainLogger } from "./logger";
 import { getServices } from "./services";
 
 /** Resolves the RBAC actor from the Better Auth session (once per request). */
@@ -42,5 +43,6 @@ export async function getServiceContext(): Promise<ServiceContext> {
     actor: await getCurrentActor(),
     clock,
     correlationId: requestHeaders.get("x-request-id") ?? crypto.randomUUID(),
+    logger: domainLogger,
   };
 }

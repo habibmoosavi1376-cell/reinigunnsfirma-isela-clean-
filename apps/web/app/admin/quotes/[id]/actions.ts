@@ -1,8 +1,18 @@
 "use server";
 
-import { addQuoteItem, removeQuoteItem, transitionQuote, updateQuoteDetails } from "@isela/quotes";
+import { createBookingFromQuote } from "@isela/operations";
+import {
+  addQuoteItem,
+  addQuoteItemFromCalculation,
+  calculateQuoteItemPrice,
+  removeQuoteItem,
+  transitionQuote,
+  updateQuoteDetails,
+} from "@isela/quotes";
 import { parseDecimal, parseMoneyToCents } from "@/lib/admin/format";
+import { zonedDateTimeToIso } from "@/lib/admin/time";
 import { formField, formId, runAdminAction } from "@/lib/server/admin-actions";
+import { loadOperationsConfig, loadPaymentPolicy } from "@/lib/server/operations-config";
 import { loadQuoteConfig } from "@/lib/server/quote-config";
 
 /*
@@ -78,5 +88,90 @@ export async function transitionQuoteAction(form: FormData): Promise<void> {
         await loadQuoteConfig(ctx.db, ctx.clock),
       ),
     { revalidate: ["/admin/quotes"] },
+  );
+}
+
+/** Engine pricing: the browser chooses whitelisted parameters; amounts come from the server. */
+export async function calculatePriceAction(form: FormData): Promise<void> {
+  const quoteId = formId(form, "quoteId");
+  const quantity = formField(form, "quantity");
+  const windows = formField(form, "windows");
+  const extraIds = form.getAll("extraIds").filter((v): v is string => typeof v === "string");
+  await runAdminAction(
+    pathOf(quoteId),
+    "price_calculated",
+    async (ctx) =>
+      calculateQuoteItemPrice(
+        ctx,
+        {
+          quoteId,
+          serviceId: formField(form, "serviceId"),
+          ...(quantity === undefined ? {} : { quantity: parseDecimal(quantity) ?? Number.NaN }),
+          ...(windows === undefined ? {} : { windows: Number(windows) }),
+          frequency: formField(form, "frequency"),
+          urgency: formField(form, "urgency"),
+          extraIds,
+        },
+        await loadQuoteConfig(ctx.db, ctx.clock),
+      ),
+    {
+      redirectTo: (result) =>
+        `${pathOf(quoteId)}/calculation/${(result as { calculationId: string }).calculationId}`,
+    },
+  );
+}
+
+export async function addItemFromCalculationAction(form: FormData): Promise<void> {
+  const quoteId = formId(form, "quoteId");
+  const calculationId = formId(form, "calculationId");
+  const override = formField(form, "overrideNet");
+  const overrideReason = formField(form, "overrideReason");
+  await runAdminAction(
+    pathOf(quoteId),
+    "quote_item_added",
+    async (ctx) =>
+      addQuoteItemFromCalculation(
+        ctx,
+        {
+          quoteId,
+          calculationId,
+          ...(override === undefined
+            ? {}
+            : { overrideNetCents: parseMoneyToCents(override) ?? Number.NaN }),
+          ...(overrideReason === undefined ? {} : { overrideReason }),
+        },
+        await loadQuoteConfig(ctx.db, ctx.clock),
+      ),
+    { redirectTo: () => pathOf(quoteId) },
+  );
+}
+
+/** Booking from an ACCEPTED quote. Date/times are business-local; the server converts them. */
+export async function createBookingAction(form: FormData): Promise<void> {
+  const quoteId = formId(form, "quoteId");
+  const date = formField(form, "date") ?? "";
+  await runAdminAction(
+    pathOf(quoteId),
+    "booking_created",
+    async (ctx) => {
+      const config = await loadOperationsConfig(ctx.db, ctx.clock);
+      const windowStart = zonedDateTimeToIso(date, formField(form, "from") ?? "", config.timeZone);
+      const windowEnd = zonedDateTimeToIso(date, formField(form, "to") ?? "", config.timeZone);
+      return createBookingFromQuote(
+        ctx,
+        {
+          quoteId,
+          windowStart: windowStart ?? "",
+          windowEnd: windowEnd ?? "",
+          durationMinutes: Number(formField(form, "durationMinutes") ?? Number.NaN),
+          operationalNotes: formField(form, "operationalNotes") ?? "",
+        },
+        { paymentPolicy: await loadPaymentPolicy(ctx.db, ctx.clock), config },
+      );
+    },
+    {
+      revalidate: ["/admin/bookings"],
+      redirectTo: (result) => `/admin/bookings/${(result as { bookingId: string }).bookingId}`,
+    },
   );
 }

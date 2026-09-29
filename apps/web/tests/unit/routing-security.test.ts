@@ -22,6 +22,7 @@ describe("route classification", () => {
 
   it.each([
     ["/customer", "customer"],
+    ["/team/jobs", "team"],
     ["/customer/requests", "customer"],
     ["/CUSTOMER/Requests", "customer"],
     ["//customer", "customer"],

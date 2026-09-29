@@ -460,3 +460,122 @@ export async function addQuoteItemFromCalculation(
     return item.id;
   });
 }
+
+export interface PricingCalculationView {
+  readonly id: string;
+  readonly quoteId: string;
+  readonly serviceId: string;
+  readonly serviceName: string;
+  readonly status: "CALCULATED" | "CONFIG_REQUIRED";
+  readonly pricingVersion: string | null;
+  readonly currency: string;
+  readonly netCents: number | null;
+  readonly taxRateBasisPoints: number | null;
+  readonly taxCents: number | null;
+  readonly grossCents: number | null;
+  readonly components: readonly { readonly key: string; readonly amountCents: number }[];
+  readonly missing: readonly string[];
+  readonly notes: readonly string[];
+  readonly used: boolean;
+  /** Only for finance:internal_read; otherwise null. */
+  readonly internal: {
+    readonly estimatedLaborMinutes: number | null;
+    readonly directCostsCents: number | null;
+    readonly internalCostCents: number | null;
+    readonly contributionMarginCents: number | null;
+  } | null;
+}
+
+const calculationIdInput = z.strictObject({ quoteId: z.uuid(), calculationId: z.uuid() });
+
+/** A stored calculation of this quote (staff with quote:read GLOBAL). */
+export async function getPricingCalculation(
+  ctx: ServiceContext,
+  input: unknown,
+): Promise<PricingCalculationView> {
+  const actor = requireActor(ctx.actor);
+  if (!hasGlobalPermission(actor, "quote:read")) {
+    throw new DomainError("FORBIDDEN", "Not allowed", { permission: "quote:read" });
+  }
+  const { quoteId, calculationId } = parseInput(calculationIdInput, input);
+  const c = schema.pricingCalculation;
+  const [row] = await ctx.db
+    .select({ calc: c, serviceName: schema.service.name })
+    .from(c)
+    .innerJoin(schema.service, eq(schema.service.id, c.serviceId))
+    .where(and(eq(c.id, calculationId), eq(c.quoteId, quoteId)))
+    .limit(1);
+  if (row === undefined) throw new DomainError("NOT_FOUND", "Calculation not found");
+  const [used] = await ctx.db
+    .select({ id: schema.quoteItem.id })
+    .from(schema.quoteItem)
+    .where(eq(schema.quoteItem.pricingCalculationId, calculationId))
+    .limit(1);
+  const result = row.calc.result as {
+    components?: { key: string; amountCents: number }[];
+    missing?: string[];
+    notes?: string[];
+  };
+  const calc = row.calc;
+  return {
+    id: calc.id,
+    quoteId,
+    serviceId: calc.serviceId,
+    serviceName: row.serviceName,
+    status: calc.status,
+    pricingVersion: calc.pricingVersion,
+    currency: calc.currency,
+    netCents: calc.netCents,
+    taxRateBasisPoints: calc.taxRateBasisPoints,
+    taxCents: calc.taxCents,
+    grossCents: calc.grossCents,
+    components: result.components ?? [],
+    missing: result.missing ?? [],
+    notes: result.notes ?? [],
+    used: used !== undefined,
+    internal: hasGlobalPermission(actor, "finance:internal_read")
+      ? {
+          estimatedLaborMinutes: calc.estimatedLaborMinutes,
+          directCostsCents: calc.directCostsCents,
+          internalCostCents: calc.internalCostCents,
+          contributionMarginCents: calc.contributionMarginCents,
+        }
+      : null,
+  };
+}
+
+/** Active RULE_BASED services with their active extras (engine pricing form). */
+export async function listRuleBasedServices(
+  ctx: ServiceContext,
+): Promise<{ id: string; name: string; unit: string; extras: { id: string; name: string }[] }[]> {
+  const actor = requireActor(ctx.actor);
+  if (!hasGlobalPermission(actor, "quote:write")) {
+    throw new DomainError("FORBIDDEN", "Not allowed", { permission: "quote:write" });
+  }
+  const services = await ctx.db
+    .select({ id: schema.service.id, name: schema.service.name, unit: schema.service.unit })
+    .from(schema.service)
+    .where(and(eq(schema.service.active, true), eq(schema.service.pricingStrategy, "RULE_BASED")))
+    .orderBy(schema.service.name);
+  if (services.length === 0) return [];
+  const extras = await ctx.db
+    .select({
+      id: schema.serviceOption.id,
+      serviceId: schema.serviceOption.serviceId,
+      name: schema.serviceOption.name,
+    })
+    .from(schema.serviceOption)
+    .where(
+      and(
+        inArray(
+          schema.serviceOption.serviceId,
+          services.map((s) => s.id),
+        ),
+        eq(schema.serviceOption.active, true),
+      ),
+    );
+  return services.map((s) => ({
+    ...s,
+    extras: extras.filter((e) => e.serviceId === s.id).map((e) => ({ id: e.id, name: e.name })),
+  }));
+}

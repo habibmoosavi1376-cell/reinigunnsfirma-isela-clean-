@@ -69,9 +69,15 @@ describe("admin navigation", () => {
       "customers",
       "properties",
       "quotes",
+      "services",
+      "pricing",
+      "bookings",
+      "jobs",
+      "employees",
+      "partners",
     ]);
     expect(modules.find((m) => m.key === "invoices")?.active).toBe(false);
-    expect(modules.find((m) => m.key === "jobs")?.active).toBe(false);
+    expect(modules.find((m) => m.key === "calendar")?.active).toBe(false);
   });
 
   it("shows customers, properties and quotes according to the permission matrix", () => {
@@ -83,6 +89,21 @@ describe("admin navigation", () => {
     for (const role of ["STAFF", "PARTNER"] as const) {
       expect(labels(role)).not.toContain("customers");
       expect(labels(role)).not.toContain("quotes");
+    }
+  });
+
+  it("shows day-5 modules according to the permission matrix", () => {
+    expect(labels("DISPATCHER")).toEqual(
+      expect.arrayContaining(["bookings", "jobs", "employees", "partners"]),
+    );
+    expect(labels("DISPATCHER")).not.toContain("pricing");
+    expect(labels("DISPATCHER")).not.toContain("services");
+    expect(labels("FINANCE")).toEqual(expect.arrayContaining(["bookings", "jobs", "pricing"]));
+    expect(labels("FINANCE")).not.toContain("employees");
+    for (const role of ["STAFF", "CUSTOMER"] as const) {
+      for (const key of ["bookings", "jobs", "employees", "pricing"]) {
+        expect(labels(role), `${role} ${key}`).not.toContain(key);
+      }
     }
   });
 

@@ -13,7 +13,7 @@ const LINKS = [
   { href: "/customer", label: "Übersicht" },
   { href: "/customer/requests", label: "Anfragen" },
   { href: "/customer/quotes", label: "Angebote" },
-  { href: "/customer/jobs", label: "Termine" },
+  { href: "/customer/jobs", label: "Termine/Buchungen" },
   { href: "/customer/invoices", label: "Rechnungen" },
   { href: "/customer/profile", label: "Profil" },
 ] as const;

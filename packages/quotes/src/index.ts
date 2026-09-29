@@ -43,5 +43,10 @@ export {
   updateQuoteDetails,
 } from "./quotes.ts";
 export type { QuoteItemView, QuoteListItem, QuoteServiceOptions, QuoteView } from "./quotes.ts";
-export { addQuoteItemFromCalculation, calculateQuoteItemPrice } from "./engine-pricing.ts";
-export type { QuotePriceCalculation } from "./engine-pricing.ts";
+export {
+  addQuoteItemFromCalculation,
+  calculateQuoteItemPrice,
+  getPricingCalculation,
+  listRuleBasedServices,
+} from "./engine-pricing.ts";
+export type { PricingCalculationView, QuotePriceCalculation } from "./engine-pricing.ts";
