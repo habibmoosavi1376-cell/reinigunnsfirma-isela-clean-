@@ -292,6 +292,7 @@ Abhängigkeitszyklus erzeugt.
 | --- | --- | --- |
 | B1 | STAFF ohne verknüpften Mitarbeitenden erhielt für eine konkrete Einsatz-ID eine leere Liste statt `NOT_FOUND` (kein Datenleck, aber uneinheitlich) | einheitlich `NOT_FOUND` (Test) |
 | B2 | Mengenfeld der Engine-Berechnung hätte den bestehenden E2E-Selektor „Menge“ mehrdeutig gemacht | Label präzisiert |
+| B3 | CodeQL (PR #6): bestehender Tag-4-Test ersetzte `@` durch sich selbst (No-op) – der Wiederholungsfall prüfte keine abweichende Schreibweise | Test nutzt dieselbe E-Mail in Großschreibung; belegt die Identitätsnormalisierung (`0eed7a7`) |
 
 Keine Befunde in bestehender Funktionalität; alle Bestandstests grün.
 
@@ -349,7 +350,31 @@ Keine Befunde in bestehender Funktionalität; alle Bestandstests grün.
 | Secrets (gitleaks Historie) | keine Funde (Verzeichnisfunde nur im ignorierten `.next`-Build) |
 | actionlint / markdownlint | grün |
 | Baseline-Regression | keine Regression |
-| CI | siehe PR (Nachtrag nach Lauf) |
+| CI (GitHub, HEAD `0eed7a7`) | siehe unten – alle Code-, Security- und Test-Gates grün |
+
+**Tatsächlicher CI-Stand auf `0eed7a7a9670f52d21721bbcedaf1cba53dcb865`** (PR #6, beide Läufe
+`push` und `pull_request`, Stand 2026-09-29):
+
+| Check | Ergebnis |
+| --- | --- |
+| Typecheck, lint, unit tests, build | success |
+| Integration tests (PostgreSQL + PostGIS) | success |
+| E2E (Playwright, production build, PostgreSQL + PostGIS) | success |
+| Web build (production) and client-bundle secret scan | success |
+| Secret scan (gitleaks) | success |
+| Dependency audit and license policy | success |
+| Repo guard (forbidden files) | success |
+| Markdown lint | success |
+| Workflow lint (actionlint) | success |
+| CodeQL / Analyze (JavaScript/TypeScript) | success (Befund B3 behoben, Thread aufgelöst) |
+| Dependency review (pull requests) | failure – `Dependency review is not supported on this repository. Please ensure that Dependency graph is enabled` |
+
+Modulgrenzen und Hardcoding-Guard laufen im Job „Typecheck, lint, unit tests, build“, der
+Migrations-Drift (`db:check`) im Job „Integration tests“ – beide grün. Dependency Review scheitert ausschließlich an der Owner-Einstellung
+„Dependency graph“ (bekannt seit #2, im PR kommentiert); der Check wurde weder abgeschaltet
+noch umgangen. Nach `0eed7a7` folgt nur dieser Dokumentations-Nachtrag (keine Code-Änderung).
+
+**Verdict: PHASE 1 DAY 5 COMPLETE**
 
 ## 21. Nächster Schritt
 
