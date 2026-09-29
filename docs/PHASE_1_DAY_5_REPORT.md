@@ -374,7 +374,7 @@ Migrations-Drift (`db:check`) im Job „Integration tests“ – beide grün. De
 „Dependency graph“ (bekannt seit #2, im PR kommentiert); der Check wurde weder abgeschaltet
 noch umgangen. Nach `0eed7a7` folgt nur dieser Dokumentations-Nachtrag (keine Code-Änderung).
 
-**Verdict: PHASE 1 DAY 5 COMPLETE**
+Verdict: `PHASE 1 DAY 5 COMPLETE`.
 
 ## 21. Nächster Schritt
 
