@@ -268,4 +268,49 @@ kein automatisches Down. Die Day-5-Funktion `isela_job_payment_guard` kann per
 
 ## 18. Final Gate
 
-Wird nach dem CI-Lauf auf dem PR-Head ergänzt.
+| Gate | Ergebnis |
+| --- | --- |
+| git status / diff | sauber; Diff geprüft (keine Secrets, keine `.env`, kein `DROP`/`TRUNCATE`) |
+| Typecheck (Root + Web) | grün |
+| Lint (ESLint strict + Prettier) | grün |
+| Unit | 896/896 grün (Baseline 757) |
+| Integration | 232/232 grün (Baseline 203) |
+| E2E | 15/15 grün (Baseline 14) |
+| Build (Produktion) + Client-Bundle-Scan | grün |
+| Migration: Drift / Upgrade-Test | grün / grün (Day-5-Altdaten unverändert, Day-6-Suite 56/56 auf migrierter DB) |
+| Security-Tests (IDOR, Fälschung, Races, Webhooks, DB-Guards) | grün (Teil der Integration) |
+| Modulgrenzen, Hardcoding-Guard, Forbidden-Files | grün |
+| `pnpm audit` / Lizenzen | 0 Schwachstellen / alle erlaubt |
+| Secrets (gitleaks, Day-6-Commits) | keine Funde (Verzeichnisfunde nur in ignorierten `node_modules`/`.next`) |
+| markdownlint | grün |
+| Baseline-Regression | keine; Testnamen 452 → 515, keiner ersatzlos entfallen |
+
+**Tatsächlicher CI-Stand auf `ebd6a7d00bae27f194b024a7981011ba8c356d1a`** (PR #7, Läufe `push`
+und `pull_request`, Stand 2026-09-30):
+
+| Check | Ergebnis |
+| --- | --- |
+| Typecheck, lint, unit tests, build | success |
+| Integration tests (PostgreSQL + PostGIS) | success |
+| E2E (Playwright, production build, PostgreSQL + PostGIS) | success |
+| Web build (production) and client-bundle secret scan | success |
+| Secret scan (gitleaks) | success |
+| Dependency audit and license policy | success |
+| Repo guard (forbidden files) | success |
+| Markdown lint | success |
+| Workflow lint (actionlint) | success |
+| CodeQL / Analyze (JavaScript/TypeScript) | success |
+| Dependency review (pull requests) | failure – `Dependency review is not supported on this repository. Please ensure that Dependency graph is enabled` |
+
+Modulgrenzen und Hardcoding-Guard laufen im Job „Typecheck, lint, unit tests, build“, der
+Migrations-Drift im Job „Integration tests“ – beide grün. Dependency Review scheitert
+ausschließlich an der Owner-Einstellung „Dependency graph“ (seit #2 bekannt, auf #7
+kommentiert); der Check wurde weder abgeschaltet noch umgangen. Keine offenen Review-Threads.
+Nach `ebd6a7d` folgt nur dieser Dokumentations-Nachtrag (keine Code-Änderung).
+
+Verdict: `PHASE 1 DAY 6 COMPLETE`.
+
+## 19. Nächster Schritt
+
+Review dieses Reports und der Owner-Entscheidungen (§15) durch den Inhaber. Kein
+eigenmächtiger Merge, kein Beginn von Tag 7.
