@@ -20,6 +20,9 @@ importers:
       '@isela/auth':
         specifier: workspace:*
         version: link:packages/auth
+      '@isela/billing':
+        specifier: workspace:*
+        version: link:packages/billing
       '@isela/catalog':
         specifier: workspace:*
         version: link:packages/catalog
@@ -95,6 +98,9 @@ importers:
       '@isela/auth':
         specifier: workspace:*
         version: link:../../packages/auth
+      '@isela/billing':
+        specifier: workspace:*
+        version: link:../../packages/billing
       '@isela/catalog':
         specifier: workspace:*
         version: link:../../packages/catalog
@@ -198,6 +204,33 @@ importers:
       better-auth:
         specifier: 1.7.6
         version: 1.7.6(drizzle-kit@0.31.11)(drizzle-orm@0.45.3(@types/pg@8.23.1)(kysely@0.29.6)(pg@8.23.0))(next@16.3.6(@playwright/test@1.63.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(pg@8.23.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(vitest@5.0.1(@types/node@24.13.6)(vite@8.3.1(@types/node@24.13.6)(esbuild@0.28.2)(tsx@4.23.15)))
+
+  packages/billing:
+    dependencies:
+      '@isela/audit':
+        specifier: workspace:*
+        version: link:../audit
+      '@isela/auth':
+        specifier: workspace:*
+        version: link:../auth
+      '@isela/database':
+        specifier: workspace:*
+        version: link:../database
+      '@isela/operations':
+        specifier: workspace:*
+        version: link:../operations
+      '@isela/payment-risk':
+        specifier: workspace:*
+        version: link:../payment-risk
+      '@isela/quotes':
+        specifier: workspace:*
+        version: link:../quotes
+      '@isela/shared':
+        specifier: workspace:*
+        version: link:../shared
+      '@isela/validation':
+        specifier: workspace:*
+        version: link:../validation
 
   packages/catalog:
     dependencies:
@@ -349,6 +382,12 @@ importers:
 
   packages/payment-risk:
     dependencies:
+      '@isela/database':
+        specifier: workspace:*
+        version: link:../database
+      '@isela/shared':
+        specifier: workspace:*
+        version: link:../shared
       '@isela/validation':
         specifier: workspace:*
         version: link:../validation
@@ -403,6 +442,9 @@ importers:
       '@isela/auth':
         specifier: workspace:*
         version: link:../auth
+      '@isela/billing':
+        specifier: workspace:*
+        version: link:../billing
       '@isela/database':
         specifier: workspace:*
         version: link:../database

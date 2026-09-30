@@ -37,7 +37,12 @@ export const PERMISSIONS = {
   "finance:internal_read": "Interne Kosten und Deckungsbeiträge lesen",
   "booking:read": "Buchungen lesen",
   "booking:write": "Buchungen aus Angeboten anlegen/stornieren",
-  "payment:manage": "Zahlungsstatus von Buchungen pflegen",
+  "payment:manage": "Zahlungen erfassen, bestätigen, erstatten; Zahlungsprüfungen abschließen",
+  "invoice:read": "Rechnungen und Zahlungen lesen",
+  "invoice:write": "Rechnungen erzeugen, ausstellen, stornieren, Fälligkeit ändern",
+  "payment_risk:read": "Zahlungsrisiko, Kreditrahmen und Bewertungen lesen",
+  "credit_terms:request": "Rechnungskauf beantragen/widerrufen, Neubewertung und Fälligkeitslauf",
+  "credit_terms:approve": "Rechnungskauf (Kreditrahmen) freigeben oder ablehnen",
   "job:read": "Einsätze lesen",
   "job:write": "Einsätze anlegen und Status pflegen",
   "job:assign": "Einsätze Mitarbeitenden/Partnern zuweisen",
@@ -80,9 +85,11 @@ export const ROLE_PERMISSIONS: Readonly<
   Record<Role, Partial<Record<Permission, PermissionScope>>>
 > = {
   SUPER_ADMIN: grant("GLOBAL", ALL_PERMISSIONS),
+  // ADMIN: operative finance administration, but neither the payment policy nor credit
+  // approvals (SUPER_ADMIN/FINANCE only).
   ADMIN: grant(
     "GLOBAL",
-    ALL_PERMISSIONS.filter((p) => p !== "payment_policy:manage"),
+    ALL_PERMISSIONS.filter((p) => p !== "payment_policy:manage" && p !== "credit_terms:approve"),
   ),
   DISPATCHER: grant("GLOBAL", [
     "customer:read",
@@ -125,6 +132,11 @@ export const ROLE_PERMISSIONS: Readonly<
     "booking:read",
     "payment:manage",
     "job:read",
+    "invoice:read",
+    "invoice:write",
+    "payment_risk:read",
+    "credit_terms:request",
+    "credit_terms:approve",
   ]),
   /*
    * STAFF: `job:execute_own` is granted GLOBAL because staff accounts carry no scope id; the
@@ -146,6 +158,7 @@ export const ROLE_PERMISSIONS: Readonly<
       "property:write",
       "quote:read",
       "booking:read",
+      "invoice:read",
       "consent:read",
       "consent:record",
       "user:invite",

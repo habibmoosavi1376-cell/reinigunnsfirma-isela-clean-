@@ -50,6 +50,13 @@
       "when": 1790713315895,
       "tag": "0006_day5_services_bookings_jobs",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790723272709,
+      "tag": "0007_day6_invoices_payments_credit",
+      "breakpoints": true
     }
   ]
 }

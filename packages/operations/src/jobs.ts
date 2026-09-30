@@ -21,7 +21,9 @@ import {
   schema,
   sql,
   type SQL,
+  type Transaction,
 } from "@isela/database";
+import { evaluateCustomerPaymentTerms, paymentPolicySchema } from "@isela/payment-risk";
 import { DomainError, isDomainError } from "@isela/shared";
 import { parseInput, z } from "@isela/validation";
 import {
@@ -33,6 +35,7 @@ import {
   pgErrorCode,
   requireGlobal,
 } from "./internal.ts";
+import type { PaymentPolicySnapshot } from "./bookings.ts";
 import { JOB_STATUSES, type JobStatus } from "./state-machines.ts";
 
 /*
@@ -191,6 +194,40 @@ function assignmentOfWorker(scope: WorkerScope): SQL | undefined {
 // Transitions
 // ------------------------------------------------------------------------------------------
 
+/**
+ * Payment guard at job start (day 6), in addition to the state machine and the DB trigger:
+ * a booking under payment review never starts, and a credit-terms booking starts only while
+ * the central engine still allows credit terms (no overdue invoice, approval still active).
+ */
+async function assertCreditStillValid(
+  tx: Transaction,
+  booking: { customerId: string; paymentRequirement: string; paymentReviewRequired: boolean },
+  payment: JobPaymentContext | undefined,
+  now: Date,
+): Promise<void> {
+  if (booking.paymentReviewRequired) {
+    throw new DomainError("POLICY_VIOLATION", "Payment guard: payment review pending", {
+      guard: "PAYMENT",
+    });
+  }
+  if (booking.paymentRequirement !== "CREDIT_TERMS_APPROVED") return;
+  if (payment === undefined) {
+    throw new DomainError("CONFIG_REQUIRED", "Payment policy required to start a credit job");
+  }
+  const { decision } = await evaluateCustomerPaymentTerms(tx, booking.customerId, {
+    policy: paymentPolicySchema.parse(payment.paymentPolicy.policy),
+    now,
+    timeZone: payment.timeZone,
+    requestedAmountCents: 0,
+  });
+  if (decision.outcome !== "CREDIT_TERMS_ALLOWED") {
+    throw new DomainError("POLICY_VIOLATION", "Payment guard: credit terms no longer valid", {
+      guard: "PAYMENT",
+      reasons: decision.reasons.join(","),
+    });
+  }
+}
+
 const DISPATCH_TARGETS: readonly JobStatus[] = [
   "ASSIGNMENT_PENDING",
   "IN_PROGRESS",
@@ -211,7 +248,17 @@ const transitionInput = z.strictObject({
  * assignment service, CANCELLED by the booking cancellation. Dispatchers (job:write) may use
  * every manual target; assigned workers (job:execute_own) may start and complete their job.
  */
-export async function transitionJob(ctx: ServiceContext, input: unknown): Promise<JobStatus> {
+export interface JobPaymentContext {
+  readonly paymentPolicy: PaymentPolicySnapshot;
+  /** Business time zone for due dates (operations config). */
+  readonly timeZone: string;
+}
+
+export async function transitionJob(
+  ctx: ServiceContext,
+  input: unknown,
+  payment?: JobPaymentContext,
+): Promise<JobStatus> {
   const actor = requireActor(ctx.actor);
   const data = parseInput(transitionInput, input);
   const dispatcher = hasGlobalPermission(actor, "job:write");
@@ -245,6 +292,9 @@ export async function transitionJob(ctx: ServiceContext, input: unknown): Promis
       }
       if (data.to === "ASSIGNMENT_PENDING" && job.status !== "PLANNED") {
         throw new DomainError("INVALID_STATE_TRANSITION", "Use the assignment release instead");
+      }
+      if (data.to === "IN_PROGRESS") {
+        await assertCreditStillValid(tx, booking, payment, now);
       }
       const options = {
         actor: auditActorOf(actor),

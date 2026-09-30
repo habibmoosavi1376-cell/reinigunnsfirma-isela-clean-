@@ -8,3 +8,4 @@ export * from "./quotes.ts";
 export * from "./pricing.ts";
 export * from "./workforce.ts";
 export * from "./operations.ts";
+export * from "./billing.ts";

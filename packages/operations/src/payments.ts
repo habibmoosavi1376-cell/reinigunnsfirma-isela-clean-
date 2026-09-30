@@ -3,20 +3,23 @@ import { auditActorOf, requireActor, type ServiceContext } from "@isela/auth";
 import { and, eq, schema } from "@isela/database";
 import { DomainError } from "@isela/shared";
 import { parseInput, z } from "@isela/validation";
-import {
-  applyBookingTransition,
-  findJobOfBooking,
-  lockBooking,
-  requireGlobal,
-} from "./internal.ts";
+import { lockBooking, requireGlobal } from "./internal.ts";
 import { PAYMENT_STATUSES, assertPaymentTransition, type PaymentStatus } from "./state-machines.ts";
 
 /*
- * Payment state of prepayment bookings. There is no payment provider yet: a status is changed
- * only by an authorised finance user (payment:manage, MFA) with a payment reference – e.g.
- * after a bank transfer was seen on the account statement. Nothing is ever confirmed
- * automatically, and there is no simulated success in the production path.
+ * Manual payment-status steps of prepayment bookings. Since day 6 a prepayment is CONFIRMED
+ * (and refunded) only through the billing workflow: a recorded, confirmed payment that fully
+ * pays the booking's prepayment invoice (enforced here and by the database trigger
+ * `booking_credit_guard`). The manual path keeps only the non-binding steps "payment expected"
+ * and "payment failed"; a reference text alone can no longer confirm a payment.
  */
+
+/** Payment statuses that only the billing workflow may set. */
+const BILLING_ONLY_TARGETS: readonly PaymentStatus[] = [
+  "PAYMENT_CONFIRMED",
+  "REFUND_PENDING",
+  "REFUNDED",
+];
 
 const transitionInput = z.strictObject({
   bookingId: z.uuid(),
@@ -31,6 +34,13 @@ export async function transitionPaymentStatus(
   const actor = requireActor(ctx.actor);
   requireGlobal(actor, "payment:manage");
   const data = parseInput(transitionInput, input);
+  if (BILLING_ONLY_TARGETS.includes(data.to)) {
+    throw new DomainError(
+      "POLICY_VIOLATION",
+      "Payments are confirmed and refunded only through the invoice payment workflow",
+      { guard: "PAYMENT_HISTORY" },
+    );
+  }
   const reference = data.reference === undefined || data.reference === "" ? null : data.reference;
   const now = ctx.clock.now();
   const result = await ctx.db.transaction(async (tx) => {
@@ -72,27 +82,6 @@ export async function transitionPaymentStatus(
       after: { paymentStatus: data.to, hasReference: reference !== null },
       correlationId: ctx.correlationId,
     });
-    // Confirmed prepayment releases the booking: PENDING_PAYMENT → CONFIRMED (→ SCHEDULED).
-    if (data.to === "PAYMENT_CONFIRMED" && booking.status === "PENDING_PAYMENT") {
-      const job = await findJobOfBooking(tx, booking.id);
-      const options = {
-        actor: auditActorOf(actor),
-        actorUserId: actor.userId,
-        reason: null,
-        now,
-        correlationId: ctx.correlationId,
-      };
-      booking = await applyBookingTransition(
-        tx,
-        booking,
-        "CONFIRMED",
-        job?.status ?? null,
-        options,
-      );
-      if (job?.status === "ASSIGNED") {
-        booking = await applyBookingTransition(tx, booking, "SCHEDULED", job.status, options);
-      }
-    }
     return { paymentStatus: data.to, bookingStatus: booking.status };
   });
   ctx.logger?.info("payment.status_changed", {

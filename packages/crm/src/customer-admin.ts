@@ -24,11 +24,7 @@ import {
   sql,
   type SQL,
 } from "@isela/database";
-import {
-  evaluatePaymentTerms,
-  historyWithoutOrders,
-  type PaymentTermsDecision,
-} from "@isela/payment-risk";
+import { evaluateCustomerPaymentTerms, type PaymentTermsDecision } from "@isela/payment-risk";
 import { GLOBAL_SCOPE, getEffectiveSetting } from "@isela/settings";
 import { DomainError } from "@isela/shared";
 import { emailSchema, normalizeEmail, parseInput, z } from "@isela/validation";
@@ -440,10 +436,10 @@ export interface CustomerDetail {
   readonly payment: PaymentTermsDecision & {
     readonly policyVersion: number | null;
     /**
-     * Where the payment history comes from. Jobs, invoices, payments and chargebacks are not
-     * modelled yet, so the history is empty and prepayment always applies (fail-safe).
+     * Where the payment history comes from: since day 6 the recorded bookings, invoices,
+     * payments and credit decisions of this customer (central payment-terms engine).
      */
-    readonly historySource: "NO_ORDER_DATA";
+    readonly historySource: "RECORDED";
   };
 }
 
@@ -674,8 +670,16 @@ export async function getCustomerDetail(
       .limit(100);
   }
 
-  const policy = await getEffectiveSetting(ctx.db, "payment.policy", GLOBAL_SCOPE, ctx.clock.now());
-  const decision = evaluatePaymentTerms(historyWithoutOrders(customer), policy.value);
+  const now = ctx.clock.now();
+  const [policy, operations] = await Promise.all([
+    getEffectiveSetting(ctx.db, "payment.policy", GLOBAL_SCOPE, now),
+    getEffectiveSetting(ctx.db, "operations.assignment", GLOBAL_SCOPE, now),
+  ]);
+  const { decision } = await evaluateCustomerPaymentTerms(ctx.db, customerId, {
+    policy: policy.value,
+    now,
+    timeZone: operations.value.timeZone,
+  });
 
   return {
     customer: { ...customer, identityKinds: identityRows.map((row) => row.kind) },
@@ -687,6 +691,6 @@ export async function getCustomerDetail(
     contacts: isAuthorized(actor, "lead_contact:read") ? contactRows : null,
     consents,
     audit,
-    payment: { ...decision, policyVersion: policy.version, historySource: "NO_ORDER_DATA" },
+    payment: { ...decision, policyVersion: policy.version, historySource: "RECORDED" },
   };
 }

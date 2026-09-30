@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   bigint,
+  boolean,
   char,
   check,
   date,
@@ -90,6 +91,11 @@ export const booking = pgTable(
     paymentStatus: paymentStatus("payment_status"),
     /** Payment-risk decision snapshot: terms, reason codes, policy version. */
     paymentDecision: jsonb("payment_decision").$type<Record<string, unknown>>().notNull(),
+    /**
+     * Set when the payment protection reverted the booking to prepayment (overdue invoice,
+     * chargeback): the booking needs a finance review before it is carried out (day 6).
+     */
+    paymentReviewRequired: boolean("payment_review_required").notNull().default(false),
     operationalNotes: text("operational_notes"),
     cancellationReason: text("cancellation_reason"),
     createdByUserId: text("created_by_user_id")

@@ -1,4 +1,5 @@
 import type { Permission } from "@isela/auth";
+import { DEFAULT_BILLING_CONFIG, billingConfigSchema } from "@isela/billing";
 import { DEFAULT_LEAD_SCORING, leadScoringSchema } from "@isela/lead-finder";
 import { DEFAULT_OPERATIONS_CONFIG, operationsConfigSchema } from "@isela/operations";
 import { DEFAULT_PAYMENT_POLICY, paymentPolicySchema } from "@isela/payment-risk";
@@ -31,6 +32,14 @@ export const SETTING_DEFINITIONS = {
     permission: "payment_policy:manage",
     defaultValue: DEFAULT_PAYMENT_POLICY,
     description: "Zahlungsrichtlinie (Vorkasse/Rechnung), docs/DOMAIN_MODEL.md §11",
+  }),
+  "billing.config": define({
+    schema: billingConfigSchema,
+    scopes: ["GLOBAL"],
+    permission: "payment_policy:manage",
+    defaultValue: DEFAULT_BILLING_CONFIG,
+    description:
+      "Rechnungen: Nummernkreis-Präfix, Zahlungsziel, Vorkasse-Frist (Owner-Werte, Standard CONFIG_REQUIRED)",
   }),
   "lead.scoring": define({
     schema: leadScoringSchema,

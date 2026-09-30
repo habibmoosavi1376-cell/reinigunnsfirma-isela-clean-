@@ -10,6 +10,8 @@
     "serverOnly": true
   },
   "dependencies": {
+    "@isela/database": "workspace:*",
+    "@isela/shared": "workspace:*",
     "@isela/validation": "workspace:*"
   }
 }

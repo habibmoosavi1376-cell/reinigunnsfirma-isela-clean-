@@ -30,6 +30,7 @@
     "@eslint/js": "10.0.1",
     "@isela/audit": "workspace:*",
     "@isela/auth": "workspace:*",
+    "@isela/billing": "workspace:*",
     "@isela/catalog": "workspace:*",
     "@isela/config": "workspace:*",
     "@isela/crm": "workspace:*",

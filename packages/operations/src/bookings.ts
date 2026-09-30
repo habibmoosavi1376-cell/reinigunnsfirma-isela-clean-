@@ -8,9 +8,10 @@ import {
 } from "@isela/auth";
 import { and, asc, count, desc, eq, inArray, isNull, schema, type SQL } from "@isela/database";
 import {
-  evaluatePaymentTerms,
-  historyWithoutOrders,
+  evaluateCustomerPaymentTerms,
+  lockCustomerFinance,
   paymentPolicySchema,
+  recordPaymentRiskEvaluation,
   type PaymentPolicy,
 } from "@isela/payment-risk";
 import { DomainError } from "@isela/shared";
@@ -38,8 +39,9 @@ import { localTime } from "./time.ts";
  * Bookings. A booking is created only from an ACCEPTED quote by staff with booking:write.
  * Customer, property, address, items and amounts are copied on the server from the stored
  * quote – the browser only chooses the quote, the time window and the duration. The payment
- * requirement comes from the payment-risk engine; without approved credit terms it is always
- * VORKASSE_REQUIRED and the booking waits in PENDING_PAYMENT.
+ * requirement comes from the central payment-terms engine over the customer's recorded
+ * history (day 6); without an approved credit decision it is always VORKASSE_REQUIRED and the
+ * booking waits in PENDING_PAYMENT. An overdue invoice immediately forces prepayment again.
  */
 
 export interface PaymentPolicySnapshot {
@@ -144,8 +146,27 @@ export async function createBookingFromQuote(
         .orderBy(asc(schema.quoteItem.position));
       if (items.length === 0) throw new DomainError("POLICY_VIOLATION", "The quote has no items");
 
-      // Payment risk: history is derived on the server (never from input).
-      const decision = evaluatePaymentTerms(historyWithoutOrders(customer), policy);
+      // Payment risk: history is derived on the server from recorded invoices, payments and
+      // credit decisions (never from input), serialised per customer.
+      await lockCustomerFinance(tx, quote.customerId);
+      const evaluation = await evaluateCustomerPaymentTerms(tx, quote.customerId, {
+        policy,
+        now,
+        timeZone: config.timeZone,
+        requestedAmountCents: quote.grossCents,
+      });
+      const decision = evaluation.decision;
+      if (decision.outcome === "BLOCKED") {
+        throw new DomainError("POLICY_VIOLATION", "The customer is blocked");
+      }
+      await recordPaymentRiskEvaluation(tx, {
+        customerId: quote.customerId,
+        evaluation,
+        policyVersion: options.paymentPolicy.version,
+        trigger: "BOOKING",
+        actorUserId: actor.userId,
+        now,
+      });
       const paymentRequirement = paymentRequirementFor(decision);
       const initialPayment: PaymentStatus | null =
         paymentRequirement === "VORKASSE_REQUIRED" ? "PAYMENT_REQUIRED" : null;
@@ -169,6 +190,7 @@ export async function createBookingFromQuote(
           paymentRequirement,
           paymentStatus: initialPayment,
           paymentDecision: {
+            outcome: decision.outcome,
             terms: decision.terms,
             reasons: [...decision.reasons],
             invoiceReviewEligible: decision.invoiceReviewEligible,
@@ -377,6 +399,8 @@ export interface StaffBookingView extends CustomerBookingView {
   readonly quoteId: string | null;
   readonly source: "QUOTE";
   readonly paymentDecision: Readonly<Record<string, unknown>>;
+  /** Payment protection applied – finance must clear the review before the job starts. */
+  readonly paymentReviewRequired: boolean;
   readonly operationalNotes: string | null;
   readonly cancellationReason: string | null;
   readonly createdAt: Date;
@@ -529,6 +553,7 @@ export async function getBooking(ctx: ServiceContext, input: unknown): Promise<S
     quoteId: b.quoteId,
     source: b.source,
     paymentDecision: b.paymentDecision,
+    paymentReviewRequired: b.paymentReviewRequired,
     operationalNotes: b.operationalNotes,
     cancellationReason: b.cancellationReason,
     createdAt: b.createdAt,

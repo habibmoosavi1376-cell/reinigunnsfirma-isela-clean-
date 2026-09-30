@@ -25,8 +25,9 @@ export type BookingStatus = (typeof BOOKING_STATUSES)[number];
 export const BOOKING_TRANSITIONS: Readonly<Record<BookingStatus, readonly BookingStatus[]>> = {
   REQUESTED: ["PENDING_PAYMENT", "CONFIRMED", "CANCELLED"],
   PENDING_PAYMENT: ["CONFIRMED", "CANCELLED"],
-  CONFIRMED: ["SCHEDULED", "COMPLETED", "CANCELLED"],
-  SCHEDULED: ["CONFIRMED", "COMPLETED", "CANCELLED"],
+  // → PENDING_PAYMENT: payment protection (overdue invoice, revoked credit terms) – day 6.
+  CONFIRMED: ["SCHEDULED", "COMPLETED", "CANCELLED", "PENDING_PAYMENT"],
+  SCHEDULED: ["CONFIRMED", "COMPLETED", "CANCELLED", "PENDING_PAYMENT"],
   CANCELLED: [],
   COMPLETED: [],
 };
@@ -85,6 +86,18 @@ export function assertBookingTransition(
     case "PENDING_PAYMENT":
       if (context.paymentRequirement !== "VORKASSE_REQUIRED") {
         throw new DomainError("POLICY_VIOLATION", "No prepayment required for this booking");
+      }
+      // Back from CONFIRMED/SCHEDULED only when the payment protection took the credit away.
+      if (from !== "REQUESTED") {
+        if (context.reason === null || context.reason.trim() === "") {
+          throw new DomainError("VALIDATION_FAILED", "A reason is required for this transition");
+        }
+        if (paid) {
+          throw new DomainError("POLICY_VIOLATION", "The booking is already paid");
+        }
+        if (context.jobStatus !== null && !JOB_CANCELLABLE.includes(context.jobStatus)) {
+          throw new DomainError("POLICY_VIOLATION", "The job has already started");
+        }
       }
       break;
     case "CONFIRMED":

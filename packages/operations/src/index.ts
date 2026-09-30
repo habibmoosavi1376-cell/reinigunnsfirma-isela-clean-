@@ -62,6 +62,14 @@ export type {
 } from "./bookings.ts";
 export { transitionPaymentStatus } from "./payments.ts";
 export {
+  clearPaymentReview,
+  completePrepaymentRefund,
+  confirmPrepaymentFromInvoice,
+  markPrepaymentExpected,
+  protectCustomerBookings,
+} from "./payment-sync.ts";
+export type { ProtectionCause, SyncOptions } from "./payment-sync.ts";
+export {
   createJobForBooking,
   getJob,
   jobListQuerySchema,
@@ -70,7 +78,7 @@ export {
   transitionJob,
   workerScopeOf,
 } from "./jobs.ts";
-export type { JobDetail, JobListItem, OwnJob, WorkerScope } from "./jobs.ts";
+export type { JobDetail, JobListItem, JobPaymentContext, OwnJob, WorkerScope } from "./jobs.ts";
 export {
   assignJob,
   listAssignmentCandidates,

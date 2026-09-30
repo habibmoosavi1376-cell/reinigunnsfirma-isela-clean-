@@ -1,5 +1,5 @@
 {
-  "name": "@isela/settings",
+  "name": "@isela/billing",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -12,9 +12,7 @@
   "dependencies": {
     "@isela/audit": "workspace:*",
     "@isela/auth": "workspace:*",
-    "@isela/billing": "workspace:*",
     "@isela/database": "workspace:*",
-    "@isela/lead-finder": "workspace:*",
     "@isela/operations": "workspace:*",
     "@isela/payment-risk": "workspace:*",
     "@isela/quotes": "workspace:*",

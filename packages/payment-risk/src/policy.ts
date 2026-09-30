@@ -18,11 +18,18 @@ export const paymentPolicySchema = z.strictObject({
   maxLatePaymentsInLookback: z.number().int().min(0).max(3),
   latePaymentToleranceDays: z.number().int().min(0).max(14),
   maxChargebacksInLookback: z.literal(0),
+  /** Failed payment attempts tolerated in the lookback window (stored policies: default 0). */
+  maxFailedPaymentsInLookback: z.number().int().min(0).max(3).default(0),
   partialPaymentCountsAsPaid: z.literal(false),
   pendingDuplicateReviewForcesPrepayment: z.literal(true),
   minTrustScore: z.number().int().min(50).max(100),
+  /** Upper bound for the credit limit an approver may grant to a single customer. */
   defaultCreditLimitCents: z.number().int().min(1).max(5_000_000),
-  requireManualApproval: z.boolean(),
+  /**
+   * Credit terms are never granted automatically (day 6): meeting the minimum history only
+   * allows a request; a second person must approve it. Therefore this is the literal `true`.
+   */
+  requireManualApproval: z.literal(true),
   b2cInvoiceTermsAllowed: z.boolean(),
   settlementDays: z.strictObject({
     SEPA_DIRECT_DEBIT: z.number().int().min(SEPA_DIRECT_DEBIT_MIN_SETTLEMENT_DAYS).max(400),
@@ -43,6 +50,7 @@ export const DEFAULT_PAYMENT_POLICY: PaymentPolicy = {
   maxLatePaymentsInLookback: 0,
   latePaymentToleranceDays: 7,
   maxChargebacksInLookback: 0,
+  maxFailedPaymentsInLookback: 0,
   partialPaymentCountsAsPaid: false,
   pendingDuplicateReviewForcesPrepayment: true,
   minTrustScore: 70,
@@ -66,6 +74,26 @@ export const PAYMENT_TERMS_REASON_CODES = [
   "B2C_INVOICE_TERMS_DISABLED",
   "MANUAL_OVERRIDE",
   "CUSTOMER_BLOCKED",
+  // Day 6: real history and the credit-terms approval flow.
+  "FAILED_PAYMENTS",
+  "CREDIT_APPROVAL_REQUIRED",
+  "CREDIT_TERMS_APPROVED",
 ] as const;
 
 export type PaymentTermsReasonCode = (typeof PAYMENT_TERMS_REASON_CODES)[number];
+
+/**
+ * Explainable outcome of the central payment-terms engine:
+ * - VORKASSE_REQUIRED: prepayment (default for new customers, jobs 1 and 2, any risk signal)
+ * - CREDIT_TERMS_ALLOWED: invoice after service (only with an approved credit decision)
+ * - BLOCKED: no new orders (customer blocked)
+ * - REVIEW_REQUIRED: a person must review first (e.g. pending duplicate review); prepayment
+ */
+export const PAYMENT_TERMS_OUTCOMES = [
+  "VORKASSE_REQUIRED",
+  "CREDIT_TERMS_ALLOWED",
+  "BLOCKED",
+  "REVIEW_REQUIRED",
+] as const;
+
+export type PaymentTermsOutcome = (typeof PAYMENT_TERMS_OUTCOMES)[number];
