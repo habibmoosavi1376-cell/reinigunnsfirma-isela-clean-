@@ -1,0 +1,24 @@
+{
+  "name": "@isela/settings",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "isela": {
+    "serverOnly": true
+  },
+  "dependencies": {
+    "@isela/audit": "workspace:*",
+    "@isela/auth": "workspace:*",
+    "@isela/billing": "workspace:*",
+    "@isela/database": "workspace:*",
+    "@isela/lead-finder": "workspace:*",
+    "@isela/operations": "workspace:*",
+    "@isela/payment-risk": "workspace:*",
+    "@isela/quotes": "workspace:*",
+    "@isela/shared": "workspace:*",
+    "@isela/validation": "workspace:*"
+  }
+}
