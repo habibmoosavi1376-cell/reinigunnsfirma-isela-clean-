@@ -169,6 +169,55 @@ export const PAYMENT_REASON_LABELS: Record<string, string> = {
   B2C_INVOICE_TERMS_DISABLED: "Rechnungskauf für Privatkunden deaktiviert",
   CUSTOMER_BLOCKED: "Kunde gesperrt",
   MANUAL_OVERRIDE: "Manuelle Festlegung",
+  FAILED_PAYMENTS: "Fehlgeschlagene Zahlungen im Betrachtungszeitraum",
+  CREDIT_APPROVAL_REQUIRED: "Mindesthistorie erfüllt – Freigabe durch zweite Person erforderlich",
+  CREDIT_TERMS_APPROVED: "Rechnungskauf freigegeben",
+};
+
+export const PAYMENT_OUTCOME_LABELS: Record<string, string> = {
+  VORKASSE_REQUIRED: "Vorkasse erforderlich",
+  CREDIT_TERMS_ALLOWED: "Rechnungskauf zulässig",
+  BLOCKED: "Gesperrt",
+  REVIEW_REQUIRED: "Prüfung erforderlich (Vorkasse)",
+};
+
+export const INVOICE_STATUS_LABELS: Record<string, string> = {
+  DRAFT: "Entwurf",
+  ISSUED: "Ausgestellt",
+  OPEN: "Offen",
+  PARTIALLY_PAID: "Teilweise bezahlt",
+  PAID: "Bezahlt",
+  OVERDUE: "Überfällig",
+  CANCELLED: "Verworfen",
+  VOID: "Storniert",
+};
+
+export const INVOICE_KIND_LABELS: Record<string, string> = {
+  PREPAYMENT: "Vorkasse-Rechnung",
+  FINAL: "Rechnung (nach Leistung)",
+};
+
+export const PAYMENT_RECORD_STATUS_LABELS: Record<string, string> = {
+  PENDING: "Erfasst – Bestätigung offen",
+  AUTHORIZED: "Autorisiert",
+  CONFIRMED: "Bestätigt",
+  FAILED: "Fehlgeschlagen",
+  REFUND_PENDING: "Erstattung läuft",
+  REFUNDED: "Erstattet",
+  CHARGED_BACK: "Rückbuchung",
+};
+
+export const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  BANK_TRANSFER: "Überweisung",
+  SEPA_DIRECT_DEBIT: "SEPA-Lastschrift",
+  CARD: "Karte (Zahlungsanbieter)",
+};
+
+export const CREDIT_TERMS_STATUS_LABELS: Record<string, string> = {
+  REQUESTED: "Beantragt",
+  APPROVED: "Freigegeben",
+  DENIED: "Abgelehnt",
+  REVOKED: "Widerrufen",
 };
 
 export const BOOKING_STATUS_LABELS: Record<string, string> = {

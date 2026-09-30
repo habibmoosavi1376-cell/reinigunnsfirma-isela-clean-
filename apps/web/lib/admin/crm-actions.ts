@@ -32,6 +32,28 @@ export const CRM_ACTION_NOTICES = {
   employee_saved: "Die Mitarbeiterdaten wurden gespeichert.",
   partner_saved: "Die Partnerdaten wurden gespeichert.",
   partner_verified: "Der Partner wurde verifiziert und aktiviert.",
+  invoice_created: "Der Rechnungsentwurf wurde aus der Buchung erzeugt.",
+  invoice_issued: "Die Rechnung wurde ausgestellt und nummeriert.",
+  invoice_released: "Die Rechnung wurde freigegeben; die Zahlung wird erwartet.",
+  invoice_cancelled: "Der Rechnungsentwurf wurde verworfen.",
+  invoice_voided: "Die Rechnung wurde storniert (Nummer bleibt vergeben).",
+  due_date_changed: "Die Fälligkeit wurde geändert (protokolliert).",
+  payment_recorded: "Der Zahlungseingang wurde erfasst und wartet auf Bestätigung.",
+  payment_duplicate: "Diese Zahlung war bereits erfasst – es wurde nichts doppelt gebucht.",
+  payment_confirmed: "Die Zahlung wurde bestätigt und der Rechnung zugeordnet.",
+  payment_failed: "Die Zahlung wurde als fehlgeschlagen markiert.",
+  refund_requested: "Die Erstattung wurde angestoßen.",
+  refund_completed: "Die Erstattung wurde abgeschlossen.",
+  refund_aborted: "Die Erstattung wurde abgebrochen.",
+  chargeback_recorded: "Die Rückbuchung wurde erfasst; künftige Aufträge sind geschützt.",
+  review_cleared: "Die Zahlungsprüfung der Buchung wurde abgeschlossen.",
+  credit_requested: "Der Antrag auf Rechnungskauf wurde gestellt.",
+  credit_approved: "Der Rechnungskauf wurde freigegeben.",
+  credit_denied: "Der Antrag auf Rechnungskauf wurde abgelehnt.",
+  credit_revoked:
+    "Der Rechnungskauf wurde widerrufen; offene Termine sind auf Vorkasse umgestellt.",
+  risk_reevaluated: "Das Zahlungsrisiko wurde neu bewertet.",
+  overdue_run: "Der Fälligkeitslauf wurde ausgeführt.",
 } as const;
 
 export type CrmActionNotice = keyof typeof CRM_ACTION_NOTICES;
@@ -41,7 +63,7 @@ export const CRM_ACTION_ERRORS: Record<string, string> = {
   VALIDATION_FAILED: "Die Eingaben sind ungültig. Bitte Pflichtfelder und Formate prüfen.",
   NOT_FOUND: "Der Datensatz wurde nicht gefunden oder gehört nicht zu diesem Kunden.",
   CONFIG_REQUIRED:
-    "Für diese Berechnung fehlen noch freigegebene Preisregeln (CONFIG_REQUIRED). Es wurde kein Preis übernommen.",
+    "Es fehlen noch freigegebene Konfigurationswerte (CONFIG_REQUIRED, z. B. Preisregeln oder Rechnungseinstellungen). Es wurde nichts übernommen.",
 };
 
 export function crmNoticeText(value: unknown): string | null {

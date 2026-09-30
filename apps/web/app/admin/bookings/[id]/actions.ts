@@ -1,29 +1,41 @@
 "use server";
 
-import { cancelBooking, createJobForBooking, transitionPaymentStatus } from "@isela/operations";
+import { createInvoiceForBooking } from "@isela/billing";
+import { cancelBooking, clearPaymentReview, createJobForBooking } from "@isela/operations";
 import { formField, formId, runAdminAction } from "@/lib/server/admin-actions";
 
 /*
- * Booking actions. Only ids, the target status (validated against the state machine), a
- * payment reference or a reason come from the form; everything else is derived on the server.
+ * Booking actions. Only ids, the invoice kind or a reason come from the form; everything else
+ * is derived on the server. Payments are confirmed only through the invoice workflow.
  */
 
 function pathOf(bookingId: string): string {
   return `/admin/bookings/${bookingId}`;
 }
 
-export async function transitionPaymentAction(form: FormData): Promise<void> {
+/**
+ * Generates the invoice of the booking on the server (kind from the form, validated against
+ * the booking's payment terms; items and amounts are copied from the booking).
+ */
+export async function createInvoiceAction(form: FormData): Promise<void> {
   const bookingId = formId(form, "bookingId");
-  const reference = formField(form, "reference");
   await runAdminAction(
     pathOf(bookingId),
-    "payment_changed",
-    (ctx) =>
-      transitionPaymentStatus(ctx, {
-        bookingId,
-        to: formField(form, "to"),
-        ...(reference === undefined ? {} : { reference }),
-      }),
+    "invoice_created",
+    (ctx) => createInvoiceForBooking(ctx, { bookingId, kind: formField(form, "kind") }),
+    {
+      revalidate: ["/admin/invoices"],
+      redirectTo: (result) => `/admin/invoices/${(result as { invoiceId: string }).invoiceId}`,
+    },
+  );
+}
+
+export async function clearPaymentReviewAction(form: FormData): Promise<void> {
+  const bookingId = formId(form, "bookingId");
+  await runAdminAction(
+    pathOf(bookingId),
+    "review_cleared",
+    (ctx) => clearPaymentReview(ctx, { bookingId, reason: formField(form, "reason") ?? "" }),
     { revalidate: ["/admin/bookings"] },
   );
 }

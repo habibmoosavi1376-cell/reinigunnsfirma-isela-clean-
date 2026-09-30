@@ -75,8 +75,11 @@ describe("admin navigation", () => {
       "jobs",
       "employees",
       "partners",
+      "invoices",
+      "payments",
+      "payment-risk",
     ]);
-    expect(modules.find((m) => m.key === "invoices")?.active).toBe(false);
+    expect(modules.find((m) => m.key === "reviews")?.active).toBe(false);
     expect(modules.find((m) => m.key === "calendar")?.active).toBe(false);
   });
 
@@ -86,6 +89,13 @@ describe("admin navigation", () => {
     );
     expect(labels("FINANCE")).toEqual(expect.arrayContaining(["customers", "quotes"]));
     expect(labels("FINANCE")).not.toContain("properties");
+    expect(labels("FINANCE")).toEqual(
+      expect.arrayContaining(["invoices", "payments", "payment-risk"]),
+    );
+    // Dispatchers see booking payment status only – no invoices, payments or risk data.
+    for (const key of ["invoices", "payments", "payment-risk"]) {
+      expect(labels("DISPATCHER")).not.toContain(key);
+    }
     for (const role of ["STAFF", "PARTNER"] as const) {
       expect(labels(role)).not.toContain("customers");
       expect(labels(role)).not.toContain("quotes");

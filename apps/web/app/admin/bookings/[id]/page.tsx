@@ -1,5 +1,6 @@
 import { hasGlobalPermission } from "@isela/auth";
-import { PAYMENT_TRANSITIONS, getBooking } from "@isela/operations";
+import { listInvoicesForBooking } from "@isela/billing";
+import { getBooking } from "@isela/operations";
 import { isDomainError } from "@isela/shared";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -11,8 +12,9 @@ import {
   JOB_STATUS_LABELS,
   PAYMENT_REASON_LABELS,
   PAYMENT_REQUIREMENT_LABELS,
+  INVOICE_KIND_LABELS,
+  INVOICE_STATUS_LABELS,
   PAYMENT_STATUS_LABELS,
-  PAYMENT_TRANSITION_LABELS,
   SERVICE_UNIT_LABELS,
   label,
 } from "@/lib/admin/labels";
@@ -20,12 +22,16 @@ import { formatInTimeZone } from "@/lib/admin/time";
 import { requireAdminArea } from "@/lib/server/guards";
 import { loadOperationsConfig } from "@/lib/server/operations-config";
 import { getServiceContext } from "@/lib/server/session";
-import { cancelBookingAction, createJobAction, transitionPaymentAction } from "./actions";
+import {
+  cancelBookingAction,
+  clearPaymentReviewAction,
+  createInvoiceAction,
+  createJobAction,
+} from "./actions";
 
 export const metadata: Metadata = { title: "Buchung" };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const REFERENCE_REQUIRED = new Set(["PAYMENT_CONFIRMED", "PAYMENT_FAILED", "REFUNDED"]);
 
 export default async function BookingDetailPage({
   params,
@@ -48,9 +54,18 @@ export default async function BookingDetailPage({
   }
   const config = await loadOperationsConfig(ctx.db, ctx.clock);
   const query = await searchParams;
-  const canPay = hasGlobalPermission(actor, "payment:manage") && booking.paymentStatus !== null;
-  const paymentTargets =
-    booking.paymentStatus === null ? [] : PAYMENT_TRANSITIONS[booking.paymentStatus];
+  const canReadInvoices = hasGlobalPermission(actor, "invoice:read");
+  const invoices = canReadInvoices ? await listInvoicesForBooking(ctx, { bookingId: id }) : [];
+  const hasActiveInvoice = invoices.some((i) => i.status !== "CANCELLED" && i.status !== "VOID");
+  const canInvoice = hasGlobalPermission(actor, "invoice:write") && !hasActiveInvoice;
+  const invoiceKind =
+    booking.paymentRequirement === "VORKASSE_REQUIRED" && booking.status === "PENDING_PAYMENT"
+      ? "PREPAYMENT"
+      : booking.paymentRequirement === "CREDIT_TERMS_APPROVED" && booking.status === "COMPLETED"
+        ? "FINAL"
+        : null;
+  const canClearReview =
+    hasGlobalPermission(actor, "payment:manage") && booking.paymentReviewRequired;
   const canCancel =
     hasGlobalPermission(actor, "booking:write") &&
     booking.status !== "CANCELLED" &&
@@ -137,28 +152,59 @@ export default async function BookingDetailPage({
                 : reasons.map((r) => label(PAYMENT_REASON_LABELS, r)).join("; ")}
             </dd>
           </dl>
-          {canPay
-            ? paymentTargets.map((to) => (
-                <form key={to} action={transitionPaymentAction} className="form">
-                  <input type="hidden" name="bookingId" value={booking.id} />
-                  <input type="hidden" name="to" value={to} />
-                  {REFERENCE_REQUIRED.has(to) ? (
-                    <div className="field">
-                      <label htmlFor={`reference-${to}`}>
-                        Zahlungsreferenz / Nachweis (Pflicht)
-                      </label>
-                      <input id={`reference-${to}`} name="reference" required maxLength={200} />
-                    </div>
-                  ) : null}
-                  <button className="button" type="submit">
-                    {label(PAYMENT_TRANSITION_LABELS, to)}
-                  </button>
-                </form>
-              ))
-            : null}
+          {booking.paymentReviewRequired ? (
+            <p className="alert alert--error" role="note">
+              Zahlungsprüfung offen (Zahlungsschutz: überfällige Rechnung, Rückbuchung oder
+              widerrufener Rechnungskauf). Der Einsatz startet erst nach Abschluss der Prüfung.
+            </p>
+          ) : null}
+          {canReadInvoices ? (
+            <>
+              <h3>Rechnungen</h3>
+              {invoices.length === 0 ? (
+                <p className="muted">Noch keine Rechnung.</p>
+              ) : (
+                <ul>
+                  {invoices.map((invoice) => (
+                    <li key={invoice.id}>
+                      <Link href={`/admin/invoices/${invoice.id}`}>
+                        {invoice.invoiceNumber ?? "Entwurf"}
+                      </Link>{" "}
+                      – {label(INVOICE_KIND_LABELS, invoice.kind)},{" "}
+                      {label(INVOICE_STATUS_LABELS, invoice.status)}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
+          ) : null}
+          {canInvoice && invoiceKind !== null ? (
+            <form action={createInvoiceAction} className="form">
+              <input type="hidden" name="bookingId" value={booking.id} />
+              <input type="hidden" name="kind" value={invoiceKind} />
+              <button className="button" type="submit">
+                {invoiceKind === "PREPAYMENT"
+                  ? "Vorkasse-Rechnung erzeugen"
+                  : "Rechnung nach Leistung erzeugen"}
+              </button>
+            </form>
+          ) : null}
+          {canClearReview ? (
+            <form action={clearPaymentReviewAction} className="form">
+              <input type="hidden" name="bookingId" value={booking.id} />
+              <div className="field">
+                <label htmlFor="review-reason">Prüfvermerk (Pflicht)</label>
+                <input id="review-reason" name="reason" required minLength={3} maxLength={1000} />
+              </div>
+              <button className="button button--secondary" type="submit">
+                Zahlungsprüfung abschließen
+              </button>
+            </form>
+          ) : null}
           <p className="hint">
-            Es ist noch kein Zahlungsanbieter angebunden. Ein Zahlungseingang wird nur von der
-            Buchhaltung mit Referenz bestätigt; der Einsatz startet erst danach.
+            Es ist kein Zahlungsanbieter angebunden. Ein Zahlungseingang wird an der Rechnung
+            erfasst und von der Buchhaltung bestätigt; erst eine vollständig bezahlte
+            Vorkasse-Rechnung gibt die Buchung frei. Der Einsatz startet erst danach.
           </p>
         </section>
       </div>

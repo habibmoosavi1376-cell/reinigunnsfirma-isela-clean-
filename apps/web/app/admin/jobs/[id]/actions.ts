@@ -2,6 +2,7 @@
 
 import { assignJob, reassignJob, releaseJobAssignment, transitionJob } from "@isela/operations";
 import { formField, formId, runAdminAction } from "@/lib/server/admin-actions";
+import { loadJobPaymentContext } from "@/lib/server/finance";
 import { loadOperationsConfig } from "@/lib/server/operations-config";
 
 /*
@@ -19,7 +20,12 @@ export async function transitionJobAction(form: FormData): Promise<void> {
   await runAdminAction(
     pathOf(jobId),
     "job_transitioned",
-    (ctx) => transitionJob(ctx, { jobId, to: formField(form, "to") }),
+    async (ctx) =>
+      transitionJob(
+        ctx,
+        { jobId, to: formField(form, "to") },
+        await loadJobPaymentContext(ctx.db, ctx.clock),
+      ),
     { revalidate: ["/admin/jobs", "/admin/bookings"] },
   );
 }

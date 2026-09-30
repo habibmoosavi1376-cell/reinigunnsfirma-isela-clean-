@@ -169,13 +169,25 @@ export default async function CustomerDetailPage({
           ) : null}
           {payment.invoiceReviewEligible ? (
             <p className="hint">
-              Alle Voraussetzungen erfüllt – Rechnungskauf kann manuell geprüft werden.
+              Mindesthistorie erfüllt – Rechnungskauf kann beantragt und von einer zweiten Person
+              geprüft werden.
             </p>
           ) : null}
           <p className="hint">
-            Aufträge, Rechnungen und Zahlungen werden noch nicht im System geführt. Die
-            Zahlungshistorie ist daher leer und es gilt Vorkasse (Richtlinie
+            Bewertet aus erfassten Aufträgen, Rechnungen, Zahlungen und Kreditentscheidungen
+            (Richtlinie
             {payment.policyVersion === null ? " Standard" : ` Version ${payment.policyVersion}`}).
+          </p>
+          <p>
+            {hasGlobalPermission(actor, "payment_risk:read") ? (
+              <Link href={`/admin/payment-risk/${detail.customer.id}`}>Zahlungsrisiko</Link>
+            ) : null}
+            {hasGlobalPermission(actor, "invoice:read") ? (
+              <>
+                {" "}
+                · <Link href={`/admin/invoices?customerId=${detail.customer.id}`}>Rechnungen</Link>
+              </>
+            ) : null}
           </p>
         </section>
       </div>
