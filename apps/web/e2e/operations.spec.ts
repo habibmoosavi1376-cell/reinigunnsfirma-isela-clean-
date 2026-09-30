@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { expect, test, type Page } from "@playwright/test";
 import {
+  configureTestBilling,
   createOperationsFixture,
   createVerifiedAccount,
   enableTotp,
@@ -127,14 +128,29 @@ test.describe("day 5: service → quote → booking → job → assignment", () 
     await expect(page.getByRole("alert").filter({ hasText: "nicht zulässig" })).toBeVisible();
     await expect(page.getByRole("heading", { level: 1 })).toContainText("Zugewiesen");
 
-    // 5. Finance step (ADMIN holds payment:manage): confirmation needs a reference.
+    // 5. Finance step (ADMIN holds invoice:write and payment:manage): the prepayment is paid
+    //    through a server-generated invoice – a reference text alone confirms nothing.
+    await configureTestBilling();
     await page.goto(bookingUrl);
-    await page.getByRole("button", { name: "Zahlung erwartet" }).click();
-    const confirm = page
-      .locator("form")
-      .filter({ has: page.getByRole("button", { name: "Zahlungseingang bestätigen" }) });
-    await confirm.getByLabel("Zahlungsreferenz / Nachweis (Pflicht)").fill("Kontoauszug E2E");
-    await confirm.getByRole("button", { name: "Zahlungseingang bestätigen" }).click();
+    await expect(page.getByRole("button", { name: "Zahlungseingang bestätigen" })).toHaveCount(0);
+    await page.getByRole("button", { name: "Vorkasse-Rechnung erzeugen" }).click();
+    await page.waitForURL(/\/admin\/invoices\/[0-9a-f-]{36}/);
+    const invoicePath = new URL(page.url()).pathname;
+    await expect(page.getByRole("heading", { level: 1 })).toContainText("Rechnungsentwurf");
+    await page.getByRole("button", { name: "Rechnung ausstellen (Nummer vergeben)" }).click();
+    await expect(page.getByRole("heading", { level: 1 })).toContainText(/Rechnung E2E-\d{4}-\d{6}/);
+    await page.getByRole("button", { name: "Rechnung freigeben (Zahlung erwartet)" }).click();
+    await expect(page.getByRole("heading", { level: 1 })).toContainText("Offen");
+    const record = page.getByRole("form", { name: "Zahlungseingang erfassen" });
+    await record.getByLabel("Betrag in €").fill("107,10");
+    await record
+      .getByLabel("Bank-/Transaktionsreferenz (eindeutig, keine Kartendaten)")
+      .fill(`Kontoauszug ${marker}`);
+    await record.getByRole("button", { name: "Zahlung erfassen" }).click();
+    await expect(page.getByRole("status")).toContainText("wartet auf Bestätigung");
+    await page.getByRole("button", { name: "Zahlungseingang bestätigen" }).click();
+    await expect(page.getByRole("heading", { level: 1 })).toContainText("Bezahlt");
+    await page.goto(bookingUrl);
     await expect(page.getByRole("heading", { level: 1 })).toContainText("Eingeplant");
 
     // 6. The customer sees the own booking – without staff names or internal data.
@@ -148,6 +164,16 @@ test.describe("day 5: service → quote → booking → job → assignment", () 
     );
     await expect(customerPage.locator("main")).not.toContainText(fixture.employeeName);
     await expect(customerPage.locator("main")).not.toContainText("Deckungsbeitrag");
+
+    // 6b. Customer invoice portal: own invoice with payment status, no internal data.
+    await customerPage.goto("/customer/invoices");
+    const invoiceRow = customerPage.getByRole("row", { name: /E2E-\d{4}-\d{6}/ });
+    await expect(invoiceRow).toContainText("Bezahlt");
+    await invoiceRow.getByRole("link").click();
+    await expect(customerPage.locator("main")).toContainText(`Kontoauszug ${marker}`);
+    await expect(customerPage.locator("main")).not.toContainText(fixture.employeeName);
+    expect((await customerPage.goto(invoicePath))?.status()).toBe(403);
+    expect((await customerPage.goto(`/customer/invoices/${randomUUID()}`))?.status()).toBe(404);
 
     // 7. Wrong user: foreign or internal resources give 403/404.
     expect((await customerPage.goto(`/customer/bookings/${randomUUID()}`))?.status()).toBe(404);

@@ -114,7 +114,10 @@ export async function createVerifiedAccount(
 }
 
 /** Grants a global staff role (TEST DATA ONLY; stands in for the invitation flow). */
-export async function grantGlobalRole(email: string, role: "DISPATCHER" | "ADMIN"): Promise<void> {
+export async function grantGlobalRole(
+  email: string,
+  role: "DISPATCHER" | "ADMIN" | "FINANCE",
+): Promise<void> {
   await withClient(async (client) => {
     await client.query(
       `INSERT INTO user_role (user_id, role_key) SELECT id, $2 FROM "user" WHERE email = $1`,
@@ -268,5 +271,36 @@ export async function createOperationsFixture(
       await client.query("ROLLBACK");
       throw error;
     }
+  });
+}
+
+/**
+ * TEST-DATA billing configuration (`billing.config`), inserted once per E2E database. The
+ * values are test values that stand in for the owner decision (production default:
+ * CONFIG_REQUIRED). Existing versions are never touched.
+ */
+export async function configureTestBilling(): Promise<void> {
+  await withClient(async (client) => {
+    await client.query(
+      `INSERT INTO setting (key, scope_type, scope_id, version, value, effective_from,
+                            change_reason, created_by_user_id)
+       SELECT 'billing.config', 'GLOBAL', NULL, 1,
+              '{"invoiceNumberPrefix":"E2E","paymentTermDays":14,"prepaymentDueDays":7}'::jsonb,
+              now() - interval '1 day', 'E2E-Testdaten', 'e2e-test-data'
+       WHERE NOT EXISTS (SELECT 1 FROM setting WHERE key = 'billing.config')`,
+    );
+  });
+}
+
+/** A TEST-DATA customer record without an account (no sign-up is spent). */
+export async function createTestCustomer(displayName: string): Promise<string> {
+  return withClient(async (client) => {
+    const result = await client.query<{ id: string }>(
+      `INSERT INTO customer (kind, display_name) VALUES ('PRIVATE', $1) RETURNING id`,
+      [displayName],
+    );
+    const id = result.rows[0]?.id;
+    if (id === undefined) throw new Error("customer not created");
+    return id;
   });
 }
