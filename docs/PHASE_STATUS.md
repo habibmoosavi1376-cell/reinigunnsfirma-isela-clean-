@@ -176,3 +176,16 @@ Website, Worker, Deployment, Monitoring, Backups.
 | Datenbank | 55 Tabellen, 7 Migrationen (neu: `0006_day5_services_bookings_jobs`, additiv; drei Checks `NOT VALID`) |
 | Tests | 757 Unit, 203 Integration, 14 E2E |
 | Noch nicht vorhanden | Preiswerte (Owner), Zahlungsanbieter, Rechnungen, Kreditbedingungen aus Zahlungshistorie, Online-Annahme durch Kunden, Stornobedingungen, `TAX_MODE`/Steuermodi, Qualitätsdaten (Zuverlässigkeit), Serien |
+
+## 13. Stand nach Phase 1 / Tag 6
+
+| Bereich | Stand |
+| --- | --- |
+| Rechnungen | Paket `@isela/billing`: Rechnung aus Buchung (Vorkasse-/Schlussrechnung), unveränderlicher Snapshot, Status-Maschine mit DB-Trigger, Nummernkreis je Präfix und Jahr (atomarer Zähler), Fälligkeit mit auditierter Änderung, Storno ohne Nummernwiederverwendung, `/admin/invoices[/id]` |
+| Zahlungen | Zahlungen als Tatsachen mit eindeutiger Referenz und Idempotenzschlüssel, Bestätigung durch FINANCE/ADMIN, Teil-/Überzahlung, Erstattung, Rückbuchung, `/admin/payments`; Vorkasse wird nur noch über eine bezahlte Vorkasse-Rechnung bestätigt |
+| Payment Risk | zentrale Engine `evaluateCustomerPaymentTerms` über die echte Historie (bezahlte Aufträge, Überfälligkeit, Rückbuchungen, Zahlungsprobleme, Obligo), Kreditfreigabe mit Vier-Augen, Widerruf, Fälligkeitslauf mit Zahlungsschutz, `/admin/payment-risk[/customerId]` |
+| Provider/Webhooks | Abstraktion + Webhook-Sicherheitsarchitektur; **kein Anbieter aktiv** (CONFIG_REQUIRED, Route 404) |
+| Kundenportal | `/customer/invoices[/id]` – eigene freigegebene Rechnungen, Zahlungsstatus, eigene Referenzen |
+| Datenbank | 65 Tabellen, 8 Migrationen (neu: `0007_day6_invoices_payments_credit`, additiv; Upgrade-Test mit Day-5-Daten grün) |
+| Tests | 896 Unit, 232 Integration, 15 E2E |
+| Noch nicht vorhanden | Owner-Werte `billing.config` (CONFIG_REQUIRED), Zahlungsanbieter, Scheduler für den Fälligkeitslauf, rechtlich vollständige Rechnungsbelege (PDF, § 14 UStG, E-Rechnung, Storno-/Gutschriftbeleg), Überzahlungs-/Teilerstattungsregeln, Partnerabrechnung, Serien |

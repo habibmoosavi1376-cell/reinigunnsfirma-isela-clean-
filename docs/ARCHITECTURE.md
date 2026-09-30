@@ -186,6 +186,34 @@ Angebot ACCEPTED → Buchung (Payment-Risk: VORKASSE_REQUIRED | CREDIT_TERMS_APP
   `/admin/employees[/id]`, `/admin/partners[/id]`, Angebots-Preisberechnung,
   `/customer/jobs`, `/customer/bookings/[id]`, `/team/jobs` (geschützter Bereich `team`).
 
+### 2.7 Rechnungen, Zahlungen, Payment Risk (Phase 1, Tag 6)
+
+```text
+Buchung (aus angenommenem Angebot) ─→ Rechnung DRAFT (Snapshot der Buchungspositionen,
+    Summen = Buchung = Angebot, sonst CONFLICT) ─→ ISSUED (Nummer, Fälligkeit) ─→ OPEN
+Zahlung (erfasst, Referenz, Idempotenz) ─→ CONFIRMED ─→ Rechnung PARTIALLY_PAID | PAID
+    └→ Vorkasse-Rechnung PAID ─→ operations: Buchung PAYMENT_CONFIRMED → CONFIRMED/SCHEDULED
+payment-risk: evaluateCustomerPaymentTerms(customerId) ← Buchungen, Rechnungen, Zahlungen,
+    Kreditfreigaben (eine Engine für Buchung, Einsatzstart, Kundenakte, Finanzansichten)
+Fälligkeitslauf ─→ OVERDUE ─→ Neubewertung ─→ operations: Zahlungsschutz künftiger Buchungen
+Provider-Webhook ─→ Signatur/Zeitfenster/Schema ─→ Event (unique) ─→ verifyPayment ─→ Zahlung
+```
+
+- **`@isela/payment-risk`** ist jetzt die einzige Stelle, die die Zahlungshistorie aus Daten
+  ableitet (hängt von `database` ab); reine Entscheidung `evaluatePaymentTerms` bleibt.
+- **`@isela/billing`** (neu; hängt von `operations`, `payment-risk`, `quotes` ab): nur
+  `applyInvoiceChange`/`applyPaymentChange` schreiben Rechnungs-/Zahlungsstatus. Steuer und
+  Summen ausschließlich über `calculateTotals` (`quotes`). Sperrreihenfolge:
+  Kunden-Finanz-Advisory-Lock → Buchung → Rechnung → Zahlung.
+- **`@isela/operations`** bietet der Abrechnung Funktionen an (`confirmPrepaymentFromInvoice`,
+  `markPrepaymentExpected`, `completePrepaymentRefund`, `protectCustomerBookings`,
+  `clearPaymentReview`); `operations` kennt `billing` nicht (keine Zyklen).
+- **Konfiguration:** Setting `billing.config` (Präfix, Zahlungsziel, Vorkasse-Frist; Standard
+  CONFIG_REQUIRED, Recht `payment_policy:manage`); die Web-App lädt Richtlinie, Zeitzone und
+  Abrechnungskonfiguration serverseitig (`lib/server/finance.ts`).
+- **Web:** `/admin/invoices[/id]`, `/admin/payments`, `/admin/payment-risk[/customerId]`,
+  `/customer/invoices[/id]`, `/api/payments/webhooks/[provider]` (leere Provider-Registry → 404).
+
 ## 3. Ziel-Repository-Struktur
 
 ```text

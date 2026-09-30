@@ -179,6 +179,31 @@ Notwendige Ausnahmen:
 - **Datenschutz:** Abwesenheiten ohne Gründe/Gesundheitsdaten; Logs nur IDs und Codes;
   Zahlungsreferenzen nicht im Audit.
 
+### 3.7 Umsetzungsstand (Phase 1, Tag 6 – Rechnungen, Zahlungen, Payment Risk)
+
+- **Zahlungshistorie nicht umgehbar:** Vorkasse gilt nur als bestätigt, wenn eine
+  Vorkasse-Rechnung vollständig bezahlt ist (Service + Trigger `booking_credit_guard`);
+  Kreditbuchungen nur mit aktiver Freigabe und ohne überfällige Rechnung (Trigger);
+  Rechnungen, Zahlungen, Kreditentscheidungen, Provider-Events und Nummernzähler sind nicht
+  löschbar, Snapshots und erfasste Zahlungsfakten unveränderlich, Logs append-only,
+  `TRUNCATE` auf Rechnung/Zahlung gesperrt. Die Historie hängt am Kunden, nicht am Konto.
+- **Rechte:** `invoice:read|write`, `payment:manage`, `payment_risk:read`,
+  `credit_terms:request|approve`; Kreditfreigabe nur SUPER_ADMIN/FINANCE (MFA) mit
+  Vier-Augen-Prinzip (Service + DB-CHECK); DISPATCHER/STAFF/PARTNER ohne Finanzdaten;
+  Kunden nur eigene freigegebene Rechnungen (fremd/Entwurf → 404).
+- **Eingaben:** strikte Schemas; Beträge, Nummern, Status, Zuordnung und Risiko entstehen nur
+  auf dem Server; gefälschte Felder → `VALIDATION_FAILED`. Zahlungsreferenzen ohne
+  Kartennummern (Luhn), CVV, PIN oder Secrets.
+- **Idempotenz/Races:** eindeutige Idempotenzschlüssel, Referenzen und Provider-Event-IDs,
+  bedingte Statuswechsel unter Zeilensperren, Advisory-Lock je Kunde, partieller
+  Unique-Index gegen Doppelrechnungen; alle Fälle mit Race-Tests.
+- **Provider/Webhooks:** kein Anbieter aktiv, nie simulierter Erfolg; Webhooks nur mit fest
+  konfiguriertem Anbieter, HMAC-SHA256 (konstanter Vergleich), Zeitfenster 300 s, striktem
+  Schema, Größenlimit, Event-Deduplizierung, Server-zu-Server-Verifikation und Betragsabgleich;
+  gespeichert wird nur der Payload-Hash.
+- **Datenschutz:** Audit ohne Referenztexte, Bank- oder Kartendaten; Risiko-Log nur mit
+  gezählten Fakten; Logs nur IDs und Codes.
+
 ## 4. Anforderungskatalog
 
 | Thema | Maßnahme | Nachweis |

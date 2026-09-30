@@ -276,13 +276,13 @@ Fachliche Definitionen:
   Signal-Treffer erzwingen Vorkasse bis zur Prüfung.
 
 Die Entscheidungslogik `evaluatePaymentTerms(history, policy)` existiert seit Tag 4 als reine
-Funktion (Gründe: `CUSTOMER_BLOCKED`, `PENDING_DUPLICATE_REVIEW`, `NEW_CUSTOMER`,
-`INSUFFICIENT_PAID_ORDERS`, `OPEN_OVERDUE_INVOICE`, `LATE_PAYMENT_HISTORY`,
-`RECENT_CHARGEBACK`, `TRUST_SCORE_TOO_LOW`, `CREDIT_LIMIT_EXCEEDED`,
-`B2C_INVOICE_TERMS_DISABLED`). Rechnungskauf wird nie automatisch gewährt, solange
-`requireManualApproval` gilt. **Lücke:** Aufträge, Rechnungen, Zahlungen und Chargebacks sind
-noch nicht modelliert; die Historie ist daher leer (`historySource = NO_ORDER_DATA`) und es gilt
-immer Vorkasse. Die Anbindung an echte Auftrags-/Rechnungsdaten folgt mit diesen Modulen.
+Funktion. **Seit Tag 6** leitet `evaluateCustomerPaymentTerms(db, customerId, context)` die
+Historie aus Buchungen, Rechnungen, Zahlungen und Kreditfreigaben ab (siehe §16) und ist der
+einzige Einstieg für Buchung, Einsatzstart, Kundenakte und Finanzansichten. Ergebnis:
+`VORKASSE_REQUIRED | CREDIT_TERMS_ALLOWED | BLOCKED | REVIEW_REQUIRED` mit Gründen (zusätzlich
+`FAILED_PAYMENTS`, `CREDIT_APPROVAL_REQUIRED`, `CREDIT_TERMS_APPROVED`). Die Mindesthistorie
+ist nur Voraussetzung für einen Antrag; Rechnungskauf gewährt ausschließlich eine
+Kreditfreigabe einer zweiten Person (`requireManualApproval` ist Literal `true`).
 
 ## 12. LeadFinder – Provider-Vertrag
 
@@ -387,3 +387,32 @@ Keine automatische Massenansprache: Der höchste automatisch erreichbare Status 
 - Einstellung `operations.assignment`: Zeitzone, `partnerAssignmentEnabled` (Standard
   `false`), Pflichtnachweise, Score-Gewichte (Summe 100), Entfernungsreferenz, maximale
   Fensterlänge – vom Inhaber zu bestätigen.
+
+## 16. Rechnungen, Zahlungen, Kreditfreigaben (Phase 1, Tag 6)
+
+- `invoice` (Art `PREPAYMENT|FINAL`, Status
+  `DRAFT|ISSUED|OPEN|PARTIALLY_PAID|PAID|OVERDUE|CANCELLED|VOID`, Zahlungsbedingung
+  `VORKASSE|CREDIT_TERMS`, Nummer erst ab `ISSUED`, Netto/Steuer/Brutto, bezahlt,
+  Rechnungs-/Fälligkeitsdatum, Buchung/Angebot/Einsatz, höchstens eine aktive Rechnung je
+  Buchung), `invoice_item` (Snapshot, append-only, nur im Entwurf anlegbar),
+  `invoice_status_transition` (append-only), `invoice_number_counter` (Präfix + Jahr, nur
+  vorwärts).
+- `payment` (Status `PENDING|AUTHORIZED|CONFIRMED|FAILED|REFUND_PENDING|REFUNDED|CHARGED_BACK`,
+  Methode `BANK_TRANSFER|SEPA_DIRECT_DEBIT|CARD`, Anbieter `MANUAL` oder Provider-Schlüssel,
+  Betrag, zugeordneter Betrag, Idempotenzschlüssel, Eingangs-/Bestätigungs-/Fehl-/Erstattungs-/
+  Rückbuchungszeit), `payment_reference` (eindeutig je Anbieter), `payment_transition`
+  (append-only), `payment_provider_event` (eindeutig je Anbieter + Event-ID, Status
+  `RECEIVED|PROCESSED|IGNORED|REJECTED`, nur Payload-Hash).
+- `credit_terms_approval` (`REQUESTED|APPROVED|DENIED|REVOKED`, Antrag, Rahmen, interne
+  Vertrauensbewertung, Gültigkeit, Entscheidung/Widerruf mit Akteur, Zeit, Grund; höchstens
+  ein offener Antrag bzw. eine aktive Freigabe je Kunde; Vier-Augen per CHECK).
+- `payment_risk_evaluation` (append-only: Ergebnis, Gründe, gezählte Fakten,
+  Richtlinienversion, Auslöser `BOOKING|PAYMENT|OVERDUE|CREDIT_DECISION|MANUAL`).
+- `booking.payment_review_required`: Zahlungsschutz angewandt (Überfälligkeit, Rückbuchung,
+  Widerruf) – Einsatzstart erst nach Prüfabschluss durch die Buchhaltung.
+- Einstellung `billing.config`: `invoiceNumberPrefix`, `paymentTermDays`,
+  `prepaymentDueDays` – Standard `null` = CONFIG_REQUIRED (Owner-Entscheidung).
+- Definitionen: „bezahlt“ = zugeordnete Summe bestätigter Zahlungen = Brutto; Teilzahlung →
+  `PARTIALLY_PAID`; überfällig = Rest > 0 und Geschäftsdatum > Fälligkeit + Karenz;
+  Überschuss wird nicht zugeordnet und ist zu klären; erfolgreicher Auftrag = Buchung
+  `COMPLETED`, Rechnung `PAID`, keine Erstattung/Rückbuchung, Rückgabefrist abgelaufen.
