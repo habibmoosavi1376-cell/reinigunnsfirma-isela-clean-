@@ -41,6 +41,7 @@ import {
   activeServiceArea,
   futureSlot,
   geocodedCustomer,
+  payPrepayment,
   staffedEmployee,
   testService,
   type StaffCtx,
@@ -79,13 +80,10 @@ async function pendingJob(slotWeek?: number) {
   return { jobId, bookingId, customerId: customer.customerId };
 }
 
+/** Since day 6 a prepayment is confirmed only through a fully paid prepayment invoice. */
 async function confirmPayment(bookingId: string) {
   await transitionPaymentStatus(finance, { bookingId, to: "PAYMENT_PENDING" });
-  await transitionPaymentStatus(finance, {
-    bookingId,
-    to: "PAYMENT_CONFIRMED",
-    reference: "Überweisung (Test)",
-  });
+  await payPrepayment(finance, bookingId);
 }
 
 async function verifiedPartner(options: { services?: string[]; capacity?: number | null } = {}) {

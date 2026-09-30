@@ -30,6 +30,7 @@ import {
   activeServiceArea,
   futureSlot,
   geocodedCustomer,
+  payPrepayment,
   testService,
   type StaffCtx,
 } from "../support/operations.ts";
@@ -298,7 +299,7 @@ describe("quote → booking", () => {
 });
 
 describe("payment state", () => {
-  it("is changed only by finance with a reference and releases the booking", async () => {
+  it("is confirmed only through a paid prepayment invoice and releases the booking", async () => {
     const { quoteId } = await newAcceptedQuote();
     const { bookingId } = await createBookingFromQuote(
       dispatcher,
@@ -310,21 +311,25 @@ describe("payment state", () => {
       "FORBIDDEN",
     );
     await transitionPaymentStatus(finance, { bookingId, to: "PAYMENT_PENDING" });
-    await expectDomainError(
-      transitionPaymentStatus(finance, { bookingId, to: "PAYMENT_CONFIRMED" }),
-      "VALIDATION_FAILED",
-    );
+    // Day 6: a reference text alone never confirms a payment (payment-history bypass closed).
+    for (const to of ["PAYMENT_CONFIRMED", "REFUND_PENDING", "REFUNDED"] as const) {
+      await expectDomainError(
+        transitionPaymentStatus(finance, {
+          bookingId,
+          to,
+          reference: "Kontoauszug 2026-10 Pos. 7 (Test)",
+        }),
+        "POLICY_VIOLATION",
+      );
+    }
     await expectDomainError(
       transitionPaymentStatus(finance, { bookingId, to: "PAID" }),
       "VALIDATION_FAILED",
     );
-    const result = await transitionPaymentStatus(finance, {
-      bookingId,
-      to: "PAYMENT_CONFIRMED",
-      reference: "Kontoauszug 2026-10 Pos. 7 (Test)",
-    });
-    expect(result).toEqual({ paymentStatus: "PAYMENT_CONFIRMED", bookingStatus: "CONFIRMED" });
+    const invoiceId = await payPrepayment(finance, bookingId);
     const booking = await getBooking(finance, { bookingId });
+    expect(booking.status).toBe("CONFIRMED");
+    expect(booking.paymentStatus).toBe("PAYMENT_CONFIRMED");
     expect(booking.history.map((h) => `${h.kind}:${h.toStatus}`)).toEqual(
       expect.arrayContaining([
         "PAYMENT:PAYMENT_REQUIRED",
@@ -342,8 +347,11 @@ describe("payment state", () => {
           eq(schema.auditLog.action, "payment.status_changed"),
         ),
       );
+    // Manual "payment expected" + confirmation through the invoice.
     expect(audit).toHaveLength(2);
     expect(JSON.stringify(audit)).not.toContain("Kontoauszug");
+    expect(JSON.stringify(audit)).toContain("INVOICE");
+    expect(invoiceId).toMatch(/^[0-9a-f-]{36}$/);
   });
 
   it("is protected in the database: no confirmation without confirmed prepayment", async () => {

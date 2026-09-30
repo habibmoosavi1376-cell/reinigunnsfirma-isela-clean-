@@ -50,6 +50,45 @@ describe("RBAC catalogue", () => {
     expect(holders.sort()).toEqual(["FINANCE", "SUPER_ADMIN"]);
   });
 
+  it("gives credit-terms approval only to SUPER_ADMIN and FINANCE (not ADMIN)", () => {
+    const holders = (Object.keys(ROLE_PERMISSIONS) as Role[]).filter(
+      (role) => ROLE_PERMISSIONS[role]["credit_terms:approve"] !== undefined,
+    );
+    expect(holders.sort()).toEqual(["FINANCE", "SUPER_ADMIN"]);
+  });
+
+  it.each<[Permission, Role[]]>([
+    ["invoice:write", ["ADMIN", "FINANCE", "SUPER_ADMIN"]],
+    ["payment:manage", ["ADMIN", "FINANCE", "SUPER_ADMIN"]],
+    ["payment_risk:read", ["ADMIN", "FINANCE", "SUPER_ADMIN"]],
+    ["credit_terms:request", ["ADMIN", "FINANCE", "SUPER_ADMIN"]],
+    ["invoice:read", ["ADMIN", "CUSTOMER", "FINANCE", "SUPER_ADMIN"]],
+  ])("limits the finance permission %s to %j", (permission, roles) => {
+    const holders = (Object.keys(ROLE_PERMISSIONS) as Role[]).filter(
+      (role) => ROLE_PERMISSIONS[role][permission] !== undefined,
+    );
+    expect(holders.sort()).toEqual(roles);
+    // Dispatchers, staff and partners never see invoices, payments or risk data.
+    for (const role of ["DISPATCHER", "STAFF", "PARTNER"] as const) {
+      expect(ROLE_PERMISSIONS[role][permission], `${role} ${permission}`).toBeUndefined();
+    }
+  });
+
+  it("scopes customer invoice access to OWN", () => {
+    expect(ROLE_PERMISSIONS.CUSTOMER["invoice:read"]).toBe("OWN");
+    expect(scopeFilterFor(actor("CUSTOMER", { customerId: CUSTOMER_A }), "invoice:read")).toEqual({
+      kind: "RESTRICTED",
+      customerIds: [CUSTOMER_A],
+      partnerIds: [],
+    });
+  });
+
+  it("denies all finance permissions to FINANCE without MFA", () => {
+    expectDomainErrorSync(() => {
+      authorize(actor("FINANCE", { mfa: false }), "credit_terms:approve");
+    }, "MFA_REQUIRED");
+  });
+
   it("scopes all CUSTOMER and PARTNER data permissions to OWN", () => {
     for (const role of ["CUSTOMER", "PARTNER"] as const) {
       for (const [permission, scope] of Object.entries(ROLE_PERMISSIONS[role])) {

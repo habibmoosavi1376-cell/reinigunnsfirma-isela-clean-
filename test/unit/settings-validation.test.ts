@@ -6,6 +6,7 @@ import { SETTING_DEFINITIONS, SETTING_KEYS } from "@isela/settings";
 describe("settings registry", () => {
   it("registers only typed keys whose defaults satisfy their schema", () => {
     expect(SETTING_KEYS.sort()).toEqual([
+      "billing.config",
       "lead.scoring",
       "operations.assignment",
       "payment.policy",

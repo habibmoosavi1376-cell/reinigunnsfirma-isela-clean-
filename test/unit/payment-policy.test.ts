@@ -41,6 +41,8 @@ describe("payment policy invariants", () => {
     ["maxChargebacksInLookback", 1],
     ["partialPaymentCountsAsPaid", true],
     ["pendingDuplicateReviewForcesPrepayment", false],
+    // Day 6: credit terms are never granted automatically (no UI setting can switch it off).
+    ["requireManualApproval", false],
   ])("does not allow weakening %s", (field, value) => {
     expect(paymentPolicySchema.safeParse(withOverride({ [field]: value })).success).toBe(false);
   });
@@ -63,6 +65,15 @@ describe("payment policy invariants", () => {
     expect(
       paymentPolicySchema.safeParse(withOverride({ defaultCreditLimitCents: 5_000_001 })).success,
     ).toBe(false);
+  });
+
+  it("bounds failed payments and defaults them to 0 for policies stored before day 6", () => {
+    expect(
+      paymentPolicySchema.safeParse(withOverride({ maxFailedPaymentsInLookback: 4 })).success,
+    ).toBe(false);
+    const stored: Partial<PaymentPolicy> = { ...DEFAULT_PAYMENT_POLICY };
+    delete stored.maxFailedPaymentsInLookback;
+    expect(paymentPolicySchema.parse(stored).maxFailedPaymentsInLookback).toBe(0);
   });
 
   it("rejects unknown fields (no silent configuration)", () => {

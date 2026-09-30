@@ -1,5 +1,17 @@
 import { randomUUID } from "node:crypto";
 import type { ServiceContext } from "@isela/auth";
+import {
+  confirmPayment,
+  createInvoiceForBooking,
+  getInvoice,
+  issueInvoice,
+  recordPayment,
+  releaseInvoice,
+  type BillingConfig,
+  type FinanceOptions,
+  type InvoiceKind,
+  type PaymentMethod,
+} from "@isela/billing";
 import { createCatalogService, createServiceArea, setServiceAreaActive } from "@isela/catalog";
 import { createProperty, linkLeadToCustomer, submitServiceRequest } from "@isela/crm";
 import { eq, schema, type Database } from "@isela/database";
@@ -29,6 +41,62 @@ import { TEST_CRM_CONFIG, uniqueEmail } from "./fixtures.ts";
 export type StaffCtx = ServiceContext & { actor: NonNullable<ServiceContext["actor"]> };
 
 export const PAYMENT_POLICY = { policy: DEFAULT_PAYMENT_POLICY, version: null };
+/** Billing configuration for tests only – clearly test values, not owner decisions. */
+export const TEST_BILLING_CONFIG: BillingConfig = {
+  invoiceNumberPrefix: "TEST",
+  paymentTermDays: 14,
+  prepaymentDueDays: 7,
+};
+export const FINANCE_OPTIONS: FinanceOptions = {
+  paymentPolicy: PAYMENT_POLICY,
+  timeZone: DEFAULT_OPERATIONS_CONFIG.timeZone,
+  billing: TEST_BILLING_CONFIG,
+};
+
+/** Creates, issues and releases the invoice of a booking (finance). */
+export async function releasedInvoice(
+  finance: StaffCtx,
+  bookingId: string,
+  kind: InvoiceKind = "PREPAYMENT",
+  options: FinanceOptions = FINANCE_OPTIONS,
+): Promise<string> {
+  const { invoiceId } = await createInvoiceForBooking(finance, { bookingId, kind });
+  await issueInvoice(finance, { invoiceId }, options);
+  await releaseInvoice(finance, { invoiceId }, options);
+  return invoiceId;
+}
+
+/** Records and confirms a manual payment (default: the full outstanding amount). */
+export async function payInvoice(
+  finance: StaffCtx,
+  invoiceId: string,
+  options: {
+    amountCents?: number;
+    method?: PaymentMethod;
+    reference?: string;
+    finance?: FinanceOptions;
+  } = {},
+): Promise<string> {
+  const invoice = await getInvoice(finance, { invoiceId });
+  const { paymentId } = await recordPayment(finance, {
+    invoiceId,
+    amountCents: options.amountCents ?? invoice.outstandingCents,
+    method: options.method ?? "BANK_TRANSFER",
+    reference: options.reference ?? `Kontoauszug Test ${randomUUID()}`,
+    receivedAt: finance.clock.now().toISOString(),
+    idempotencyKey: `test:${randomUUID()}`,
+  });
+  await confirmPayment(finance, { paymentId }, options.finance ?? FINANCE_OPTIONS);
+  return paymentId;
+}
+
+/** Day-6 prepayment path: prepayment invoice → recorded and confirmed payment. */
+export async function payPrepayment(finance: StaffCtx, bookingId: string): Promise<string> {
+  const invoiceId = await releasedInvoice(finance, bookingId, "PREPAYMENT");
+  await payInvoice(finance, invoiceId);
+  return invoiceId;
+}
+
 export const PARTNERS_ENABLED: OperationsConfig = {
   ...DEFAULT_OPERATIONS_CONFIG,
   partnerAssignmentEnabled: true,
@@ -101,13 +169,14 @@ export async function geocodedCustomer(
   db: Database,
   dispatcher: StaffCtx,
   point: GeoPoint,
+  options: { readonly email?: string } = {},
 ): Promise<{ customerId: string; propertyId: string; addressId: string }> {
   counter += 1;
   const lead = await submitServiceRequest(
     {
       customerType: "PRIVATE",
       fullName: "Buchung Testdaten",
-      email: uniqueEmail("booking"),
+      email: options.email ?? uniqueEmail("booking"),
       street: "Buchungsweg",
       houseNumber: String(counter),
       postalCode: "12345",

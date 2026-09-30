@@ -199,12 +199,25 @@ describe("payment requirement (payment-risk integration)", () => {
   });
 
   it("grants credit terms only for an explicit INVOICE decision", () => {
+    const base = { creditLimitCents: null, availableCreditCents: null } as const;
     expect(
-      paymentRequirementFor({ terms: "INVOICE", invoiceReviewEligible: true, reasons: [] }),
+      paymentRequirementFor({
+        ...base,
+        outcome: "CREDIT_TERMS_ALLOWED",
+        terms: "INVOICE",
+        invoiceReviewEligible: true,
+        reasons: ["CREDIT_TERMS_APPROVED"],
+      }),
     ).toBe("CREDIT_TERMS_APPROVED");
-    // Eligible but manual approval still required → still prepayment.
+    // Eligible but no approved credit decision yet → still prepayment.
     expect(
-      paymentRequirementFor({ terms: "PREPAYMENT", invoiceReviewEligible: true, reasons: [] }),
+      paymentRequirementFor({
+        ...base,
+        outcome: "VORKASSE_REQUIRED",
+        terms: "PREPAYMENT",
+        invoiceReviewEligible: true,
+        reasons: ["CREDIT_APPROVAL_REQUIRED"],
+      }),
     ).toBe("VORKASSE_REQUIRED");
   });
 

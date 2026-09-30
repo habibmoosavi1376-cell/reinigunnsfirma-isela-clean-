@@ -513,7 +513,8 @@ describe("customer CRM read models", () => {
     expect(forFinance.audit).not.toBeNull();
     expect(forFinance.payment).toMatchObject({
       terms: "PREPAYMENT",
-      historySource: "NO_ORDER_DATA",
+      outcome: "VORKASSE_REQUIRED",
+      historySource: "RECORDED",
     });
     const forDispatcher = await getCustomerDetail(dispatcher, { customerId });
     expect(forDispatcher.contacts?.length).toBe(1);
