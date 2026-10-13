@@ -15,6 +15,7 @@ import {
   voidInvoice,
 } from "@isela/billing";
 import { parseMoneyToCents } from "@/lib/admin/format";
+import { businessDayStartIso } from "@/lib/admin/time";
 import { formField, formId, runAdminAction } from "@/lib/server/admin-actions";
 import { loadFinanceOptions } from "@/lib/server/finance";
 
@@ -98,16 +99,19 @@ export async function recordPaymentAction(form: FormData): Promise<void> {
     pathOf(invoiceId),
     (result) =>
       (result as { duplicate: boolean }).duplicate ? "payment_duplicate" : "payment_recorded",
-    (ctx) =>
-      recordPayment(ctx, {
+    async (ctx) => {
+      const { timeZone } = await loadFinanceOptions(ctx.db, ctx.clock);
+      return recordPayment(ctx, {
         invoiceId,
         amountCents: amountCents ?? -1,
         method: formField(form, "method"),
         reference: formField(form, "reference") ?? "",
-        // A calendar date from the form; the service rejects future dates.
-        receivedAt: /^\d{4}-\d{2}-\d{2}$/.test(receivedOn) ? `${receivedOn}T00:00:00Z` : "",
+        // A business-local calendar date from the form (start of that day in the business
+        // time zone); the service rejects future instants.
+        receivedAt: businessDayStartIso(receivedOn, timeZone) ?? "",
         idempotencyKey: formField(form, "idempotencyKey") ?? "",
-      }),
+      });
+    },
     { revalidate: REVALIDATE },
   );
 }

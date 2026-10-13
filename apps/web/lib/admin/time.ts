@@ -28,6 +28,16 @@ export function zonedDateTimeToIso(date: string, time: string, timeZone: string)
   return new Date(guess).toISOString();
 }
 
+/**
+ * Start of a business-local calendar day ("YYYY-MM-DD") as an ISO instant, e.g. the payment
+ * receipt date from a date input. Interpreting the date as UTC midnight instead would place
+ * "today" in the future between local midnight and UTC midnight (Europe/Berlin: 00:00–02:00),
+ * so the service would reject a payment received today. Returns null for malformed input.
+ */
+export function businessDayStartIso(date: string, timeZone: string): string | null {
+  return zonedDateTimeToIso(date, "00:00", timeZone);
+}
+
 function localParts(ms: number, timeZone: string) {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone,
