@@ -214,6 +214,33 @@ Provider-Webhook ─→ Signatur/Zeitfenster/Schema ─→ Event (unique) ─→
 - **Web:** `/admin/invoices[/id]`, `/admin/payments`, `/admin/payment-risk[/customerId]`,
   `/customer/invoices[/id]`, `/api/payments/webhooks/[provider]` (leere Provider-Registry → 404).
 
+### 2.8 Öffentliche Website, Conversion, Analytics, Berichte (Phase 1, Tag 7)
+
+```text
+/ · /leistungen · /leistungen/<slug> (catalog: listPublicServicePages / getPublicServicePage,
+    Qualitäts-Gate „indexable“) ─→ /anfrage | /rueckruf
+/anfrage  ─→ crm.submitServiceRequest (Formular-Token → keyed Hash, unique) ─→ Lead + Anfrage
+/rueckruf ─→ crm.submitCallbackRequest (Formular-Token, Telefon-Ratelimit)  ─→ Lead + Rückruf
+Server-Aktion ─→ trackServerEvent ─→ Einwilligung? Anbieter aktiv? Allowlist? ─→ (No-op)
+reporting.getConversionReport(report:read) ←─ service_request, callback_request,
+    lead_status_transition, quote, booking, invoice (nur Datenbank; Unbekanntes = NOT_MEASURED)
+```
+
+- **`@isela/reporting`** (neu; hängt von `auth`, `database`, `shared`, `validation` ab):
+  aggregierte Kennzahlen ohne personenbezogene Daten; Seitenbesuche/gestartete Anfragen sind
+  `NOT_MEASURED`, solange kein Analytics-Anbieter freigegeben ist. `APP_ENVIRONMENT` kennzeichnet,
+  ob es sich um echte Geschäftsdaten handelt (nur `production`).
+- **Analytics** (`apps/web/lib/analytics`): geschlossene Event-Liste, Property-Allowlist
+  (Pfad ohne Query/IDs, Leistungs-Slug, Kundenart), Einwilligungs-Cookie `isela_consent`,
+  Provider-Interface mit No-op-Anbieter (`ANALYTICS_PROVIDER=none`). Kein Client-Skript, kein
+  Banner, solange kein Anbieter aktiv ist.
+- **Idempotenz öffentlicher Formulare:** einmaliges Token je Formularaufruf (Hidden Field),
+  gespeichert nur als HMAC (`submission_key_hash`, Unique-Index); Duplikate liefern das
+  gespeicherte Ergebnis und verbrauchen kein Ratelimit.
+- **Migration** `0008_day7_request_idempotency_callback` (rein additiv): Spalte
+  `service_request.submission_key_hash`, Tabelle `callback_request`, Enum `callback_time_window`.
+- **SEO** siehe [`SEO_STRATEGY.md`](SEO_STRATEGY.md).
+
 ## 3. Ziel-Repository-Struktur
 
 ```text

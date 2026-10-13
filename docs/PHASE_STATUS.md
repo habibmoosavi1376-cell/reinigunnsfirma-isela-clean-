@@ -189,3 +189,17 @@ Website, Worker, Deployment, Monitoring, Backups.
 | Datenbank | 65 Tabellen, 8 Migrationen (neu: `0007_day6_invoices_payments_credit`, additiv; Upgrade-Test mit Day-5-Daten grün) |
 | Tests | 896 Unit, 232 Integration, 15 E2E |
 | Noch nicht vorhanden | Owner-Werte `billing.config` (CONFIG_REQUIRED), Zahlungsanbieter, Scheduler für den Fälligkeitslauf, rechtlich vollständige Rechnungsbelege (PDF, § 14 UStG, E-Rechnung, Storno-/Gutschriftbeleg), Überzahlungs-/Teilerstattungsregeln, Partnerabrechnung, Serien |
+
+## 14. Stand nach Phase 1 / Tag 7
+
+| Bereich | Stand |
+| --- | --- |
+| Website | überarbeitete Startseite (3 CTAs, Ablauf, Zielgruppen, FAQ, Vertrauensfakten ohne erfundene Belege), kompakter Mobil-Header mit nativem Menü, Leistungsübersicht `/leistungen`, Leistungsseiten `/leistungen/<slug>` aus Katalogdaten mit Qualitäts-Gate |
+| Conversion | idempotente Anfrage (Formular-Token), neuer Rückruf-Flow `/rueckruf`, Rückruf in der Lead-Akte |
+| SEO | eindeutige Titel/Beschreibungen, Canonicals, OpenGraph, Breadcrumbs (+JSON-LD), `Service`-JSON-LD nur bei echtem Inhalt, Sitemap nur mit existierenden indexierbaren Seiten, robots inkl. `/team` – siehe `docs/SEO_STRATEGY.md` |
+| Analytics | Event-Definitionen, Einwilligungs-Cookie, Provider-Interface, No-op-Anbieter; `/datenschutz/einstellungen` (Widerruf); kein Tracking aktiv |
+| Berichte | Paket `@isela/reporting`, `/admin/reports` (`report:read`), echte Datenbank-Kennzahlen, „nicht gemessen“ statt Schätzung, Testdaten-Kennzeichnung über `APP_ENVIRONMENT` |
+| Rechtstexte | Impressum/Datenschutz als Entwurf gekennzeichnet und ergänzt (Rückruf, Missbrauchsschutz, Einwilligungen); Widerrufsbelehrung offen (Owner/Recht) |
+| Datenbank | 66 Tabellen, 9 Migrationen (neu: `0008_day7_request_idempotency_callback`, additiv; Upgrade-Test mit Day-6-Daten grün) |
+| Tests | 920 Unit, 249 Integration, 26 E2E |
+| Noch nicht vorhanden | Analytics-Anbieter (Owner-Entscheidung), Kategoriebeschreibungen (Indexierung), echte Firmendaten, Widerrufsbelehrung/AGB, Stadtseiten-Route, Bildmaterial, Online-Annahme von Angeboten durch Kunden |

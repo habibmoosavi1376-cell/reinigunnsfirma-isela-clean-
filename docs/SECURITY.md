@@ -204,6 +204,27 @@ Notwendige Ausnahmen:
 - **Datenschutz:** Audit ohne Referenztexte, Bank- oder Kartendaten; Risiko-Log nur mit
   gezählten Fakten; Logs nur IDs und Codes.
 
+### 3.8 Umsetzungsstand (Phase 1, Tag 7 – Website, Conversion, Analytics)
+
+- **Öffentliche Formulare:** Anfrage und Rückruf über Server-Aktionen (Origin-Prüfung),
+  Whitelist-Mapping + strikte Domänenschemas (unbekannte Felder → `VALIDATION_FAILED`),
+  Honeypot, Ratelimits je Client (Hash der IP) und je E-Mail bzw. Telefonnummer (Hash),
+  einmaliges Formular-Token gegen Doppelübermittlung (nur HMAC gespeichert, Race-getestet).
+- **Keine Zusagen:** weder Preis noch Termin noch Verfügbarkeit werden öffentlich zugesagt; die
+  Bestätigung ist unabhängig vom Servicegebietsstatus.
+- **Analytics/Einwilligung:** kein Anbieter aktiv (No-op); Events nur mit Einwilligung für den
+  Zweck des Anbieters und nur über die Allowlist (keine Namen, Kontaktdaten, Adressen,
+  Freitexte, Query-Strings, IDs). Ungültige Events werden komplett verworfen. Widerruf jederzeit
+  (`/datenschutz/einstellungen`), wirkt sofort. Einwilligungs-Cookie `HttpOnly`, `SameSite=Lax`,
+  `Secure` bei HTTPS, max. 12 Monate.
+- **Berichte:** neues Recht `report:read` (SUPER_ADMIN, ADMIN, FINANCE); nur aggregierte Zahlen.
+- **XSS:** Admin-gepflegte Texte erscheinen als Text und in JSON-LD nur escaped; Query-Parameter
+  werden nur übernommen, wenn sie einer existierenden Leistung entsprechen.
+- **Zugriffsgrenzen:** robots.txt sperrt zusätzlich `/team`; neue öffentliche Routen sind
+  öffentlich klassifiziert, `/admin/reports` geschützt (E2E: anonym → Login).
+- **Supply Chain:** `next` 16.3.6 → 16.3.8 und Override `source-map-js` 1.2.2 wegen neuer
+  Advisories (SSRF/Cache-Poisoning bzw. DoS); `pnpm audit` danach ohne Befund.
+
 ## 4. Anforderungskatalog
 
 | Thema | Maßnahme | Nachweis |
