@@ -216,4 +216,4 @@ Web-Build + Client-Bundle-Secret-Scan, Audit/Lizenzen, gitleaks, actionlint, mar
 Forbidden Files, CodeQL – alle grün. Einzige rote Prüfung ist Dependency Review aus dem
 bekannten, codeunabhängigen Grund (Dependency graph in den Repository-Einstellungen deaktiviert).
 
-**Status: PHASE 1 DAY 7 COMPLETE**
+Status: `PHASE 1 DAY 7 COMPLETE`.
