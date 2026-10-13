@@ -82,7 +82,9 @@ export async function payInvoice(
     invoiceId,
     amountCents: options.amountCents ?? invoice.outstandingCents,
     method: options.method ?? "BANK_TRANSFER",
-    reference: options.reference ?? `Kontoauszug Test ${randomUUID()}`,
+    // No digit runs: a random UUID can form a Luhn-valid 13–19 digit run across its dashes,
+    // which the card-number guard (correctly) rejects – that made this helper flaky.
+    reference: options.reference ?? `Kontoauszug Test ${randomUUID().replace(/[\d-]/g, "x")}`,
     receivedAt: finance.clock.now().toISOString(),
     idempotencyKey: `test:${randomUUID()}`,
   });

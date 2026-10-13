@@ -254,3 +254,14 @@ describe("role grants (privilege escalation)", () => {
     }, "MFA_REQUIRED");
   });
 });
+
+describe("day 7: report permission", () => {
+  it("grants report:read to back-office roles only", () => {
+    expect(ROLE_PERMISSIONS.SUPER_ADMIN["report:read"]).toBe("GLOBAL");
+    expect(ROLE_PERMISSIONS.ADMIN["report:read"]).toBe("GLOBAL");
+    expect(ROLE_PERMISSIONS.FINANCE["report:read"]).toBe("GLOBAL");
+    for (const role of ["DISPATCHER", "STAFF", "PARTNER", "CUSTOMER"] as const) {
+      expect(ROLE_PERMISSIONS[role]["report:read"]).toBeUndefined();
+    }
+  });
+});
