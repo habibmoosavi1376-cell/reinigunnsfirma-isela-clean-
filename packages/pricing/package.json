@@ -1,0 +1,19 @@
+{
+  "name": "@isela/pricing",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "isela": {
+    "serverOnly": true
+  },
+  "dependencies": {
+    "@isela/audit": "workspace:*",
+    "@isela/auth": "workspace:*",
+    "@isela/database": "workspace:*",
+    "@isela/shared": "workspace:*",
+    "@isela/validation": "workspace:*"
+  }
+}
