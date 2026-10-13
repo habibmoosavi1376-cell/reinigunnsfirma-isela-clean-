@@ -203,3 +203,10 @@ Website, Worker, Deployment, Monitoring, Backups.
 | Datenbank | 66 Tabellen, 9 Migrationen (neu: `0008_day7_request_idempotency_callback`, additiv; Upgrade-Test mit Day-6-Daten grün) |
 | Tests | 920 Unit, 249 Integration, 26 E2E |
 | Noch nicht vorhanden | Analytics-Anbieter (Owner-Entscheidung), Kategoriebeschreibungen (Indexierung), echte Firmendaten, Widerrufsbelehrung/AGB, Stadtseiten-Route, Bildmaterial, Online-Annahme von Angeboten durch Kunden |
+
+## 15. Integration Gate Phase 1 (Tag 1–7)
+
+Status **`BLOCKED`** (Owner-Einstellungen) – Details: [`PHASE_1_INTEGRATION_GATE.md`](PHASE_1_INTEGRATION_GATE.md).
+PR #1–#8 bilden eine lineare Kette; Integration empfohlen über einen Merge-Commit von PR #8,
+nachdem Dependency Graph aktiviert, `main` geschützt und als Default gesetzt ist. Day 8 beginnt
+erst nach der Integrationsfreigabe.
