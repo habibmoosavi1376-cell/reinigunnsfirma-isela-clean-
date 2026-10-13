@@ -304,3 +304,16 @@ export async function createTestCustomer(displayName: string): Promise<string> {
     return id;
   });
 }
+
+/** Day 7: number of callback requests stored for a phone number (E.164, test data only). */
+export async function countCallbacksFor(phone: string): Promise<number> {
+  return withClient(async (client) => {
+    const result = await client.query<{ n: string }>(
+      `SELECT count(*)::text AS n FROM callback_request r
+         JOIN lead_contact c ON c.lead_id = r.lead_id
+        WHERE c.phone = $1`,
+      [phone],
+    );
+    return Number(result.rows[0]?.n ?? "0");
+  });
+}

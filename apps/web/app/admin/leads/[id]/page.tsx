@@ -6,6 +6,7 @@ import Link from "next/link";
 import { forbidden, notFound } from "next/navigation";
 import {
   AVAILABILITY_LABELS,
+  CALLBACK_WINDOW_LABELS,
   CONSENT_PURPOSE_LABELS,
   CUSTOMER_TYPE_LABELS,
   FREQUENCY_LABELS,
@@ -203,6 +204,29 @@ export default async function LeadDetailPage({
             </dl>
           )}
         </section>
+
+        {detail.callback === null ? null : (
+          <section className="panel" aria-labelledby="callback-title">
+            <h2 id="callback-title">Rückrufwunsch</h2>
+            <dl className="facts">
+              <dt>Kundenart</dt>
+              <dd>{label(CUSTOMER_TYPE_LABELS, detail.callback.customerType)}</dd>
+              <dt>Leistung</dt>
+              <dd>{detail.callback.serviceName ?? "–"}</dd>
+              <dt>PLZ</dt>
+              <dd>{detail.callback.postalCode ?? "–"}</dd>
+              <dt>Bevorzugte Zeit</dt>
+              <dd>{label(CALLBACK_WINDOW_LABELS, detail.callback.preferredWindow)}</dd>
+              <dt>Nachricht</dt>
+              <dd>{detail.callback.message ?? "–"}</dd>
+              <dt>Eingegangen</dt>
+              <dd>{formatDate(detail.callback.createdAt)}</dd>
+            </dl>
+            <p className="hint">
+              Der Zeitraum ist ein Wunsch der anfragenden Person, kein zugesagter Termin.
+            </p>
+          </section>
+        )}
 
         {request === null ? null : (
           <section className="panel" aria-labelledby="address-title">

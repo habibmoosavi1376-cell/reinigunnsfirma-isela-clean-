@@ -22,6 +22,13 @@ export const CUSTOMER_TYPE_LABELS: Record<string, string> = {
   PROPERTY_MANAGEMENT: "Hausverwaltung/Immobilien",
 };
 
+export const CALLBACK_WINDOW_LABELS: Record<string, string> = {
+  ANY: "Egal",
+  MORNING: "Vormittags",
+  MIDDAY: "Mittags",
+  AFTERNOON: "Nachmittags",
+};
+
 export const AVAILABILITY_LABELS: Record<string, string> = {
   AVAILABLE: "Im Servicegebiet",
   NOT_AVAILABLE: "Außerhalb",

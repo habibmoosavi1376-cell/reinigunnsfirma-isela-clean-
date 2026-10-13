@@ -69,6 +69,9 @@ export function mapRequestForm(form: FormValues): {
     input["marketingConsentTextVersion"] = MARKETING_CONSENT_TEXT_VERSION;
   }
   input["country"] = "DE";
+  // One-time form token (hidden field): a repeated submission is stored only once.
+  const token = text(form, "submissionToken");
+  if (token !== undefined) input["submissionToken"] = token;
   const honeypot = text(form, "website");
   return { input, isBot: honeypot !== undefined };
 }

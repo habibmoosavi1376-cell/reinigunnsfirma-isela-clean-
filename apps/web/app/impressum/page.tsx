@@ -1,7 +1,15 @@
 import type { Metadata } from "next";
+import { pageSeo } from "@/lib/seo/seo";
 import { getServices } from "@/lib/server/services";
 
-export const metadata: Metadata = { title: "Impressum" };
+export function generateMetadata(): Metadata {
+  return pageSeo({
+    baseUrl: getServices().env.APP_BASE_URL,
+    path: "/impressum",
+    title: "Impressum",
+    description: "Anbieterkennzeichnung von ISELA CLEAN (Angaben gemäß § 5 DDG).",
+  });
+}
 
 /** Renders only configured legal data (BUSINESS_* env). Required in production by env validation. */
 export default function ImpressumPage() {
@@ -14,6 +22,12 @@ export default function ImpressumPage() {
     <section className="section">
       <div className="container">
         <h1>Impressum</h1>
+        <p className="alert alert--error">
+          Entwurf: Die Anbieterangaben stammen ausschließlich aus der Konfiguration dieser
+          Installation. Vollständigkeit (u. a. Handelsregistereintrag,
+          Umsatzsteuer-Identifikationsnummer) und Wortlaut werden vor der Veröffentlichung rechtlich
+          geprüft.
+        </p>
         {complete ? (
           <address>
             {env.BUSINESS_LEGAL_NAME}

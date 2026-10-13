@@ -8,6 +8,7 @@ import {
   mapRequestForm,
   type RequestFormState,
 } from "@/lib/forms/request-form";
+import { trackServerEvent } from "@/lib/server/analytics";
 import { getClientKey } from "@/lib/server/client-key";
 import { logServerError } from "@/lib/server/logger";
 import { getServices } from "@/lib/server/services";
@@ -48,6 +49,14 @@ export async function submitRequestAction(
         new Error("geocoding step failed"),
         correlationId,
       );
+    }
+    if (!result.duplicate) {
+      // Consent-gated, PII-free (customer type only); no-op while no provider is approved.
+      await trackServerEvent({
+        name: "request_submitted",
+        path: "/anfrage",
+        customerType: input["customerType"],
+      });
     }
     // The visitor gets the same answer regardless of availability: staff confirm coverage.
     return { status: "success" };

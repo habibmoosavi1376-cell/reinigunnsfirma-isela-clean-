@@ -1,15 +1,27 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { PRIVACY_NOTICE_VERSION } from "@/lib/forms/request-form";
+import { pageSeo } from "@/lib/seo/seo";
 import { getServices } from "@/lib/server/services";
 
-export const metadata: Metadata = { title: "Datenschutzhinweise" };
+export function generateMetadata(): Metadata {
+  return pageSeo({
+    baseUrl: getServices().env.APP_BASE_URL,
+    path: "/datenschutz",
+    title: "Datenschutzhinweise",
+    description:
+      "Welche Daten ISELA CLEAN bei Anfrage, Rückrufwunsch und Kundenkonto verarbeitet und wofür – Entwurf, vor Veröffentlichung rechtlich zu prüfen.",
+  });
+}
 
 /**
  * Factual description of the processing implemented in this application. The final privacy
  * policy must be provided and approved by the controller before go-live (see report).
  */
 export default function PrivacyPage() {
-  const geocodingProvider = getServices().geocoding.provider?.id ?? null;
+  const services = getServices();
+  const geocodingProvider = services.geocoding.provider?.id ?? null;
+  const analyticsActive = services.analytics.enabled;
   return (
     <section className="section">
       <div className="container">
@@ -36,15 +48,43 @@ export default function PrivacyPage() {
           Eine Einwilligung in Informationen per E-Mail ist freiwillig, wird gesondert gespeichert
           und kann jederzeit widerrufen werden.
         </p>
+        <h2>Rückrufwunsch</h2>
+        <p>
+          Wenn Sie einen Rückruf anfordern, verarbeiten wir Ihren Namen, Ihre Telefonnummer, die
+          Kundenart sowie optional Postleitzahl, gewünschte Leistung, Wunschzeitraum und Ihre
+          Nachricht, um Sie zurückzurufen und Ihre Anfrage zu bearbeiten (vorvertragliche Maßnahme).
+          Eine E-Mail-Adresse ist dafür nicht erforderlich.
+        </p>
+        <h2>Schutz vor Missbrauch und doppelten Übermittlungen</h2>
+        <p>
+          Um Missbrauch zu begrenzen, zählen wir Übermittlungen je Gerät (anhand eines nicht
+          umkehrbaren Hashwerts der IP-Adresse) und je E-Mail-Adresse bzw. Telefonnummer (ebenfalls
+          nur als Hashwert). Jedes Formular enthält ein einmaliges Kennzeichen, damit eine
+          versehentlich doppelt abgeschickte Anfrage nur einmal gespeichert wird.
+        </p>
         <h2>Kundenkonto</h2>
         <p>
           Für die Anmeldung speichern wir Name, E-Mail-Adresse, ein gehashtes Passwort sowie
           Sitzungsdaten (einschließlich IP-Adresse und Browserkennung zum Schutz vor Missbrauch).
         </p>
-        <h2>Cookies</h2>
+        <h2>Cookies, Statistik und Einwilligungen</h2>
+        {analyticsActive ? (
+          <p>
+            Technisch notwendige Cookies verwenden wir für die Anmeldung. Statistikdienste setzen
+            wir nur mit Ihrer Einwilligung ein; dabei werden keine Namen, Kontaktdaten, Adressen
+            oder Formulareingaben übermittelt.
+          </p>
+        ) : (
+          <p>
+            Wir verwenden ausschließlich technisch notwendige Cookies für die Anmeldung. Es findet
+            kein Tracking und keine Analyse statt; es ist kein Statistik- oder Marketingdienst
+            angebunden.
+          </p>
+        )}
         <p>
-          Wir verwenden ausschließlich technisch notwendige Cookies für die Anmeldung. Es findet
-          kein Tracking und keine Analyse statt.
+          In den <Link href="/datenschutz/einstellungen">Datenschutz-Einstellungen</Link> sehen Sie
+          Ihren Stand und können Einwilligungen jederzeit widerrufen. Ihre Entscheidung wird nur in
+          einem Cookie auf Ihrem Gerät gespeichert (höchstens 12 Monate).
         </p>
       </div>
     </section>

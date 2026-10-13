@@ -4,6 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { formatDate, formatMoney, formatTaxRate } from "@/lib/admin/format";
 import { QUOTE_STATUS_LABELS, SERVICE_UNIT_LABELS, label } from "@/lib/admin/labels";
+import { trackServerEvent } from "@/lib/server/analytics";
 import { requireCustomerArea } from "@/lib/server/guards";
 import { getServiceContext } from "@/lib/server/session";
 
@@ -25,6 +26,8 @@ export default async function CustomerQuoteDetailPage({
     if (isDomainError(error, "NOT_FOUND")) notFound();
     throw error;
   }
+  // Consent-gated and PII-free: the path is reduced to "/customer/quotes/:id".
+  await trackServerEvent({ name: "quote_viewed", path: `/customer/quotes/${id}` });
   return (
     <>
       <p>

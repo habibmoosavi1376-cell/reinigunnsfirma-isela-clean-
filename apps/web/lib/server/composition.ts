@@ -6,6 +6,7 @@ import { createGeoapifyProvider, type GeocodingProvider } from "@isela/geocoding
 import { createDatabase, type DatabaseHandle } from "@isela/database";
 import { createSmtpEmailSender, type EmailSender } from "@isela/notifications";
 import { systemClock, type Clock } from "@isela/shared";
+import { analyticsProviderFor, type AnalyticsProvider } from "@/lib/analytics/provider";
 
 /** Everything the web app needs from the domain packages, wired from the validated env. */
 export interface WebServices {
@@ -16,6 +17,8 @@ export interface WebServices {
   readonly crmConfig: CrmConfig;
   readonly clock: Clock;
   readonly geocoding: GeocodingDeps;
+  /** Day 7: analytics provider (currently always the no-op provider). */
+  readonly analytics: AnalyticsProvider;
 }
 
 export interface CompositionOverrides {
@@ -81,5 +84,6 @@ export function createWebServices(
       provider: geocodingProvider,
       maxRequestsPerMinute: env.GEOCODING_MAX_REQUESTS_PER_MINUTE,
     },
+    analytics: analyticsProviderFor(env.ANALYTICS_PROVIDER),
   };
 }

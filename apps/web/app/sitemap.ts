@@ -1,18 +1,21 @@
 import type { MetadataRoute } from "next";
+import { listPublicServicePages } from "@isela/catalog";
+import { buildSitemapPaths } from "@/lib/seo/sitemap";
 import { canonicalUrl } from "@/lib/seo/seo";
 import { getServices } from "@/lib/server/services";
 
 /**
- * Only real, indexable pages. Local service pages will be added from data (active service
- * areas × service categories with real content) – no doorway pages.
+ * Only real, indexable pages that exist as routes: static public pages plus service pages
+ * that passed the content quality gate. Noindex pages and private areas are never listed.
  */
 export const dynamic = "force-dynamic";
 
-export default function sitemap(): MetadataRoute.Sitemap {
-  const { env } = getServices();
-  return ["/", "/anfrage", "/impressum", "/datenschutz"].map((path) => ({
-    url: canonicalUrl(env.APP_BASE_URL, path),
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const { database, env } = getServices();
+  const servicePages = await listPublicServicePages(database.db);
+  return buildSitemapPaths(servicePages).map((entry) => ({
+    url: canonicalUrl(env.APP_BASE_URL, entry.path),
     changeFrequency: "monthly",
-    priority: path === "/" ? 1 : 0.5,
+    priority: entry.priority,
   }));
 }

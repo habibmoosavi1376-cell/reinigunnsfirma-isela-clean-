@@ -6,6 +6,7 @@ import {
   createServiceOption,
   setServiceOptionActive,
   updateCatalogService,
+  updateServiceCategory,
 } from "@isela/catalog";
 import { parseDecimal } from "@/lib/admin/format";
 import { formField, formId, runAdminAction } from "@/lib/server/admin-actions";
@@ -36,6 +37,16 @@ export async function createCategoryAction(form: FormData): Promise<void> {
       name: formField(form, "name") ?? "",
       description: formField(form, "description") ?? "",
       ...(sortOrder === undefined ? {} : { sortOrder: Number(sortOrder) }),
+    }),
+  );
+}
+
+/** Day 7: public description of a category (content of its website service page). */
+export async function updateCategoryDescriptionAction(form: FormData): Promise<void> {
+  await runAdminAction(PATH, "category_saved", (ctx) =>
+    updateServiceCategory(ctx, {
+      categoryId: formId(form, "categoryId"),
+      description: formField(form, "description") ?? "",
     }),
   );
 }

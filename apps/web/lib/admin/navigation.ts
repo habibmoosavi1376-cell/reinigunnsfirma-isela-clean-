@@ -42,7 +42,7 @@ export const ADMIN_MODULES: readonly AdminModule[] = [
   { key: "complaints", label: "Reklamationen", href: null, permission: null },
   { key: "seo", label: "SEO", href: null, permission: "catalog:manage" },
   { key: "marketing", label: "Marketing", href: null, permission: null },
-  { key: "reports", label: "Berichte", href: null, permission: null },
+  { key: "reports", label: "Berichte", href: "/admin/reports", permission: "report:read" },
   { key: "settings", label: "Einstellungen", href: null, permission: "settings:read" },
   { key: "audit", label: "Audit-Log", href: null, permission: "audit:read" },
 ];

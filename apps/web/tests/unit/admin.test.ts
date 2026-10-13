@@ -78,6 +78,7 @@ describe("admin navigation", () => {
       "invoices",
       "payments",
       "payment-risk",
+      "reports",
     ]);
     expect(modules.find((m) => m.key === "reviews")?.active).toBe(false);
     expect(modules.find((m) => m.key === "calendar")?.active).toBe(false);

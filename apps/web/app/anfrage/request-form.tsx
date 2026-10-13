@@ -35,9 +35,11 @@ function describedBy(state: RequestFormState, name: string, hint?: string): stri
 export function RequestForm({
   services,
   preselected,
+  submissionToken,
 }: {
   services: readonly ServiceOption[];
   preselected?: string;
+  submissionToken: string;
 }) {
   const [state, action, pending] = useActionState(submitRequestAction, INITIAL);
   // With JavaScript, submit inside a transition instead of via the form action so React does
@@ -55,8 +57,12 @@ export function RequestForm({
       <div className="alert alert--success" role="status">
         <h2>Vielen Dank für Ihre Anfrage!</h2>
         <p>
-          Wir prüfen Ihre Angaben und melden uns bei Ihnen. Es entsteht keine Buchung und keine
-          Zahlungsverpflichtung.
+          Ihre Anfrage ist bei uns eingegangen. Wir prüfen Ihre Angaben – auch, ob Ihre Adresse in
+          unserem Servicegebiet liegt – und melden uns bei Ihnen.
+        </p>
+        <p>
+          Es entsteht keine Buchung und keine Zahlungsverpflichtung. Einen Preis oder Termin nennen
+          wir erst nach dieser Prüfung in einem Angebot.
         </p>
       </div>
     );
@@ -328,6 +334,7 @@ export function RequestForm({
         </div>
       </fieldset>
 
+      <input type="hidden" name="submissionToken" value={submissionToken} />
       <div className="honeypot" aria-hidden="true">
         <label htmlFor="website">Website (bitte leer lassen)</label>
         <input id="website" name="website" tabIndex={-1} autoComplete="off" />

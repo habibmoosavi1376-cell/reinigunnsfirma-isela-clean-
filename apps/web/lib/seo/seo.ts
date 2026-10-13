@@ -51,6 +51,93 @@ export function buildOrganizationJsonLd(facts: OrganizationFacts): Record<string
   return data;
 }
 
+export interface BreadcrumbItem {
+  readonly name: string;
+  readonly path: string;
+}
+
+/** schema.org BreadcrumbList for the visible breadcrumb trail (same items, same order). */
+export function buildBreadcrumbJsonLd(
+  baseUrl: string,
+  items: readonly BreadcrumbItem[],
+): Record<string, unknown> {
+  return {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: items.map((item, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      name: item.name,
+      item: canonicalUrl(baseUrl, item.path),
+    })),
+  };
+}
+
+/**
+ * schema.org Service for a catalogue category. Only configured facts: no price, no rating,
+ * no opening hours. `areaServed` lists ACTIVE service areas only (may be empty).
+ */
+export function buildServiceJsonLd(facts: {
+  readonly baseUrl: string;
+  readonly name: string;
+  readonly description: string;
+  readonly path: string;
+  readonly areaServed: readonly string[];
+}): Record<string, unknown> {
+  const data: Record<string, unknown> = {
+    "@context": "https://schema.org",
+    "@type": "Service",
+    name: facts.name,
+    serviceType: facts.name,
+    description: facts.description,
+    url: canonicalUrl(facts.baseUrl, facts.path),
+    provider: { "@type": "Organization", name: SITE_NAME, url: canonicalUrl(facts.baseUrl, "/") },
+  };
+  if (facts.areaServed.length > 0) data["areaServed"] = facts.areaServed;
+  return data;
+}
+
+export interface PageSeoInput {
+  readonly baseUrl: string;
+  readonly path: string;
+  readonly title: string;
+  readonly description: string;
+  /** false = "noindex, follow" (reachable, but not in search results or the sitemap). */
+  readonly indexable?: boolean;
+}
+
+/**
+ * Unique title, description, canonical URL and OpenGraph data of a public page
+ * (shape of Next.js `Metadata`, kept framework-free for unit tests).
+ */
+export function pageSeo(input: PageSeoInput) {
+  const url = canonicalUrl(input.baseUrl, input.path);
+  return {
+    title: input.title,
+    description: input.description,
+    alternates: { canonical: url },
+    openGraph: {
+      type: "website" as const,
+      siteName: SITE_NAME,
+      locale: "de_DE",
+      url,
+      title: `${input.title} | ${SITE_NAME}`,
+      description: input.description,
+    },
+    robots:
+      input.indexable === false ? { index: false, follow: true } : { index: true, follow: true },
+  };
+}
+
+/** Plain-text excerpt for meta descriptions (collapsed whitespace, cut at a word boundary). */
+export function excerpt(text: string, maxLength = 155): string {
+  const collapsed = text.replace(/\s+/g, " ").trim();
+  if (collapsed.length <= maxLength) return collapsed;
+  const cut = collapsed.slice(0, maxLength - 1);
+  const lastSpace = cut.lastIndexOf(" ");
+  return `${(lastSpace > 60 ? cut.slice(0, lastSpace) : cut).trimEnd()}…`;
+}
+
 /** Serialises JSON-LD safely for embedding in a <script> tag (prevents `</script>` breakout). */
 export function serializeJsonLd(data: unknown): string {
   return JSON.stringify(data)

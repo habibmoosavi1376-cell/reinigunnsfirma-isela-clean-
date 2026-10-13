@@ -1,5 +1,5 @@
 import { hasGlobalPermission } from "@isela/auth";
-import { getCatalogAdmin } from "@isela/catalog";
+import { MIN_INDEXABLE_DESCRIPTION_LENGTH, getCatalogAdmin } from "@isela/catalog";
 import { SERVICE_UNITS } from "@isela/quotes";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -20,6 +20,7 @@ import {
   createServiceAction,
   setOptionActiveAction,
   setServiceActiveAction,
+  updateCategoryDescriptionAction,
 } from "./actions";
 
 export const metadata: Metadata = { title: "Leistungen" };
@@ -61,6 +62,31 @@ export default async function ServicesPage({
           <h2 id={`category-${category.id}`}>
             {category.name} {category.active ? null : <span className="badge">inaktiv</span>}
           </h2>
+          <form action={updateCategoryDescriptionAction} className="form">
+            <input type="hidden" name="categoryId" value={category.id} />
+            <div className="field">
+              <label htmlFor={`category-description-${category.id}`}>
+                Beschreibung für die Website-Leistungsseite
+              </label>
+              <textarea
+                id={`category-description-${category.id}`}
+                name="description"
+                rows={4}
+                maxLength={2000}
+                defaultValue={category.description ?? ""}
+                aria-describedby={`category-description-hint-${category.id}`}
+              />
+              <p className="hint" id={`category-description-hint-${category.id}`}>
+                Nur sachlich zutreffende Angaben, keine Preise oder Garantien. Ab{" "}
+                {MIN_INDEXABLE_DESCRIPTION_LENGTH} Zeichen wird die Leistungsseite für Suchmaschinen
+                freigegeben; davor ist sie erreichbar, aber „noindex“ (aktuell{" "}
+                {(category.description ?? "").trim().length} Zeichen).
+              </p>
+            </div>
+            <button className="button button--secondary" type="submit">
+              Beschreibung speichern
+            </button>
+          </form>
           {category.services.length === 0 ? (
             <p className="muted">Keine Leistungen in dieser Kategorie.</p>
           ) : (

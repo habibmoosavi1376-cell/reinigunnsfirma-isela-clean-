@@ -1,17 +1,19 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { listPublicServiceCategories } from "@isela/catalog";
-import { canonicalUrl } from "@/lib/seo/seo";
+import { newSubmissionToken } from "@/lib/forms/submission-token";
+import { pageSeo } from "@/lib/seo/seo";
 import { getServices } from "@/lib/server/services";
 import { RequestForm } from "./request-form";
 
 export function generateMetadata(): Metadata {
-  const { env } = getServices();
-  return {
+  return pageSeo({
+    baseUrl: getServices().env.APP_BASE_URL,
+    path: "/anfrage",
     title: "Reinigung anfragen",
     description:
-      "Unverbindliche Anfrage für Reinigungsleistungen – wir prüfen Ihre Angaben und melden uns mit einem Angebot.",
-    alternates: { canonical: canonicalUrl(env.APP_BASE_URL, "/anfrage") },
-  };
+      "Unverbindliche Anfrage für Reinigungsleistungen – wir prüfen Ihre Angaben und die Verfügbarkeit an Ihrer Adresse und melden uns mit einem Angebot.",
+  });
 }
 
 export default async function RequestPage({
@@ -36,7 +38,11 @@ export default async function RequestPage({
           Beschreiben Sie Ihr Anliegen. Wir prüfen die Anfrage und die Verfügbarkeit an Ihrer
           Adresse und melden uns mit einem Angebot.
         </p>
+        <p>
+          Lieber persönlich sprechen? <Link href="/rueckruf">Rückruf anfordern</Link>
+        </p>
         <RequestForm
+          submissionToken={newSubmissionToken()}
           services={categories.map((c) => ({ key: c.key, name: c.name }))}
           {...(preselected === undefined ? {} : { preselected })}
         />
