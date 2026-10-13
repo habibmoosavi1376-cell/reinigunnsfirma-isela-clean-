@@ -206,9 +206,14 @@ Schreibsperre; bei leerer neuer Spalte unkritisch).
 | Accessibility/Performance | gemessen, §11 |
 | Modulgrenzen, Hardcoding-Guard, Forbidden Files | grün |
 | `pnpm audit`, Lizenzen | grün (nach Patch-Update) |
-| Secret-Scan, markdownlint | siehe PR-Kommentar/CI |
-| CodeQL, Dependency Review | CI auf GitHub (Dependency Review: Owner-Einstellung, nicht umgangen) |
+| Secret-Scan (gitleaks), markdownlint | lokal und in CI grün |
+| CodeQL | CI grün |
+| Dependency Review | CI rot: „Dependency review is not supported on this repository. Please ensure that Dependency graph is enabled“ – Owner-Einstellung, nicht umgangen |
 | Regression gegen Day-6-Baseline | keine: alle Baseline-Tests grün, Zahlen gestiegen |
 
-**Status: PHASE 1 DAY 7 COMPLETE** (vorbehaltlich der CI-Ergebnisse auf GitHub; Dependency
-Review bleibt die bekannte Owner-Einstellung).
+CI auf PR #8 (Commit `6551c9e` + Doku): Typecheck/Lint/Unit/Build, Integration, E2E,
+Web-Build + Client-Bundle-Secret-Scan, Audit/Lizenzen, gitleaks, actionlint, markdownlint,
+Forbidden Files, CodeQL – alle grün. Einzige rote Prüfung ist Dependency Review aus dem
+bekannten, codeunabhängigen Grund (Dependency graph in den Repository-Einstellungen deaktiviert).
+
+**Status: PHASE 1 DAY 7 COMPLETE**
