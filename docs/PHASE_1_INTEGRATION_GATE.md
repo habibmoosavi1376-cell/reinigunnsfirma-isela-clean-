@@ -6,7 +6,7 @@ keine Repository-Einstellung verändert.
 
 **Status: `BLOCKED`** – Grund: Owner-Einstellungen (Dependency Graph, Branch-Schutz) fehlen.
 Im Code gibt es keinen offenen kritischen oder hohen Befund, solange der Stapel wie in §6
-beschrieben integriert wird.
+beschrieben integriert wird. Der Finanzbefund F6 ist auf `phase-1-day-7` behoben.
 
 ## 1. Repository-Zustand
 
@@ -40,10 +40,10 @@ jeder Head ist Vorfahre des nächsten – eine streng lineare Kette ohne Abzweig
 | #5 | `phase-1-day-4` | `b798531` | #4 `39767a8` | 41 | unstable¹ |
 | #6 | `phase-1-day-5` | `51d8110` | #5 `b798531` | 49 | unstable¹ |
 | #7 | `phase-1-day-6` | `5188c43` | #6 `51d8110` | 55 | unstable¹ |
-| #8 | `phase-1-day-7` | dieser Commit² | #7 `5188c43` | 62 | unstable¹ |
+| #8 | `phase-1-day-7` | aktueller Head² | #7 `5188c43` | 62 | unstable¹ |
 
 ¹ `unstable` = konfliktfrei mergebar, aber ein Check rot (Dependency Review).
-² Vor diesem Bericht `b37675b`; der Bericht ist ein reiner Doku-Commit obendrauf.
+² Geprüft wurde `b37675b`; darauf folgen der Bericht (`c49c1f0`) und der Fix für F6.
 
 Keine Merge-Konflikte, keine doppelten Commits, keine widersprüchlichen Änderungen (lineare
 Historie). Migrationen `0000`–`0008` sind append-only: Jede SQL-Datei ist auf allen späteren
@@ -61,6 +61,7 @@ Branches byte-identisch; jeder Tag fügt genau eine Migration hinzu.
 | #6 | `51d8110` | 36641692613 ✅ | 36641699171 ❌ | 36641699180 ✅ | Dependency review |
 | #7 | `5188c43` | 36713987113 ✅ | 36713993436 ❌ | 36713993431 ✅ | Dependency review |
 | #8 | `b37675b` | 38336146489 ✅ | 38336151731 ❌ | 38336151777 ✅ | Dependency review |
+| #8 | `c49c1f0` (Doku) | 38475194646 ❌ | 38475200166 ❌ | 38475200106 ✅ | E2E (F6, zeitabhängig), Dependency review |
 
 Je Head: alle übrigen Jobs grün (Typecheck/Lint/Unit/Build, Integration, E2E, Web-Build +
 Client-Bundle-Secret-Scan, Audit/Lizenzen, gitleaks, actionlint, markdownlint, Forbidden Files).
@@ -86,6 +87,8 @@ heutigen Stand – siehe Befund F1.
 | F3 | Mittel (Owner) | `main` ohne Branch-Schutz; Default-Branch ist ein Arbeitsbranch. Direkt-Pushes und Merges ohne grüne Checks möglich. | `branches/main` → `protected=false` | Owner-Aktionen O2, O3 |
 | F4 | Niedrig | `pg`-Deprecation „client.query() when the client is already executing a query“ im E2E-Log: Lesezugriffe per `Promise.all` auf demselben Client (z. B. `operations/bookings.ts` `getBooking`, `billing/invoices.ts` `getInvoice`, `billing/risk.ts`). Heute von `pg` serialisiert, also korrekt; bricht mit `pg@9`. Nur Lesezugriffe, kein Finanzschreibpfad. | E2E-Log Day 7 | Follow-up vor einem `pg@9`-Upgrade (sequenzielle Reads); kein Merge-Blocker |
 | F5 | Info | Next-Server-Log „destination stream closed early“ in E2E – abgebrochene Streams bei Navigation, keine Testfehler, keine Daten betroffen. | E2E-Log Day 7 | beobachten |
+| F6 | **Mittel (behoben)** | Zahlungseingang „heute“ wurde zwischen lokaler und UTC-Mitternacht (Europe/Berlin 00:00–02:00) als Zukunftsdatum abgelehnt: Das Formular liefert das Geschäftsdatum, die Action machte daraus `YYYY-MM-DDT00:00:00Z`. Zusätzlich lag `received_at` 1–2 h neben dem lokalen Tagesbeginn. Eingeführt in Tag 6 (#7). | CI-Runs 38475194646/38475200166 (E2E rot um 22:05 UTC); lokal reproduziert um 00:1x MESZ gegen den unveränderten Build | Fix auf `phase-1-day-7`: `businessDayStartIso` (Tagesbeginn in der Geschäftszeitzone) in `recordPaymentAction`; Regressionstests `apps/web/tests/unit/business-time.test.ts`; E2E 26/26 im Fehlerfenster (00:14 MESZ) |
+| F7 | Niedrig | Weitere Datumsfilter interpretieren `YYYY-MM-DD` als UTC-Mitternacht (Lead-/Kunden-/Job-Listenfilter, Berichtszeitraum, `quotes/config.ts`, `format.ts`). Grenzen um bis zu 2 h verschoben; keine Finanz-Schreibpfade. | `grep T00:00:00` | Follow-up: einheitlich `businessDayStartIso` verwenden |
 
 ### Geprüfte Schutzregeln (kein Befund)
 
@@ -136,7 +139,7 @@ Empfohlene Integration (eine kontrollierte Zusammenführung):
 
 Alternative (nur wenn eine Einzelfreigabe je Tag gewünscht ist): #1 → #2 → … → #8 jeweils per
 Merge-Commit, **ohne** Deployment zwischen den Schritten. Dann ist `main` zwischen #3 und #8
-vorübergehend rot (Audit, F1); jeder Schritt muss vor dem nächsten erneut geprüft werden.
+vorübergehend rot (Audit, F1) und enthält zwischen #7 und #8 den Zahlungsdatumsfehler F6; jeder Schritt muss vor dem nächsten erneut geprüft werden.
 Nicht empfohlen. Squash- oder Rebase-Merges sind für beide Varianten ausgeschlossen, weil sie
 die Basis der darüberliegenden PRs zerstören.
 
