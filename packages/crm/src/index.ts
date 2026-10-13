@@ -61,6 +61,12 @@ export type {
   SubmitServiceRequestResult,
 } from "./service-requests.ts";
 export {
+  CALLBACK_TIME_WINDOWS,
+  callbackRequestInputSchema,
+  submitCallbackRequest,
+} from "./callback-requests.ts";
+export type { CallbackRequestInput, SubmitCallbackRequestResult } from "./callback-requests.ts";
+export {
   correctRequestAddress,
   geocodeSubmittedRequest,
   rerunRequestGeocoding,

@@ -43,6 +43,7 @@
     "@isela/payment-risk": "workspace:*",
     "@isela/pricing": "workspace:*",
     "@isela/quotes": "workspace:*",
+    "@isela/reporting": "workspace:*",
     "@isela/settings": "workspace:*",
     "@isela/shared": "workspace:*",
     "@isela/validation": "workspace:*",

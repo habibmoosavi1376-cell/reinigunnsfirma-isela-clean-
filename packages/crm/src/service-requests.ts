@@ -41,6 +41,18 @@ export const REQUEST_PROPERTY_TYPES = [
   "OTHER",
 ] as const;
 
+/** Random, URL-safe one-time token issued with the form (never stored in plain text). */
+export const submissionTokenSchema = z
+  .string()
+  .trim()
+  .regex(/^[A-Za-z0-9_-]{22,128}$/);
+
+/** Postgres unique violation (directly or wrapped by the driver). */
+export function isUniqueViolation(error: unknown): boolean {
+  const cause = (error as { cause?: { code?: unknown } } | undefined)?.cause;
+  return (cause?.code ?? (error as { code?: unknown } | undefined)?.code) === "23505";
+}
+
 /**
  * Public request form ("Reinigung anfragen"). Strict: unknown fields are rejected.
  * The privacy notice acknowledgement is required (information duty, pre-contractual
@@ -73,6 +85,8 @@ export const serviceRequestInputSchema = z
     privacyNoticeVersion: z.string().trim().min(1).max(50),
     marketingConsent: z.boolean().default(false),
     marketingConsentTextVersion: z.string().trim().min(1).max(50).optional(),
+    /** One-time form token (day 7): makes repeated submissions of the same form idempotent. */
+    submissionToken: submissionTokenSchema.optional(),
   })
   // Customer-type rules: companies need a company name (fullName is then the contact person);
   // property counts only make sense for property management.
@@ -116,6 +130,21 @@ export interface SubmitServiceRequestResult {
   readonly serviceAreaStatus: "AVAILABLE" | "NOT_AVAILABLE" | "UNKNOWN";
   /** true if the post-commit geocoding step failed unexpectedly (caller logs it). */
   readonly geocodingFailed: boolean;
+  /** true if this submission repeated an already stored form (nothing new was stored). */
+  readonly duplicate: boolean;
+}
+
+async function findRequestBySubmission(
+  db: Database,
+  submissionKeyHash: string,
+): Promise<SubmitServiceRequestResult | null> {
+  const r = schema.serviceRequest;
+  const [row] = await db
+    .select({ requestId: r.id, leadId: r.leadId, serviceAreaStatus: r.serviceAreaStatus })
+    .from(r)
+    .where(eq(r.submissionKeyHash, submissionKeyHash))
+    .limit(1);
+  return row === undefined ? null : { ...row, geocodingFailed: false, duplicate: true };
 }
 
 /**
@@ -130,6 +159,15 @@ export async function submitServiceRequest(
   const data = parseInput(serviceRequestInputSchema, input);
   const now = deps.clock.now();
   const email = normalizeEmail(data.email);
+  const submissionKeyHash =
+    data.submissionToken === undefined
+      ? null
+      : keyedHash(deps.config, "submission:service-request", data.submissionToken);
+  if (submissionKeyHash !== null) {
+    // A repeated submission neither creates a second lead nor consumes the rate limit.
+    const existing = await findRequestBySubmission(deps.db, submissionKeyHash);
+    if (existing !== null) return existing;
+  }
 
   const clientLimit = await consumeRateLimit(
     deps.db,
@@ -171,123 +209,137 @@ export async function submitServiceRequest(
   const auditActor: AuditActor =
     deps.requester === null ? { type: "SYSTEM" } : { type: "USER", id: deps.requester.userId };
 
-  const stored = await deps.db.transaction(async (tx) => {
-    const [lead] = await tx
-      .insert(schema.lead)
-      .values({
-        sourceId: source.id,
-        companyName: data.companyName ?? data.fullName,
-        segment: data.customerType,
-        postalCode: data.postalCode,
-        city: data.city,
-        collectedAt: now,
-      })
-      .returning({ id: schema.lead.id });
-    if (lead === undefined) {
-      throw new DomainError("CONFLICT", "Request could not be stored");
-    }
+  const storeRequest = async (): Promise<{ requestId: string; leadId: string }> =>
+    deps.db.transaction(async (tx) => {
+      const [lead] = await tx
+        .insert(schema.lead)
+        .values({
+          sourceId: source.id,
+          companyName: data.companyName ?? data.fullName,
+          segment: data.customerType,
+          postalCode: data.postalCode,
+          city: data.city,
+          collectedAt: now,
+        })
+        .returning({ id: schema.lead.id });
+      if (lead === undefined) {
+        throw new DomainError("CONFLICT", "Request could not be stored");
+      }
 
-    const hashes = suppressionHashes(deps.config, email, data.phone ?? null);
-    const blocked =
-      hashes.length === 0
-        ? []
-        : await tx
-            .select({ id: schema.contactSuppression.id })
-            .from(schema.contactSuppression)
-            .where(
-              inArray(
-                schema.contactSuppression.valueHash,
-                hashes.map((h) => h.valueHash),
-              ),
-            )
-            .limit(1);
-    const suppressed = blocked.length > 0;
+      const hashes = suppressionHashes(deps.config, email, data.phone ?? null);
+      const blocked =
+        hashes.length === 0
+          ? []
+          : await tx
+              .select({ id: schema.contactSuppression.id })
+              .from(schema.contactSuppression)
+              .where(
+                inArray(
+                  schema.contactSuppression.valueHash,
+                  hashes.map((h) => h.valueHash),
+                ),
+              )
+              .limit(1);
+      const suppressed = blocked.length > 0;
 
-    const [contact] = await tx
-      .insert(schema.leadContact)
-      .values({
-        leadId: lead.id,
-        fullName: data.fullName,
-        email,
-        phone: data.phone ?? null,
-        sourceId: source.id,
-        legalBasis: "GDPR_ART6_1B_CONTRACT",
-        consentStatus: data.marketingConsent ? "GRANTED" : "NOT_REQUIRED",
-        suppressed,
-        suppressedAt: suppressed ? now : null,
-        suppressionReason: suppressed ? "GLOBAL_SUPPRESSION_LIST" : null,
-      })
-      .returning({ id: schema.leadContact.id });
-    if (contact === undefined) {
-      throw new DomainError("CONFLICT", "Request could not be stored");
-    }
+      const [contact] = await tx
+        .insert(schema.leadContact)
+        .values({
+          leadId: lead.id,
+          fullName: data.fullName,
+          email,
+          phone: data.phone ?? null,
+          sourceId: source.id,
+          legalBasis: "GDPR_ART6_1B_CONTRACT",
+          consentStatus: data.marketingConsent ? "GRANTED" : "NOT_REQUIRED",
+          suppressed,
+          suppressedAt: suppressed ? now : null,
+          suppressionReason: suppressed ? "GLOBAL_SUPPRESSION_LIST" : null,
+        })
+        .returning({ id: schema.leadContact.id });
+      if (contact === undefined) {
+        throw new DomainError("CONFLICT", "Request could not be stored");
+      }
 
-    const [request] = await tx
-      .insert(schema.serviceRequest)
-      .values({
-        leadId: lead.id,
-        customerId,
-        submittedByUserId: deps.requester?.userId ?? null,
-        customerType: data.customerType,
-        serviceCategoryId: category.id,
-        propertyType: data.propertyType,
-        approximateAreaSqm: data.approximateAreaSqm ?? null,
-        frequency: data.frequency,
-        numberOfProperties: data.numberOfProperties ?? null,
-        message: data.message === undefined || data.message === "" ? null : data.message,
-        street: data.street,
-        houseNumber: data.houseNumber,
-        postalCode: data.postalCode,
-        city: data.city,
-        country: data.country,
-        privacyNoticeVersion: data.privacyNoticeVersion,
-        privacyNoticeAcknowledgedAt: now,
-      })
-      .returning({ id: schema.serviceRequest.id });
-    if (request === undefined) {
-      throw new DomainError("CONFLICT", "Request could not be stored");
-    }
+      const [request] = await tx
+        .insert(schema.serviceRequest)
+        .values({
+          leadId: lead.id,
+          customerId,
+          submittedByUserId: deps.requester?.userId ?? null,
+          customerType: data.customerType,
+          serviceCategoryId: category.id,
+          propertyType: data.propertyType,
+          approximateAreaSqm: data.approximateAreaSqm ?? null,
+          frequency: data.frequency,
+          numberOfProperties: data.numberOfProperties ?? null,
+          message: data.message === undefined || data.message === "" ? null : data.message,
+          street: data.street,
+          houseNumber: data.houseNumber,
+          postalCode: data.postalCode,
+          city: data.city,
+          country: data.country,
+          privacyNoticeVersion: data.privacyNoticeVersion,
+          privacyNoticeAcknowledgedAt: now,
+          submissionKeyHash,
+        })
+        .returning({ id: schema.serviceRequest.id });
+      if (request === undefined) {
+        throw new DomainError("CONFLICT", "Request could not be stored");
+      }
 
-    if (data.marketingConsent && data.marketingConsentTextVersion !== undefined) {
-      await tx.insert(schema.consent).values({
-        subjectType: "LEAD_CONTACT",
-        subjectId: contact.id,
-        purpose: "MARKETING_EMAIL",
-        legalBasis: "GDPR_ART6_1A",
-        status: "GRANTED",
-        grantedAt: now,
-        source: "WEBSITE_FORM",
-        textVersion: data.marketingConsentTextVersion,
-        evidenceReference: `service_request:${request.id}`,
+      if (data.marketingConsent && data.marketingConsentTextVersion !== undefined) {
+        await tx.insert(schema.consent).values({
+          subjectType: "LEAD_CONTACT",
+          subjectId: contact.id,
+          purpose: "MARKETING_EMAIL",
+          legalBasis: "GDPR_ART6_1A",
+          status: "GRANTED",
+          grantedAt: now,
+          source: "WEBSITE_FORM",
+          textVersion: data.marketingConsentTextVersion,
+          evidenceReference: `service_request:${request.id}`,
+        });
+      }
+
+      await recordAudit(tx, {
+        actor: auditActor,
+        action: "lead.created",
+        entityType: "lead",
+        entityId: lead.id,
+        after: { source: WEBSITE_REQUEST_SOURCE_KEY, status: "DISCOVERED" },
+        correlationId: deps.correlationId,
       });
+      await recordAudit(tx, {
+        actor: auditActor,
+        action: "service_request.submitted",
+        entityType: "service_request",
+        entityId: request.id,
+        after: {
+          leadId: lead.id,
+          serviceCategoryKey: data.serviceCategoryKey,
+          customerType: data.customerType,
+          frequency: data.frequency,
+          marketingConsent: data.marketingConsent,
+          linkedCustomer: customerId !== null,
+        },
+        correlationId: deps.correlationId,
+      });
+
+      return { requestId: request.id, leadId: lead.id };
+    });
+
+  let stored: { requestId: string; leadId: string };
+  try {
+    stored = await storeRequest();
+  } catch (error) {
+    // Concurrent double submit: the other transaction won the unique submission key.
+    if (submissionKeyHash !== null && isUniqueViolation(error)) {
+      const existing = await findRequestBySubmission(deps.db, submissionKeyHash);
+      if (existing !== null) return existing;
     }
-
-    await recordAudit(tx, {
-      actor: auditActor,
-      action: "lead.created",
-      entityType: "lead",
-      entityId: lead.id,
-      after: { source: WEBSITE_REQUEST_SOURCE_KEY, status: "DISCOVERED" },
-      correlationId: deps.correlationId,
-    });
-    await recordAudit(tx, {
-      actor: auditActor,
-      action: "service_request.submitted",
-      entityType: "service_request",
-      entityId: request.id,
-      after: {
-        leadId: lead.id,
-        serviceCategoryKey: data.serviceCategoryKey,
-        customerType: data.customerType,
-        frequency: data.frequency,
-        marketingConsent: data.marketingConsent,
-        linkedCustomer: customerId !== null,
-      },
-      correlationId: deps.correlationId,
-    });
-
-    return { requestId: request.id, leadId: lead.id };
-  });
+    throw error;
+  }
 
   // Geocoding runs after the commit (external HTTP call, never inside a DB transaction). The
   // request is already stored: a failure here must not lose it – staff can re-run geocoding.
@@ -305,7 +357,7 @@ export async function submitServiceRequest(
       geocodingFailed = true;
     }
   }
-  return { ...stored, serviceAreaStatus, geocodingFailed };
+  return { ...stored, serviceAreaStatus, geocodingFailed, duplicate: false };
 }
 
 export interface CustomerRequestView {

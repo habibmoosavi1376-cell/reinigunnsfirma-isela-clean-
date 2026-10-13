@@ -98,10 +98,16 @@ export const serviceRequest = pgTable(
       withTimezone: true,
       mode: "date",
     }).notNull(),
+    /**
+     * Day 7: keyed hash of the one-time form token. A repeated submission of the same form
+     * (double click, retry after a timeout) returns the stored request instead of a second lead.
+     */
+    submissionKeyHash: text("submission_key_hash"),
     createdAt: createdAt(),
   },
   (t) => [
     uniqueIndex("service_request_lead_uq").on(t.leadId),
+    uniqueIndex("service_request_submission_key_uq").on(t.submissionKeyHash),
     index("service_request_customer_idx").on(t.customerId),
     index("service_request_created_idx").on(t.createdAt),
     index("service_request_service_area_idx").on(t.serviceAreaId),
@@ -212,3 +218,50 @@ export const publicRateLimit = pgTable("public_rate_limit", {
   windowStartedAt: timestamp("window_started_at", { withTimezone: true, mode: "date" }).notNull(),
   count: integer("count").notNull(),
 });
+
+/** Preferred time window for a callback; a wish, never a promised appointment. */
+export const callbackTimeWindow = pgEnum("callback_time_window", [
+  "ANY",
+  "MORNING",
+  "MIDDAY",
+  "AFTERNOON",
+]);
+
+/**
+ * Day 7: "Rückruf anfordern" from the website. Belongs to exactly one lead; the contact
+ * person (name, phone) is stored as lead contact. No appointment or price is derived here.
+ */
+export const callbackRequest = pgTable(
+  "callback_request",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    leadId: uuid("lead_id")
+      .notNull()
+      .references(() => lead.id, { onDelete: "restrict" }),
+    submittedByUserId: text("submitted_by_user_id"),
+    customerType: requestCustomerType("customer_type").notNull(),
+    serviceCategoryId: uuid("service_category_id").references(() => serviceCategory.id, {
+      onDelete: "restrict",
+    }),
+    postalCode: text("postal_code"),
+    preferredWindow: callbackTimeWindow("preferred_window").notNull().default("ANY"),
+    message: text("message"),
+    privacyNoticeVersion: text("privacy_notice_version").notNull(),
+    privacyNoticeAcknowledgedAt: timestamp("privacy_notice_acknowledged_at", {
+      withTimezone: true,
+      mode: "date",
+    }).notNull(),
+    submissionKeyHash: text("submission_key_hash"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("callback_request_lead_uq").on(t.leadId),
+    uniqueIndex("callback_request_submission_key_uq").on(t.submissionKeyHash),
+    index("callback_request_created_idx").on(t.createdAt),
+    check("callback_request_message_chk", sql`${t.message} IS NULL OR length(${t.message}) <= 500`),
+    check(
+      "callback_request_postal_code_chk",
+      sql`${t.postalCode} IS NULL OR length(${t.postalCode}) <= 10`,
+    ),
+  ],
+);

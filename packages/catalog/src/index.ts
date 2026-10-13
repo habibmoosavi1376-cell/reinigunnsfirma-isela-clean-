@@ -14,8 +14,19 @@ export {
 } from "./service-areas.ts";
 export type { ServiceAreaInput, ServiceAreaOption } from "./service-areas.ts";
 export { listServiceCategories } from "./categories.ts";
-export { listActiveServiceAreas, listPublicServiceCategories } from "./public.ts";
-export type { PublicServiceArea, PublicServiceCategory } from "./public.ts";
+export {
+  MIN_INDEXABLE_DESCRIPTION_LENGTH,
+  getPublicServicePage,
+  listActiveServiceAreas,
+  listPublicServiceCategories,
+  listPublicServicePages,
+} from "./public.ts";
+export type {
+  PublicService,
+  PublicServiceArea,
+  PublicServiceCategory,
+  PublicServicePage,
+} from "./public.ts";
 export { checkServiceAvailability } from "./availability.ts";
 export type { ServiceAvailability, ServiceAvailabilityResult } from "./availability.ts";
 export {

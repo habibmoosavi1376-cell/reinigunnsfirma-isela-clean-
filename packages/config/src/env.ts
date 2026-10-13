@@ -108,6 +108,17 @@ export const storageEnvSchema = z.object({
 
 export const observabilityEnvSchema = z.object({
   LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
+  /**
+   * Day 7: declared kind of data in this installation. Only "production" marks business data
+   * as real in reports; every other value labels figures as test/demo data. NODE_ENV cannot be
+   * used for this because E2E and staging runs also use production builds.
+   */
+  APP_ENVIRONMENT: z.enum(["production", "staging", "development", "test"]).default("development"),
+  /**
+   * Day 7: web analytics provider. No provider is approved yet, so only "none" exists – no
+   * statistics or marketing data is collected and no consent banner is shown.
+   */
+  ANALYTICS_PROVIDER: z.enum(["none"]).default("none"),
 });
 
 /** Legal notice (Impressum) data. Required in production; never invented. */

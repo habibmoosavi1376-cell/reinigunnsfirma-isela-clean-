@@ -40,6 +40,7 @@ export const PERMISSIONS = {
   "payment:manage": "Zahlungen erfassen, bestätigen, erstatten; Zahlungsprüfungen abschließen",
   "invoice:read": "Rechnungen und Zahlungen lesen",
   "invoice:write": "Rechnungen erzeugen, ausstellen, stornieren, Fälligkeit ändern",
+  "report:read": "Conversion- und Geschäftsberichte lesen (nur aggregierte Kennzahlen)",
   "payment_risk:read": "Zahlungsrisiko, Kreditrahmen und Bewertungen lesen",
   "credit_terms:request": "Rechnungskauf beantragen/widerrufen, Neubewertung und Fälligkeitslauf",
   "credit_terms:approve": "Rechnungskauf (Kreditrahmen) freigeben oder ablehnen",
@@ -137,6 +138,7 @@ export const ROLE_PERMISSIONS: Readonly<
     "payment_risk:read",
     "credit_terms:request",
     "credit_terms:approve",
+    "report:read",
   ]),
   /*
    * STAFF: `job:execute_own` is granted GLOBAL because staff accounts carry no scope id; the

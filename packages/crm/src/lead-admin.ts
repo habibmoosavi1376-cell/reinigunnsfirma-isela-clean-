@@ -232,6 +232,17 @@ export interface LeadDetail {
     readonly customerName: string | null;
     readonly propertyId: string | null;
   } | null;
+  /** Day 7: callback wish ("Rückruf anfordern"), if the lead came from that form. */
+  readonly callback: {
+    readonly id: string;
+    readonly customerType: (typeof REQUEST_CUSTOMER_TYPES)[number];
+    readonly serviceName: string | null;
+    readonly postalCode: string | null;
+    readonly preferredWindow: "ANY" | "MORNING" | "MIDDAY" | "AFTERNOON";
+    readonly message: string | null;
+    readonly privacyNoticeVersion: string;
+    readonly createdAt: Date;
+  } | null;
   /** null without lead_contact:read. */
   readonly contacts:
     | readonly {
@@ -351,6 +362,23 @@ export async function getLeadDetail(ctx: ServiceContext, input: unknown): Promis
     .where(eq(r.leadId, leadId))
     .limit(1);
 
+  const cb = schema.callbackRequest;
+  const [callback] = await ctx.db
+    .select({
+      id: cb.id,
+      customerType: cb.customerType,
+      serviceName: schema.serviceCategory.name,
+      postalCode: cb.postalCode,
+      preferredWindow: cb.preferredWindow,
+      message: cb.message,
+      privacyNoticeVersion: cb.privacyNoticeVersion,
+      createdAt: cb.createdAt,
+    })
+    .from(cb)
+    .leftJoin(schema.serviceCategory, eq(schema.serviceCategory.id, cb.serviceCategoryId))
+    .where(eq(cb.leadId, leadId))
+    .limit(1);
+
   const c = schema.leadContact;
   const contactRows = await ctx.db
     .select({
@@ -419,7 +447,12 @@ export async function getLeadDetail(ctx: ServiceContext, input: unknown): Promis
 
   let audit: LeadDetail["audit"] = null;
   if (isAuthorized(actor, "audit:read")) {
-    const entityIds = [leadId, ...(request === undefined ? [] : [request.id]), ...contactIds];
+    const entityIds = [
+      leadId,
+      ...(request === undefined ? [] : [request.id]),
+      ...(callback === undefined ? [] : [callback.id]),
+      ...contactIds,
+    ];
     audit = await ctx.db
       .select({
         id: schema.auditLog.id,
@@ -446,6 +479,7 @@ export async function getLeadDetail(ctx: ServiceContext, input: unknown): Promis
       source: { key: lead.sourceKey, name: lead.sourceName, kind: lead.sourceKind },
     },
     request: request ?? null,
+    callback: callback ?? null,
     contacts: isAuthorized(actor, "lead_contact:read") ? contactRows : null,
     geocoding: geocodingRows.map((row) => ({
       id: row.id,

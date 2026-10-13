@@ -12,6 +12,7 @@ export {
   and,
   asc,
   count,
+  countDistinct,
   desc,
   eq,
   exists,

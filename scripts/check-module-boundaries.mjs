@@ -55,6 +55,7 @@ const ALLOWED = {
     "shared",
     "validation",
   ],
+  reporting: ["auth", "database", "shared", "validation"],
   config: ["shared"],
   partners: ["audit", "auth", "database", "shared", "validation"],
   geocoding: ["shared", "validation"],
