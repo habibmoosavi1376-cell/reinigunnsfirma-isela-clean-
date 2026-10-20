@@ -10,41 +10,49 @@ erfüllt (§0). Offen ist allein der wirksame Schutz von `main`: Das Ruleset „
 enthält die richtigen Regeln, gilt aber für **keinen** Branch (leere Zielauswahl). Im Code gibt
 es keinen offenen kritischen oder hohen Befund; F6 ist auf `phase-1-day-7` behoben.
 
-## 0. Aktueller Stand (maßgeblich, 2026-10-20 nach den Owner-Änderungen)
+## 0. Aktueller Stand (maßgeblich, 2026-10-20, zweiter Recheck)
 
-Geprüfter PR-#8-Head: `c1b76a5f1716609e1c43f2ed518f16ee14abbe30` (offen, nicht gemergt). Ein
-Doku-Commit mit diesem Abschnitt löst einen neuen CI-Lauf aus, der im nächsten Recheck zu
-prüfen ist.
+Geprüfter PR-#8-Head: `c245c4ea3a55ae5526c6962ac04d667d13acebe3` (offen, nicht gemergt). Der
+Commit, der diesen Abschnitt schreibt, ist ein reiner Doku-Commit; seine CI wird im Chat-Bericht
+bzw. im nächsten Recheck belegt.
 
 | Owner-Einstellung | Live-Befund | Ergebnis |
 | --- | --- | --- |
-| O1 Dependency Graph | SBOM-Endpunkt liefert Daten; Dependency Review läuft | PASS |
+| O1 Dependency Graph | SBOM-Endpunkt liefert Daten; Dependency Review läuft und ist grün | PASS |
 | O3 Default-Branch | `default_branch=main` | PASS |
-| O2 Schutz `main` | Ruleset 25481587 „main“, `enforcement=active`, Regeln: Löschen verboten, kein Force-Push, PR erforderlich (0 Approvals), 11 Pflicht-Checks (exakt die Liste in §7, App GitHub Actions); **aber** `conditions.ref_name.include = []` → `GET /rules/branches/main` liefert keine Regeln; klassischer Schutz: `protected=false` | **BLOCKED** |
+| O2 Schutz `main` | Ruleset 25481587 „main“, `enforcement=active`, Regeln korrekt (Löschen verboten, kein Force-Push, PR erforderlich mit 0 Approvals, 11 Pflicht-Checks aus §7, App GitHub Actions, `strict=false`); **`conditions.ref_name.include = []`** → `GET /rules/branches/main` liefert 0 Regeln; klassischer Schutz `protected=false` | **BLOCKED** |
 
-| Workflow-Run (Head `c1b76a5`) | Job | Ergebnis |
-| --- | --- | --- |
-| CI pull_request 39424123975, Attempt 2 | Dependency review (pull requests) – Job 118685711917 | PASS |
-| | Typecheck, lint, unit tests, build | PASS |
-| | Integration tests (PostgreSQL + PostGIS) | PASS |
-| | E2E (Playwright, production build, PostgreSQL + PostGIS) | PASS |
-| | Web build (production) and client-bundle secret scan | PASS |
-| | Dependency audit and license policy | PASS |
-| | Secret scan (gitleaks) | PASS |
-| | Repo guard (forbidden files) | PASS |
-| | Markdown lint | PASS |
-| | Workflow lint (actionlint) | PASS |
-| CI push 39424120499 | alle Jobs (Dependency review per `if` nicht ausgeführt) | PASS / NOT RUN |
-| CodeQL 39424123867 | Analyze (JavaScript/TypeScript) | PASS |
+Korrekturversuch der Session: `PUT /rulesets/25481587` mit `include: ["~DEFAULT_BRANCH"]` →
+HTTP 403 „Write access to this GitHub API path is not permitted through this proxy“ (die
+Session-Credentials zeigen `admin: true`, der Proxy sperrt jedoch Schreibzugriffe auf
+Einstellungen). Nichts wurde geändert.
 
-Dependency-Review-Log: „did not detect any vulnerable packages with severity level moderate or
-higher“, „did not detect any denied packages“. 97 Einträge ohne erkannte Lizenz sind
-ausschließlich interne `@isela/*`-Workspace-Pakete (`workspace:*`) – kein Befund. Keine
-Dependency-Findings zu beheben; Workflow unverändert.
+| Workflow-Run (Head `c245c4e`) | Job | Job-ID | Ergebnis |
+| --- | --- | --- | --- |
+| CI pull_request 39439999231 | Dependency review (pull requests) | 118687003267 | PASS |
+| | Typecheck, lint, unit tests, build | 118687003389 | PASS |
+| | Integration tests (PostgreSQL + PostGIS) | 118687003325 | PASS |
+| | E2E (Playwright, production build, PostgreSQL + PostGIS) | 118687003677 | PASS |
+| | Web build (production) and client-bundle secret scan | 118687003186 | PASS |
+| | Dependency audit and license policy | 118687003768 | PASS |
+| | Secret scan (gitleaks) | 118687002621 | PASS |
+| | Repo guard (forbidden files) | 118687003679 | PASS |
+| | Markdown lint | 118687003198 | PASS |
+| | Workflow lint (actionlint) | 118687003113 | PASS |
+| CI push 39439990298 | alle Jobs; Dependency review per `if: pull_request` übersprungen | – | PASS / NOT RUN |
+| CodeQL 39439999241 | Analyze (JavaScript/TypeScript) | 118687001807 | PASS |
 
-Verbleibende Owner-Aktion: Im Ruleset 25481587 unter *Target branches* → *Add target* →
-„Include default branch“ (oder `main`) ergänzen und speichern. Empfohlen zusätzlich: erlaubte
-Merge-Methoden auf „Merge“ beschränken (§6: kein Squash/Rebase für den Stapel).
+Pflichtprüfungen sind echt blockierend: kein `continue-on-error` in `ci.yml`/`codeql.yml`;
+Dependency Review mit `fail-on-severity: moderate` und Lizenz-Denylist. Der Vorlauf auf
+`c1b76a5` (Run 39424123975, Attempt 2, Job 118685711917) meldete keine verwundbaren und keine
+verbotenen Pakete; 97 Einträge ohne erkannte Lizenz sind ausschließlich interne
+`@isela/*`-Workspace-Pakete.
+
+**Verbleibender Blocker (Owner):** Ruleset auf `main` ausrichten – *Settings → Rules →
+Rulesets → „main“ → Target branches → Add target → „Include default branch“* (oder „Include by
+pattern“ `main`) → *Save changes*. Danach muss `GET /repos/{repo}/rules/branches/main` die
+Regeln `deletion`, `non_fast_forward`, `pull_request`, `required_status_checks` liefern.
+Empfohlen: erlaubte Merge-Methoden auf „Merge“ beschränken (§6).
 
 ## 0a. Stand vor den Owner-Änderungen (historisch, Head `819cb59`)
 
