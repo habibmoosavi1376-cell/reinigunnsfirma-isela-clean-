@@ -5,12 +5,57 @@ Letzte Prüfung: **2026-10-20**, live über GitHub-API und Git. Erstprüfung 202
 Maßgeblich ist §0. Es wurde nichts gemergt, kein Branch gelöscht, kein Force-Push ausgeführt
 und keine Repository-Einstellung verändert.
 
-**Status: `BLOCKED`** – Dependency Graph, Dependency Review und Default-Branch sind jetzt
-erfüllt (§0). Offen ist allein der wirksame Schutz von `main`: Das Ruleset „main“ ist aktiv und
-enthält die richtigen Regeln, gilt aber für **keinen** Branch (leere Zielauswahl). Im Code gibt
-es keinen offenen kritischen oder hohen Befund; F6 ist auf `phase-1-day-7` behoben.
+**Status: `READY FOR CONTROLLED MERGE`** – Merge-Kandidat: **PR #8 als Merge-Commit** (kein
+Squash, kein Rebase; §6). Alle Pflicht-Checks sind auf dem geprüften Head grün, der
+Branch-Schutz für `main` greift nachweislich (§0). Gemergt wird erst nach ausdrücklicher
+Freigabe durch den Owner. Im Code gibt es keinen offenen kritischen oder hohen Befund; F6 ist
+behoben.
 
-## 0. Aktueller Stand (maßgeblich, 2026-10-20, zweiter Recheck)
+## 0. Aktueller Stand (maßgeblich, 2026-10-20, dritter Recheck)
+
+Geprüfter PR-#8-Head: `deaa87d457422b32a691734591ad719e5d26f9a2` (offen, nicht gemergt,
+`mergeable_state=clean`). Der Commit, der diesen Abschnitt schreibt, ist ein reiner Doku-Commit;
+seine CI ist vor dem Merge erneut zu prüfen (Pflicht-Checks erzwingen das ohnehin).
+
+| Owner-Einstellung | Live-Befund | Ergebnis |
+| --- | --- | --- |
+| O1 Dependency Graph | aktiv; Dependency Review läuft und ist grün | PASS |
+| O2 Schutz `main` | Ruleset 25481587 „main“, `enforcement=active`, `conditions.ref_name.include = ["refs/heads/main"]`; `GET /rules/branches/main` liefert `deletion`, `non_fast_forward`, `pull_request`, `required_status_checks` (alle aus Ruleset 25481587) | PASS |
+| O3 Default-Branch | `default_branch=main` | PASS |
+
+Wirksame Pflicht-Checks auf `main` (11, keine Duplikate, App GitHub Actions):
+`Typecheck, lint, unit tests, build`; `Integration tests (PostgreSQL + PostGIS)`;
+`E2E (Playwright, production build, PostgreSQL + PostGIS)`;
+`Web build (production) and client-bundle secret scan`; `Dependency audit and license policy`;
+`Secret scan (gitleaks)`; `Repo guard (forbidden files)`; `Markdown lint`;
+`Workflow lint (actionlint)`; `Analyze (JavaScript/TypeScript)`;
+`Dependency review (pull requests)`.
+
+| Workflow-Run (Head `deaa87d`) | Job | Job-ID | Ergebnis |
+| --- | --- | --- | --- |
+| CI pull_request 39440630553 | Dependency review (pull requests) | 118689202067 | PASS |
+| | Typecheck, lint, unit tests, build | 118689202685 | PASS |
+| | Integration tests (PostgreSQL + PostGIS) | 118689202135 | PASS |
+| | E2E (Playwright, production build, PostgreSQL + PostGIS) | 118689202001 | PASS |
+| | Web build (production) and client-bundle secret scan | 118689202212 | PASS |
+| | Dependency audit and license policy | 118689202447 | PASS |
+| | Secret scan (gitleaks) | 118689201460 | PASS |
+| | Repo guard (forbidden files) | 118689202207 | PASS |
+| | Markdown lint | 118689202397 | PASS |
+| | Workflow lint (actionlint) | 118689202061 | PASS |
+| CI push 39440622608 | alle Jobs; Dependency review per `if: pull_request` übersprungen | – | PASS / NOT RUN |
+| CodeQL 39440630594 | Analyze (JavaScript/TypeScript) | 118689191345 | PASS |
+
+Verbleibende Hinweise (keine Blocker):
+
+- Das Ruleset erlaubt `merge`, `squash` und `rebase`. Für den Stapel ist ausschließlich ein
+  **Merge-Commit** zulässig (§6); empfohlen, die Methoden auf „Merge“ zu beschränken.
+- F4 (`pg@9`-Vorbereitung) und F7 (Datumsfilter in Listen) bleiben Follow-ups mit niedriger
+  Schwere.
+- Nach dem Merge: CI-push-Lauf auf `main` prüfen; #1–#7 sollten automatisch als gemergt
+  erscheinen.
+
+## 0b. Zweiter Recheck (historisch, Head `c245c4e`, Ruleset noch ohne Ziel)
 
 Geprüfter PR-#8-Head: `c245c4ea3a55ae5526c6962ac04d667d13acebe3` (offen, nicht gemergt). Der
 Commit, der diesen Abschnitt schreibt, ist ein reiner Doku-Commit; seine CI wird im Chat-Bericht
@@ -267,7 +312,7 @@ oder Findings regulär beheben; (3) alle übrigen Jobs und CodeQL auf diesem Hea
 (4) `main` `protected=true` mit genau den obigen Checks; (5) `default_branch=main`.
 Erst dann `READY FOR CONTROLLED MERGE`.
 
-## 8. Entscheidung
+## 8. Entscheidung (historisch, 2026-10-13 – aktuell gilt §0)
 
 `BLOCKED` – O1 (Dependency Review) ist ein Pflicht-Gate und derzeit nicht erfüllbar; O2/O3
 fehlen. Nach O1–O3 und grüner CI auf dem Head von #8 ist der Stapel über den Merge von #8

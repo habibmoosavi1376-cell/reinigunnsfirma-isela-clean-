@@ -206,7 +206,8 @@ Website, Worker, Deployment, Monitoring, Backups.
 
 ## 15. Integration Gate Phase 1 (Tag 1–7)
 
-Status **`BLOCKED`** (Owner-Einstellungen) – Details: [`PHASE_1_INTEGRATION_GATE.md`](PHASE_1_INTEGRATION_GATE.md).
-PR #1–#8 bilden eine lineare Kette; Integration empfohlen über einen Merge-Commit von PR #8,
-nachdem Dependency Graph aktiviert, `main` geschützt und als Default gesetzt ist. Day 8 beginnt
-erst nach der Integrationsfreigabe.
+Status **`READY FOR CONTROLLED MERGE`** (2026-10-20) – Details:
+[`PHASE_1_INTEGRATION_GATE.md`](PHASE_1_INTEGRATION_GATE.md). Dependency Graph aktiv,
+Ruleset schützt `main` mit 11 Pflicht-Checks, Default-Branch `main`. Kandidat: PR #8 als
+Merge-Commit (enthält #1–#7). Merge erst nach ausdrücklicher Owner-Freigabe; Day 8 beginnt
+erst nach bestätigter Integration.
