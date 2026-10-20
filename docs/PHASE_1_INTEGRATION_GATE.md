@@ -1,14 +1,54 @@
 # Phase 1 – Integration Gate (Tag 1–7)
 
-Stand: 2026-10-13 (Recheck 2026-10-20, §9), live über GitHub-API und Git geprüft (nicht aus älteren Berichten
-übernommen). Es wurde nichts gemergt, kein Branch gelöscht, kein Force-Push ausgeführt und
-keine Repository-Einstellung verändert.
+Letzte Prüfung: **2026-10-20**, live über GitHub-API und Git. Erstprüfung 2026-10-13 (§1–§8);
+§1–§3 und §9–§10 sind **historische Ergebnisse** und gelten nur für die dort genannten Commits.
+Maßgeblich ist §0. Es wurde nichts gemergt, kein Branch gelöscht, kein Force-Push ausgeführt
+und keine Repository-Einstellung verändert.
 
-**Status: `BLOCKED`** – Grund: Owner-Einstellungen (Dependency Graph, Branch-Schutz) fehlen.
+**Status: `BLOCKED`** – Pflicht-Gate Dependency Review ist rot, weil der Dependency Graph
+deaktiviert ist; Branch-Schutz und Default-Branch fehlen ebenfalls (Owner-Aktionen O1–O3).
 Im Code gibt es keinen offenen kritischen oder hohen Befund, solange der Stapel wie in §6
-beschrieben integriert wird. Der Finanzbefund F6 ist auf `phase-1-day-7` behoben.
+integriert wird. Der Finanzbefund F6 ist auf `phase-1-day-7` behoben.
 
-## 1. Repository-Zustand
+## 0. Aktueller Stand (maßgeblich)
+
+Geprüfter PR-#8-Head: `819cb5912ac057666eb002150cca02ba188e2ba9` (offen, kein Draft, nicht
+gemergt, `mergeable_state=unstable`, d. h. konfliktfrei, aber ein Check rot). Ein späterer
+reiner Doku-Commit mit diesem Abschnitt löst einen neuen CI-Lauf aus; dessen Ergebnis ist hier
+nicht enthalten und muss im Recheck geprüft werden.
+
+| Workflow-Run | Job | Job-ID | Ergebnis |
+| --- | --- | --- | --- |
+| CI pull_request 39423000790 | Typecheck, lint, unit tests, build | 118628416378 | PASS |
+| | Integration tests (PostgreSQL + PostGIS) | 118628416328 | PASS |
+| | E2E (Playwright, production build, PostgreSQL + PostGIS) | 118628416607 | PASS |
+| | Web build (production) and client-bundle secret scan | 118628416748 | PASS |
+| | Dependency audit and license policy | 118628416539 | PASS |
+| | Secret scan (gitleaks) | 118628416021 | PASS |
+| | Repo guard (forbidden files) | 118628416443 | PASS |
+| | Markdown lint | 118628416603 | PASS |
+| | Workflow lint (actionlint) | 118628416427 | PASS |
+| | Dependency review (pull requests) | 118628416448 | **BLOCKED** (Repository-Einstellung) |
+| CI push 39422992841 | alle Jobs; Dependency review per `if: pull_request` übersprungen | – | PASS / NOT RUN |
+| CodeQL pull_request 39423000695 | Analyze (JavaScript/TypeScript) | 118628414198 | PASS |
+
+Weitere Runs für diesen Head: keine.
+
+**Bestätigte Ursache Dependency Review** (Log Job 118628416448): „Dependency review is not
+supported on this repository. Please ensure that Dependency graph is enabled“. Der Job lief mit
+`contents: read`, `metadata: read`; das reicht für die Action (Schreibrechte bräuchte sie nur
+für `comment-summary-in-pr`, das nicht genutzt wird). Workflow-Konfiguration geprüft: Action
+per SHA gepinnt (v5.0.0), `fail-on-severity: moderate`, Lizenz-Denylist, kein
+`continue-on-error`. Der Fehler liegt ausschließlich an der Repository-Einstellung; der
+Workflow bleibt unverändert.
+
+**Einstellungen (verifiziert):** `default_branch` = `claude/untitled-session-mhhecl`;
+`main` `protected=false`; 0 Rulesets; SBOM-Endpunkt 404; Dependabot-Alerts „disabled“. Die
+Repository-Metadaten zeigen für das Session-Konto `admin: true`, der GitHub-Proxy der
+Claude-Code-Session blockiert Schreibzugriffe auf Einstellungen jedoch mit HTTP 403 (§10).
+Keine dieser Einstellungen wurde geändert.
+
+## 1. Repository-Zustand (historisch, 2026-10-13)
 
 | Punkt | Befund |
 | --- | --- |
@@ -25,7 +65,7 @@ Default. Die Session-Werkzeuge haben keinen Zugriff auf Repository-Einstellungen
 Umstellung ist seit `docs/PHASE_0_1_REPORT.md` (B1) als Owner-Aktion offen. `main` ist
 vollständig vorhanden, Vorfahre jedes PR-Branches und damit als Integrationsziel geeignet.
 
-## 2. PR-Stapel (tatsächliche Abhängigkeiten)
+## 2. PR-Stapel (tatsächliche Abhängigkeiten, Stand 2026-10-13)
 
 Alle PRs zielen auf `main` @ `29d82a9`, alle offen, keiner Draft, keiner gemergt. Die
 Abhängigkeit wurde per `git merge-base --is-ancestor` geprüft, nicht aus Nummern abgeleitet:
@@ -49,7 +89,7 @@ Keine Merge-Konflikte, keine doppelten Commits, keine widersprüchlichen Änderu
 Historie). Migrationen `0000`–`0008` sind append-only: Jede SQL-Datei ist auf allen späteren
 Branches byte-identisch; jeder Tag fügt genau eine Migration hinzu.
 
-## 3. CI je aktuellem Head-SHA
+## 3. CI je Head-SHA (historisch, 2026-10-13)
 
 | PR | Head | CI (push) | CI (pull_request) | CodeQL | Rot |
 | --- | --- | --- | --- | --- | --- |
@@ -152,13 +192,44 @@ die Basis der darüberliegenden PRs zerstören.
 | O3 | Default-Branch → `main` | Settings → General | Merge (empfohlen) |
 | O4 | Merge-Freigabe gemäß §6 | PR #8 | Day 8 |
 
+Links: O1 [Security analysis](https://github.com/habibmoosavi1376-cell/reinigunnsfirma-isela-clean-/settings/security_analysis),
+O2 [Branches](https://github.com/habibmoosavi1376-cell/reinigunnsfirma-isela-clean-/settings/branches),
+O3 [General](https://github.com/habibmoosavi1376-cell/reinigunnsfirma-isela-clean-/settings).
+
+Erforderliche Status-Checks für O2 – exakt die `name:`-Werte aus `.github/workflows/ci.yml`
+und `codeql.yml`, abgeglichen mit den Check-Runs auf `819cb59`:
+
+- `Typecheck, lint, unit tests, build`
+- `Integration tests (PostgreSQL + PostGIS)`
+- `E2E (Playwright, production build, PostgreSQL + PostGIS)`
+- `Web build (production) and client-bundle secret scan`
+- `Dependency audit and license policy`
+- `Secret scan (gitleaks)`
+- `Repo guard (forbidden files)`
+- `Markdown lint`
+- `Workflow lint (actionlint)`
+- `Analyze (JavaScript/TypeScript)` (CodeQL-Workflow)
+- `Dependency review (pull requests)` – läuft nur bei `pull_request`; als Pflicht-Check
+  geeignet, weil Merges nach `main` nur per PR erfolgen. Erst wählbar/grün nach O1.
+
+Nicht verlangen: den von GitHub Advanced Security erzeugten Sammel-Check `CodeQL` zusätzlich
+zu `Analyze …` (doppelt) und keine Checks, die es nicht gibt. Pull Request erforderlich,
+0 Pflicht-Approvals (sonst blockiert sich der einzige Maintainer), „Require branches to be up to
+date“ aus, Force-Push und Löschen verboten.
+
+Nach O1–O3 notwendige Prüfungen: (1) SBOM-/Dependency-Graph-Endpunkt liefert Daten;
+(2) Job „Dependency review (pull requests)“ auf dem dann aktuellen PR-#8-Head neu starten → PASS
+oder Findings regulär beheben; (3) alle übrigen Jobs und CodeQL auf diesem Head PASS;
+(4) `main` `protected=true` mit genau den obigen Checks; (5) `default_branch=main`.
+Erst dann `READY FOR CONTROLLED MERGE`.
+
 ## 8. Entscheidung
 
 `BLOCKED` – O1 (Dependency Review) ist ein Pflicht-Gate und derzeit nicht erfüllbar; O2/O3
 fehlen. Nach O1–O3 und grüner CI auf dem Head von #8 ist der Stapel über den Merge von #8
 (§6) bereit für eine kontrollierte Integration. Day 8 beginnt erst danach.
 
-## 9. Recheck 2026-10-20
+## 9. Recheck 2026-10-20 (historisch, Head `0ced9af`)
 
 Live geprüft; Head von PR #8 unverändert `0ced9afcd8262979e5d2a6be6918a7c7ab3a543a`.
 
@@ -177,7 +248,7 @@ Status bleibt **`BLOCKED`**. Verbleibende Maßnahmen: O1 (Dependency Graph aktiv
 Job „Dependency review“ in Run 38476763094 neu starten), O2 (Branch-Schutz `main`), O3
 (Default-Branch → `main`). Danach ist PR #8 der Merge-Commit-Kandidat.
 
-## 10. Versuch, die Owner-Einstellungen zu übernehmen (2026-10-20)
+## 10. Versuch, die Owner-Einstellungen zu übernehmen (2026-10-20, historisch, Head `8423c2d`)
 
 Das Konto der Session hat auf dem Repository `admin`-Rechte, aber der GitHub-Proxy der
 Claude-Code-Session lässt Schreibzugriffe auf Repository-Einstellungen grundsätzlich nicht zu
