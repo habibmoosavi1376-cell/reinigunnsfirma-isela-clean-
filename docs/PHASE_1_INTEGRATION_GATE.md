@@ -5,12 +5,48 @@ Letzte Prüfung: **2026-10-20**, live über GitHub-API und Git. Erstprüfung 202
 Maßgeblich ist §0. Es wurde nichts gemergt, kein Branch gelöscht, kein Force-Push ausgeführt
 und keine Repository-Einstellung verändert.
 
-**Status: `BLOCKED`** – Pflicht-Gate Dependency Review ist rot, weil der Dependency Graph
-deaktiviert ist; Branch-Schutz und Default-Branch fehlen ebenfalls (Owner-Aktionen O1–O3).
-Im Code gibt es keinen offenen kritischen oder hohen Befund, solange der Stapel wie in §6
-integriert wird. Der Finanzbefund F6 ist auf `phase-1-day-7` behoben.
+**Status: `BLOCKED`** – Dependency Graph, Dependency Review und Default-Branch sind jetzt
+erfüllt (§0). Offen ist allein der wirksame Schutz von `main`: Das Ruleset „main“ ist aktiv und
+enthält die richtigen Regeln, gilt aber für **keinen** Branch (leere Zielauswahl). Im Code gibt
+es keinen offenen kritischen oder hohen Befund; F6 ist auf `phase-1-day-7` behoben.
 
-## 0. Aktueller Stand (maßgeblich)
+## 0. Aktueller Stand (maßgeblich, 2026-10-20 nach den Owner-Änderungen)
+
+Geprüfter PR-#8-Head: `c1b76a5f1716609e1c43f2ed518f16ee14abbe30` (offen, nicht gemergt). Ein
+Doku-Commit mit diesem Abschnitt löst einen neuen CI-Lauf aus, der im nächsten Recheck zu
+prüfen ist.
+
+| Owner-Einstellung | Live-Befund | Ergebnis |
+| --- | --- | --- |
+| O1 Dependency Graph | SBOM-Endpunkt liefert Daten; Dependency Review läuft | PASS |
+| O3 Default-Branch | `default_branch=main` | PASS |
+| O2 Schutz `main` | Ruleset 25481587 „main“, `enforcement=active`, Regeln: Löschen verboten, kein Force-Push, PR erforderlich (0 Approvals), 11 Pflicht-Checks (exakt die Liste in §7, App GitHub Actions); **aber** `conditions.ref_name.include = []` → `GET /rules/branches/main` liefert keine Regeln; klassischer Schutz: `protected=false` | **BLOCKED** |
+
+| Workflow-Run (Head `c1b76a5`) | Job | Ergebnis |
+| --- | --- | --- |
+| CI pull_request 39424123975, Attempt 2 | Dependency review (pull requests) – Job 118685711917 | PASS |
+| | Typecheck, lint, unit tests, build | PASS |
+| | Integration tests (PostgreSQL + PostGIS) | PASS |
+| | E2E (Playwright, production build, PostgreSQL + PostGIS) | PASS |
+| | Web build (production) and client-bundle secret scan | PASS |
+| | Dependency audit and license policy | PASS |
+| | Secret scan (gitleaks) | PASS |
+| | Repo guard (forbidden files) | PASS |
+| | Markdown lint | PASS |
+| | Workflow lint (actionlint) | PASS |
+| CI push 39424120499 | alle Jobs (Dependency review per `if` nicht ausgeführt) | PASS / NOT RUN |
+| CodeQL 39424123867 | Analyze (JavaScript/TypeScript) | PASS |
+
+Dependency-Review-Log: „did not detect any vulnerable packages with severity level moderate or
+higher“, „did not detect any denied packages“. 97 Einträge ohne erkannte Lizenz sind
+ausschließlich interne `@isela/*`-Workspace-Pakete (`workspace:*`) – kein Befund. Keine
+Dependency-Findings zu beheben; Workflow unverändert.
+
+Verbleibende Owner-Aktion: Im Ruleset 25481587 unter *Target branches* → *Add target* →
+„Include default branch“ (oder `main`) ergänzen und speichern. Empfohlen zusätzlich: erlaubte
+Merge-Methoden auf „Merge“ beschränken (§6: kein Squash/Rebase für den Stapel).
+
+## 0a. Stand vor den Owner-Änderungen (historisch, Head `819cb59`)
 
 Geprüfter PR-#8-Head: `819cb5912ac057666eb002150cca02ba188e2ba9` (offen, kein Draft, nicht
 gemergt, `mergeable_state=unstable`, d. h. konfliktfrei, aber ein Check rot). Ein späterer
