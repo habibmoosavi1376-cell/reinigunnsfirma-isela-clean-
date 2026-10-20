@@ -1,6 +1,6 @@
 # Phase 1 – Integration Gate (Tag 1–7)
 
-Stand: 2026-10-13, live über GitHub-API und Git geprüft (nicht aus älteren Berichten
+Stand: 2026-10-13 (Recheck 2026-10-20, §9), live über GitHub-API und Git geprüft (nicht aus älteren Berichten
 übernommen). Es wurde nichts gemergt, kein Branch gelöscht, kein Force-Push ausgeführt und
 keine Repository-Einstellung verändert.
 
@@ -157,3 +157,22 @@ die Basis der darüberliegenden PRs zerstören.
 `BLOCKED` – O1 (Dependency Review) ist ein Pflicht-Gate und derzeit nicht erfüllbar; O2/O3
 fehlen. Nach O1–O3 und grüner CI auf dem Head von #8 ist der Stapel über den Merge von #8
 (§6) bereit für eine kontrollierte Integration. Day 8 beginnt erst danach.
+
+## 9. Recheck 2026-10-20
+
+Live geprüft; Head von PR #8 unverändert `0ced9afcd8262979e5d2a6be6918a7c7ab3a543a`.
+
+| Gate | Ergebnis |
+| --- | --- |
+| Dependency Graph | **weiterhin deaktiviert** (SBOM-Endpunkt 404, Dependabot-Alerts „disabled“) |
+| `main` geschützt | **nein** (`protected=false`) |
+| Default-Branch | **weiterhin** `claude/untitled-session-mhhecl` |
+| CI pull_request, Run 38476763094, Attempt 2 (neu gestartet) | alle Jobs grün außer Dependency review (Job 118623189451: „Dependency review is not supported on this repository“) |
+| CI push, Run 38476755768 | grün |
+| CodeQL, Run 38476763090 | grün |
+| `pnpm audit --audit-level=moderate` (lokal, heute) | „No known vulnerabilities found“ |
+| Regressionstests F6 (`business-time.test.ts`) | 4/4 grün; Unit gesamt 924/924 |
+
+Status bleibt **`BLOCKED`**. Verbleibende Maßnahmen: O1 (Dependency Graph aktivieren, danach
+Job „Dependency review“ in Run 38476763094 neu starten), O2 (Branch-Schutz `main`), O3
+(Default-Branch → `main`). Danach ist PR #8 der Merge-Commit-Kandidat.
