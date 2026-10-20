@@ -176,3 +176,24 @@ Live geprüft; Head von PR #8 unverändert `0ced9afcd8262979e5d2a6be6918a7c7ab3a
 Status bleibt **`BLOCKED`**. Verbleibende Maßnahmen: O1 (Dependency Graph aktivieren, danach
 Job „Dependency review“ in Run 38476763094 neu starten), O2 (Branch-Schutz `main`), O3
 (Default-Branch → `main`). Danach ist PR #8 der Merge-Commit-Kandidat.
+
+## 10. Versuch, die Owner-Einstellungen zu übernehmen (2026-10-20)
+
+Das Konto der Session hat auf dem Repository `admin`-Rechte, aber der GitHub-Proxy der
+Claude-Code-Session lässt Schreibzugriffe auf Repository-Einstellungen grundsätzlich nicht zu
+(HTTP 403). Keine der drei Einstellungen wurde geändert:
+
+| Einstellung | API-Aufruf | Ergebnis |
+| --- | --- | --- |
+| Dependency Graph / Alerts | `PUT /vulnerability-alerts`, `PATCH /repos/{repo}` (`security_and_analysis`) | 403 „not permitted through this proxy“ |
+| Branch-Schutz `main` | `PUT /branches/main/protection`, `POST /rulesets` | 403 „Write access … not permitted through this proxy“ |
+| Default-Branch | `PATCH /repos/{repo}` (`default_branch`) | 403 „Repository settings writes are not permitted“ |
+
+Nachgeprüft: `default_branch` = `claude/untitled-session-mhhecl`, `main` `protected=false`,
+0 Rulesets, SBOM-Endpunkt 404.
+
+CI auf PR-#8-Head `8423c2d`: CI push 39421712727 ✅; CI pull_request 39421725038 – alle Jobs grün,
+Dependency review nach Neustart (Attempt 2, Job 118627675775) weiterhin rot (Dependency
+Graph aus); CodeQL 39421724982 ✅.
+
+Status bleibt **`BLOCKED`** – O1–O3 müssen manuell in den GitHub-Einstellungen erfolgen.
