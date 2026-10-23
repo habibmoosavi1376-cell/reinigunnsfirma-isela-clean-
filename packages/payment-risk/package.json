@@ -1,0 +1,17 @@
+{
+  "name": "@isela/payment-risk",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "isela": {
+    "serverOnly": true
+  },
+  "dependencies": {
+    "@isela/database": "workspace:*",
+    "@isela/shared": "workspace:*",
+    "@isela/validation": "workspace:*"
+  }
+}

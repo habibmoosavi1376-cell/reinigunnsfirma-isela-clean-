@@ -1,0 +1,16 @@
+{
+  "name": "@isela/config",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "isela": {
+    "serverOnly": true
+  },
+  "dependencies": {
+    "@isela/shared": "workspace:*",
+    "zod": "4.6.5"
+  }
+}

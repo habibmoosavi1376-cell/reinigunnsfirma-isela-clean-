@@ -1,0 +1,11 @@
+pnpm-lock.yaml
+**/dist/
+**/coverage/
+packages/database/migrations/
+*.md
+.github/
+.markdownlint-cli2.jsonc
+**/.next/
+apps/web/next-env.d.ts
+apps/web/test-results/
+apps/web/playwright-report/
