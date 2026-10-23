@@ -11,6 +11,6 @@
   },
   "dependencies": {
     "@isela/shared": "workspace:*",
-    "nodemailer": "10.0.10"
+    "nodemailer": "10.1.7"
   }
 }
