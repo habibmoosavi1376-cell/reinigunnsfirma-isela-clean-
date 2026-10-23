@@ -14,6 +14,9 @@ overrides:
   "@esbuild-kit/core-utils>esbuild": "0.25.12"
   # Day 7: GHSA advisory (event-loop DoS) in source-map-js < 1.2.2, pulled in via vite>postcss.
   "source-map-js": "1.2.2"
+  # Integration gate follow-up: GHSA-mrhx-c7xc-m3w5 (memory exhaustion) in zod < 4.6.6, pulled in
+  # via better-auth. Same version as the direct dependency in packages/config and packages/validation.
+  "zod": "4.6.7"
 
 # License policy: sharp (libvips, LGPL-3.0) is an optional Next.js dependency for image
 # optimization. The web app does not use it (next.config.ts: images.unoptimized), so it is
