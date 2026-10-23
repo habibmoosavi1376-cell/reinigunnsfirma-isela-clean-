@@ -1,6 +1,6 @@
 # Phase 1 / Tag 8 – Implementierungsplan (Automation, Follow-ups, Reviews, Recurring)
 
-Stand: 2026-10-23. **Plan, keine Implementierung.** Tag 8 hängt von Voraussetzungen ab
+Stand: 2026-10-24 (Basis `main` @ `6f59f5e`, nach PR #20). **Plan; umgesetzt ist nur F7 (§2 E).** Tag 8 hängt von Voraussetzungen ab
 (§1); Code wird erst nach deren Klärung und nach grünem `main` geschrieben.
 
 Quellen: `docs/ROADMAP.md` (Tag 8), `docs/PRODUCT_SPEC.md` §1.3, §4 (Recurring, Automation),
@@ -12,7 +12,7 @@ Quellen: `docs/ROADMAP.md` (Tag 8), `docs/PRODUCT_SPEC.md` §1.3, §4 (Recurring
 
 | # | Voraussetzung | Warum | Wer |
 | --- | --- | --- | --- |
-| V1 | PR #20 (Sicherheits-Updates) gemergt, `main` grün | Jeder neue PR würde sonst am Audit-Gate scheitern | Owner (Merge-Freigabe) |
+| V1 | PR #20 (Sicherheits-Updates) gemergt, `main` grün | Jeder neue PR würde sonst am Audit-Gate scheitern | **erfüllt** (Merge-Commit `6f59f5e`, 2026-10-23) |
 | V2 | ADR-008 (pg-boss als Job-Queue) von „Vorgeschlagen“ auf „Angenommen“ | Erste neue Laufzeitabhängigkeit + Dauerprozess `apps/worker` | Owner |
 | V3 | Feiertagsquelle für NRW (statische, versionierte Datentabelle vs. Bibliothek) | Termine dürfen nicht auf Feiertage fallen (§1.3) | Owner/Recht – Empfehlung: Datentabelle |
 | V4 | Bewertungsanfragen: Plattform/Kanal, Zeitpunkt, Einwilligung | UWG §7 (Werbe-E-Mail nur mit Einwilligung bzw. Bestandskunden-Ausnahme), keine Anreize für Bewertungen | Owner/Recht |
@@ -58,8 +58,12 @@ die zeitgesteuerte Ausführung (Teil C) wartet auf V2.
 
 ### E. Mitzunehmende Follow-ups aus dem Integrations-Gate
 
-- F7: Datumsfilter (Leads, Kunden, Jobs, Berichte, `quotes/config.ts`) einheitlich mit
-  `businessDayStartIso` (Tagesbeginn in der Geschäftszeitzone) + Regressionstests.
+- F7 (**umgesetzt** auf `phase-1-day-8`): `businessDayStart`/`businessDayEnd` in
+  `@isela/shared`; Lead-, Kunden- und Einsatzlisten interpretieren Datumsfilter als Tage in
+  der Geschäftszeitzone (Admin-Seiten übergeben `operations.timeZone`). Unverändert und
+  korrekt: `quotes/config.ts` `addDays` und `format.ts` (reine Kalenderarithmetik). Bewusst
+  unverändert: der Berichtszeitraum (`report-range.ts`) ist dokumentiert in UTC-Tagen –
+  Umstellung zusammen mit dem Reporting-Ausbau.
 - F4: Lesezugriffe per `Promise.all` auf demselben Transaktions-Client sequenzialisieren
   (Vorbereitung `pg@9`).
 
@@ -93,3 +97,48 @@ die zeitgesteuerte Ausführung (Teil C) wartet auf V2.
 `packages/operations/src/bookings.ts` (Erzeugung aus Termin), `packages/auth/src/permissions.ts`,
 `apps/web/app/admin/contracts/**`, `apps/web/app/customer/(area)/contracts/**`,
 `apps/worker/` (nach V2), `docs/*` (Status, Report, Domain Model, Architecture).
+
+## 6. Entscheidungsvorlagen (Owner)
+
+Keine dieser Entscheidungen ist in den Projektdokumenten freigegeben. Bis zur Freigabe wird
+nur unabhängig Ausführbares umgesetzt. Rechtliche Punkte sind Prüffragen, keine
+Rechtsberatung.
+
+### 6.1 ADR-008 – Hintergrundjobs
+
+| Option | Vorteile | Risiken |
+| --- | --- | --- |
+| A: pg-boss (ADR-Vorschlag) | Postgres-basiert, keine Zusatzinfrastruktur, Retries, Scheduling, Singleton-Jobs | neue Laufzeitabhängigkeit + eigenes Schema; Dauerprozess `apps/worker` nötig (Hosting, Tag 10) |
+| B: eigene Tabelle + `FOR UPDATE SKIP LOCKED` | keine Abhängigkeit, volle Kontrolle | Retries/Backoff/Scheduling selbst bauen und testen |
+| C: externer Cron ruft idempotente Endpunkte | kein Dauerprozess | Abhängigkeit vom Hosting; Authentifizierung der Aufrufe; keine Queue-Semantik |
+
+Unabhängig von der Option verbindlich: jeder Job idempotent (fachlicher Schlüssel +
+Unique-Index, wie bei Zahlungen/Webhooks), Retries mit Backoff und Obergrenze, danach
+„dead letter“ mit Alarm; Audit-Eintrag ohne PII; kein Finanzvorgang doppelt
+(DB-Constraints bleiben die letzte Sperre). Empfehlung: Option A, sobald der Hosting-Weg
+einen Dauerprozess zulässt; Teil A (Termin-Expansion als reine Funktion + DB) ist davon
+unabhängig.
+
+### 6.2 NRW-Feiertage
+
+Vorschlag: versionierte Datentabelle `public_holiday` (Region `DE-NW`, Datum, Name,
+Quelle, Version) mit Seed pro Jahr; Quelle ist die geltende Feiertagsregelung des Landes
+NRW (Feiertagsgesetz NW) bzw. eine amtliche Veröffentlichung – vom Owner zu bestätigen.
+Bewegliche Feiertage können aus der Osterformel berechnet werden, der Seed wird aber
+**gegen die Quelle geprüft** und per Review freigegeben. Pflege: jährlicher Seed im Q4,
+Änderungen nur per Migration/Review. Die Termin-Expansion bekommt die Feiertage als
+Parameter (keine Daten im Code).
+
+### 6.3 Bewertungsanfragen
+
+Zu entscheiden: Kanal (E-Mail/Portal), Zeitpunkt (nach abgeschlossenem **und** bezahltem
+Auftrag), Häufigkeit (höchstens einmal je Auftrag), Rechtsgrundlage bzw. Einwilligung für
+werbliche E-Mails, Widerspruchsmöglichkeit, Ziel-Plattform und deren Richtlinien. Keine
+Anreize, keine Vorfilterung. Bis zur Freigabe: keine Anfragen, auch nicht im Testmodus an
+echte Adressen.
+
+### 6.4 E-Mail-Versand
+
+Bis zur Provider-Freigabe (ROADMAP Tag 10) bleibt `EMAIL_PROVIDER=smtp` gegen die lokale
+Testsenke; keine Zugangsdaten im Repository, keine Kundenmails. Neue Erinnerungen werden
+gegen die Testsenke getestet.
