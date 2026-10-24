@@ -211,3 +211,12 @@ Status **`READY FOR CONTROLLED MERGE`** (2026-10-20) – Details:
 Ruleset schützt `main` mit 11 Pflicht-Checks, Default-Branch `main`. Kandidat: PR #8 als
 Merge-Commit (enthält #1–#7). Merge erst nach ausdrücklicher Owner-Freigabe; Day 8 beginnt
 erst nach bestätigter Integration.
+
+## 16. Stand nach Phase 1 / Tag 8 (PR #21, nicht gemergt)
+
+Wiederkehrende Aufträge (Migration 0009, idempotente Generierung über dieselbe Zahlungslogik),
+Terminerinnerungen über eine Outbox (Migration 0010, at-most-once, nur Testsenke), F7
+(Datumsfilter in Geschäftstagen), `nodemailer`-Sicherheitsupdate. Tests: 938 Unit, 263
+Integration, 26 E2E. Details: [`PHASE_1_DAY_8_REPORT.md`](PHASE_1_DAY_8_REPORT.md);
+Launch-Bewertung: [`LAUNCH_READINESS.md`](LAUNCH_READINESS.md) – **keine Produktionsfreigabe**.
+Offen: ADR-008, NRW-Feiertagsdaten, Bewertungsanfragen, E-Mail-Versanddienst, Hosting.
