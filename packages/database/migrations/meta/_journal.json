@@ -64,6 +64,13 @@
       "when": 1791852001879,
       "tag": "0008_day7_request_idempotency_callback",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1792800760643,
+      "tag": "0009_day8_recurring_contracts",
+      "breakpoints": true
     }
   ]
 }

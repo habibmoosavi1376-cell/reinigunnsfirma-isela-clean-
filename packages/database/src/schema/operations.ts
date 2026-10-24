@@ -42,8 +42,11 @@ export const bookingStatus = pgEnum("booking_status", [
   "COMPLETED",
 ]);
 
-/** Origin of a booking. Only accepted quotes create bookings so far. */
-export const bookingSource = pgEnum("booking_source", ["QUOTE"]);
+/**
+ * Origin of a booking: an accepted quote (one booking per quote) or an appointment of a
+ * recurring service contract (day 8; quote_id stays NULL, the contract holds the template).
+ */
+export const bookingSource = pgEnum("booking_source", ["QUOTE", "CONTRACT"]);
 
 /** Result of the payment-risk evaluation at booking time. */
 export const paymentRequirement = pgEnum("payment_requirement", [
@@ -126,6 +129,11 @@ export const booking = pgTable(
       sql`${t.netCents} > 0 AND ${t.taxCents} >= 0 AND ${t.grossCents} = ${t.netCents} + ${t.taxCents}`,
     ),
     check("booking_source_chk", sql`${t.source} <> 'QUOTE' OR ${t.quoteId} IS NOT NULL`),
+    // Compared as text: the enum value is added in the same migration (PostgreSQL 55P04).
+    check(
+      "booking_contract_source_chk",
+      sql`${t.source}::text <> 'CONTRACT' OR ${t.quoteId} IS NULL`,
+    ),
     check(
       "booking_payment_status_chk",
       sql`(${t.paymentRequirement} = 'VORKASSE_REQUIRED') = (${t.paymentStatus} IS NOT NULL)`,

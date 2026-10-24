@@ -5,4 +5,4 @@ export type { Clock } from "./clock.ts";
 export { redactSensitive } from "./redact.ts";
 export { noopLogger } from "./logger.ts";
 export type { DomainLogger, LogFieldValue, LogFields } from "./logger.ts";
-export { businessDayStart, businessDayEnd } from "./business-day.ts";
+export { businessDateTime, businessDayEnd, businessDayStart } from "./business-day.ts";

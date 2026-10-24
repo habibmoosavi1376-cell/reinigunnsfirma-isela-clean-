@@ -98,3 +98,28 @@ export {
   updateEmployee,
 } from "./employees.ts";
 export type { EmployeeDetail, EmployeeListItem } from "./employees.ts";
+export {
+  MAX_OCCURRENCES_PER_EXPANSION,
+  OCCURRENCE_SKIP_REASONS,
+  RECURRENCE_FREQUENCIES,
+  expandOccurrences,
+  recurrenceRuleSchema,
+  yearsOf,
+} from "./recurrence.ts";
+export type {
+  DateRange,
+  ExpansionContext,
+  Occurrence,
+  OccurrenceSkipReason,
+  RecurrenceFrequency,
+  RecurrenceRule,
+} from "./recurrence.ts";
+export {
+  MAX_GENERATION_DAYS,
+  addContractPause,
+  createServiceContract,
+  generateContractBookings,
+  getServiceContract,
+  recordHolidayYear,
+} from "./contracts.ts";
+export type { ContractView, GenerationOptions, GenerationResult } from "./contracts.ts";

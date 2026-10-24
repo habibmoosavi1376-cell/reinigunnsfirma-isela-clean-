@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { businessDayEnd, businessDayStart } from "@isela/shared";
+import { businessDateTime, businessDayEnd, businessDayStart } from "@isela/shared";
 
 // Regression (integration gate F7): date filters read "YYYY-MM-DD" as UTC midnight, which
 // shifted the boundaries by the business time zone offset.
@@ -29,5 +29,21 @@ describe("business-local day boundaries", () => {
       expect(businessDayStart(bad, TZ), bad).toBeNull();
       expect(businessDayEnd(bad, TZ), bad).toBeNull();
     }
+  });
+
+  it("converts local wall-clock times and rejects times in the spring-forward gap", () => {
+    expect(businessDateTime("2026-10-14", 9 * 60, TZ)?.toISOString()).toBe(
+      "2026-10-14T07:00:00.000Z",
+    );
+    expect(businessDateTime("2026-12-01", 9 * 60, TZ)?.toISOString()).toBe(
+      "2026-12-01T08:00:00.000Z",
+    );
+    // 2026-03-29 02:30 does not exist in Berlin.
+    expect(businessDateTime("2026-03-29", 150, TZ)).toBeNull();
+    expect(businessDateTime("2026-03-29", 180, TZ)?.toISOString()).toBe("2026-03-29T01:00:00.000Z");
+    // 2026-10-25 02:30 exists twice: the earlier instant (CEST) is used.
+    expect(businessDateTime("2026-10-25", 150, TZ)?.toISOString()).toBe("2026-10-25T00:30:00.000Z");
+    expect(businessDateTime("2026-10-14", 1440, TZ)).toBeNull();
+    expect(businessDateTime("2026-02-30", 600, TZ)).toBeNull();
   });
 });

@@ -6,7 +6,18 @@ import {
   scopeFilterFor,
   type ServiceContext,
 } from "@isela/auth";
-import { and, asc, count, desc, eq, inArray, isNull, schema, type SQL } from "@isela/database";
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  inArray,
+  isNull,
+  schema,
+  type SQL,
+  type Transaction,
+} from "@isela/database";
 import {
   evaluateCustomerPaymentTerms,
   lockCustomerFinance,
@@ -139,133 +150,24 @@ export async function createBookingFromQuote(
       if (customer.status === "BLOCKED") {
         throw new DomainError("POLICY_VIOLATION", "The customer is blocked");
       }
-      const items = await tx
-        .select()
-        .from(schema.quoteItem)
-        .where(eq(schema.quoteItem.quoteId, quote.id))
-        .orderBy(asc(schema.quoteItem.position));
-      if (items.length === 0) throw new DomainError("POLICY_VIOLATION", "The quote has no items");
-
-      // Payment risk: history is derived on the server from recorded invoices, payments and
-      // credit decisions (never from input), serialised per customer.
-      await lockCustomerFinance(tx, quote.customerId);
-      const evaluation = await evaluateCustomerPaymentTerms(tx, quote.customerId, {
-        policy,
-        now,
-        timeZone: config.timeZone,
-        requestedAmountCents: quote.grossCents,
-      });
-      const decision = evaluation.decision;
-      if (decision.outcome === "BLOCKED") {
-        throw new DomainError("POLICY_VIOLATION", "The customer is blocked");
-      }
-      await recordPaymentRiskEvaluation(tx, {
+      return createBookingRecord(tx, ctx, {
+        actorUserId: actor.userId,
+        auditActor: auditActorOf(actor),
+        template: quote,
+        source: "QUOTE",
         customerId: quote.customerId,
-        evaluation,
+        propertyId: property.id,
+        addressId: property.addressId,
+        windowStart,
+        windowEnd,
+        durationMinutes: data.durationMinutes,
+        operationalNotes: data.operationalNotes,
+        policy,
         policyVersion: options.paymentPolicy.version,
-        trigger: "BOOKING",
-        actorUserId: actor.userId,
+        timeZone: config.timeZone,
         now,
+        auditExtra: { quoteId: quote.id },
       });
-      const paymentRequirement = paymentRequirementFor(decision);
-      const initialPayment: PaymentStatus | null =
-        paymentRequirement === "VORKASSE_REQUIRED" ? "PAYMENT_REQUIRED" : null;
-      const [booking] = await tx
-        .insert(schema.booking)
-        .values({
-          customerId: quote.customerId,
-          propertyId: property.id,
-          addressId: property.addressId,
-          quoteId: quote.id,
-          source: "QUOTE",
-          status: "REQUESTED",
-          requestedDate: localTime(windowStart, config.timeZone).date,
-          windowStart,
-          windowEnd,
-          durationMinutes: data.durationMinutes,
-          currency: quote.currency,
-          netCents: quote.netCents,
-          taxCents: quote.taxCents,
-          grossCents: quote.grossCents,
-          paymentRequirement,
-          paymentStatus: initialPayment,
-          paymentDecision: {
-            outcome: decision.outcome,
-            terms: decision.terms,
-            reasons: [...decision.reasons],
-            invoiceReviewEligible: decision.invoiceReviewEligible,
-            policyVersion: options.paymentPolicy.version,
-          },
-          operationalNotes:
-            data.operationalNotes === undefined || data.operationalNotes === ""
-              ? null
-              : data.operationalNotes,
-          createdByUserId: actor.userId,
-        })
-        .returning();
-      if (booking === undefined) throw new DomainError("CONFLICT", "Booking could not be created");
-      await tx.insert(schema.bookingItem).values(
-        items.map((item) => ({
-          bookingId: booking.id,
-          position: item.position,
-          quoteItemId: item.id,
-          serviceCategoryId: item.serviceCategoryId,
-          serviceId: item.serviceId,
-          description: item.description,
-          quantity: item.quantity,
-          unit: item.unit,
-          unitPriceCents: item.unitPriceCents,
-          taxRateBasisPoints: item.taxRateBasisPoints,
-          netCents: item.netCents,
-          taxCents: item.taxCents,
-          grossCents: item.grossCents,
-        })),
-      );
-      await tx.insert(schema.bookingStatusTransition).values({
-        bookingId: booking.id,
-        fromStatus: null,
-        toStatus: "REQUESTED",
-        actorUserId: actor.userId,
-        reason: null,
-      });
-      if (initialPayment !== null) {
-        await tx.insert(schema.paymentStatusTransition).values({
-          bookingId: booking.id,
-          fromStatus: null,
-          toStatus: initialPayment,
-          actorUserId: actor.userId,
-          reference: null,
-        });
-      }
-      await recordAudit(tx, {
-        actor: auditActorOf(actor),
-        action: "booking.created",
-        entityType: "booking",
-        entityId: booking.id,
-        after: {
-          quoteId: quote.id,
-          customerId: quote.customerId,
-          propertyId: property.id,
-          grossCents: quote.grossCents,
-          paymentRequirement,
-          paymentReasons: [...decision.reasons],
-        },
-        correlationId: ctx.correlationId,
-      });
-      const next = await applyBookingTransition(
-        tx,
-        booking,
-        paymentRequirement === "VORKASSE_REQUIRED" ? "PENDING_PAYMENT" : "CONFIRMED",
-        null,
-        {
-          actor: auditActorOf(actor),
-          actorUserId: actor.userId,
-          reason: null,
-          now,
-          correlationId: ctx.correlationId,
-        },
-      );
-      return { bookingId: booking.id, status: next.status, paymentRequirement };
     })
     .catch((error: unknown) => {
       // Two concurrent conversions of the same quote: the unique index decides.
@@ -281,6 +183,178 @@ export async function createBookingFromQuote(
     correlationId: ctx.correlationId ?? null,
   });
   return result;
+}
+
+/** Quote-like template whose items and amounts are copied into a booking. */
+interface BookingTemplate {
+  readonly id: string;
+  readonly customerId: string;
+  readonly currency: string;
+  readonly netCents: number;
+  readonly taxCents: number;
+  readonly grossCents: number;
+}
+
+export interface CreateBookingRecordInput {
+  readonly actorUserId: string;
+  readonly auditActor: ReturnType<typeof auditActorOf>;
+  readonly template: BookingTemplate;
+  readonly source: "QUOTE" | "CONTRACT";
+  readonly customerId: string;
+  readonly propertyId: string;
+  readonly addressId: string;
+  readonly windowStart: Date;
+  readonly windowEnd: Date;
+  readonly durationMinutes: number;
+  readonly operationalNotes?: string | undefined;
+  readonly policy: PaymentPolicy;
+  readonly policyVersion: number | null;
+  readonly timeZone: string;
+  readonly now: Date;
+  readonly auditExtra: Readonly<Record<string, string>>;
+}
+
+/**
+ * Inserts a booking inside the caller's transaction (internal; callers authorise first).
+ * The payment requirement always comes from the central payment-terms engine over the
+ * customer's recorded history, serialised per customer: prepayment for new customers and
+ * jobs 1–2, credit terms only with an approved credit decision, prepayment again on any
+ * overdue invoice. Used for quote bookings and for recurring-contract appointments.
+ */
+export async function createBookingRecord(
+  tx: Transaction,
+  ctx: ServiceContext,
+  input: CreateBookingRecordInput,
+): Promise<{ bookingId: string; status: BookingStatus; paymentRequirement: PaymentRequirement }> {
+  const { template, now } = input;
+  const items = await tx
+    .select()
+    .from(schema.quoteItem)
+    .where(eq(schema.quoteItem.quoteId, template.id))
+    .orderBy(asc(schema.quoteItem.position));
+  if (items.length === 0) throw new DomainError("POLICY_VIOLATION", "The quote has no items");
+
+  // Payment risk: history is derived on the server from recorded invoices, payments and
+  // credit decisions (never from input), serialised per customer.
+  await lockCustomerFinance(tx, input.customerId);
+  const evaluation = await evaluateCustomerPaymentTerms(tx, input.customerId, {
+    policy: input.policy,
+    now,
+    timeZone: input.timeZone,
+    requestedAmountCents: template.grossCents,
+  });
+  const decision = evaluation.decision;
+  if (decision.outcome === "BLOCKED") {
+    throw new DomainError("POLICY_VIOLATION", "The customer is blocked");
+  }
+  await recordPaymentRiskEvaluation(tx, {
+    customerId: input.customerId,
+    evaluation,
+    policyVersion: input.policyVersion,
+    trigger: "BOOKING",
+    actorUserId: input.actorUserId,
+    now,
+  });
+  const paymentRequirement = paymentRequirementFor(decision);
+  const initialPayment: PaymentStatus | null =
+    paymentRequirement === "VORKASSE_REQUIRED" ? "PAYMENT_REQUIRED" : null;
+  const [booking] = await tx
+    .insert(schema.booking)
+    .values({
+      customerId: input.customerId,
+      propertyId: input.propertyId,
+      addressId: input.addressId,
+      quoteId: input.source === "QUOTE" ? template.id : null,
+      source: input.source,
+      status: "REQUESTED",
+      requestedDate: localTime(input.windowStart, input.timeZone).date,
+      windowStart: input.windowStart,
+      windowEnd: input.windowEnd,
+      durationMinutes: input.durationMinutes,
+      currency: template.currency,
+      netCents: template.netCents,
+      taxCents: template.taxCents,
+      grossCents: template.grossCents,
+      paymentRequirement,
+      paymentStatus: initialPayment,
+      paymentDecision: {
+        outcome: decision.outcome,
+        terms: decision.terms,
+        reasons: [...decision.reasons],
+        invoiceReviewEligible: decision.invoiceReviewEligible,
+        policyVersion: input.policyVersion,
+      },
+      operationalNotes:
+        input.operationalNotes === undefined || input.operationalNotes === ""
+          ? null
+          : input.operationalNotes,
+      createdByUserId: input.actorUserId,
+    })
+    .returning();
+  if (booking === undefined) throw new DomainError("CONFLICT", "Booking could not be created");
+  await tx.insert(schema.bookingItem).values(
+    items.map((item) => ({
+      bookingId: booking.id,
+      position: item.position,
+      quoteItemId: item.id,
+      serviceCategoryId: item.serviceCategoryId,
+      serviceId: item.serviceId,
+      description: item.description,
+      quantity: item.quantity,
+      unit: item.unit,
+      unitPriceCents: item.unitPriceCents,
+      taxRateBasisPoints: item.taxRateBasisPoints,
+      netCents: item.netCents,
+      taxCents: item.taxCents,
+      grossCents: item.grossCents,
+    })),
+  );
+  await tx.insert(schema.bookingStatusTransition).values({
+    bookingId: booking.id,
+    fromStatus: null,
+    toStatus: "REQUESTED",
+    actorUserId: input.actorUserId,
+    reason: null,
+  });
+  if (initialPayment !== null) {
+    await tx.insert(schema.paymentStatusTransition).values({
+      bookingId: booking.id,
+      fromStatus: null,
+      toStatus: initialPayment,
+      actorUserId: input.actorUserId,
+      reference: null,
+    });
+  }
+  await recordAudit(tx, {
+    actor: input.auditActor,
+    action: "booking.created",
+    entityType: "booking",
+    entityId: booking.id,
+    after: {
+      ...input.auditExtra,
+      source: input.source,
+      customerId: input.customerId,
+      propertyId: input.propertyId,
+      grossCents: template.grossCents,
+      paymentRequirement,
+      paymentReasons: [...decision.reasons],
+    },
+    correlationId: ctx.correlationId,
+  });
+  const next = await applyBookingTransition(
+    tx,
+    booking,
+    paymentRequirement === "VORKASSE_REQUIRED" ? "PENDING_PAYMENT" : "CONFIRMED",
+    null,
+    {
+      actor: input.auditActor,
+      actorUserId: input.actorUserId,
+      reason: null,
+      now,
+      correlationId: ctx.correlationId,
+    },
+  );
+  return { bookingId: booking.id, status: next.status, paymentRequirement };
 }
 
 const cancelInput = z.strictObject({
@@ -397,7 +471,7 @@ export interface StaffBookingView extends CustomerBookingView {
   readonly customerName: string;
   readonly propertyId: string;
   readonly quoteId: string | null;
-  readonly source: "QUOTE";
+  readonly source: "QUOTE" | "CONTRACT";
   readonly paymentDecision: Readonly<Record<string, unknown>>;
   /** Payment protection applied – finance must clear the review before the job starts. */
   readonly paymentReviewRequired: boolean;

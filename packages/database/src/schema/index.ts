@@ -9,3 +9,4 @@ export * from "./pricing.ts";
 export * from "./workforce.ts";
 export * from "./operations.ts";
 export * from "./billing.ts";
+export * from "./recurring.ts";
