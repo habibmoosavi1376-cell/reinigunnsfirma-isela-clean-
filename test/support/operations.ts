@@ -47,10 +47,20 @@ export const TEST_BILLING_CONFIG: BillingConfig = {
   paymentTermDays: 14,
   prepaymentDueDays: 7,
 };
+/** Issuer for tests only – clearly fictitious TEST data, not company data. */
+export const TEST_INVOICE_ISSUER = {
+  legalName: "Testdaten Reinigung (fiktiv)",
+  street: "Teststraße 1",
+  postalCode: "00000",
+  city: "Teststadt",
+  vatId: null,
+  taxNumber: "TEST-000/000/00000",
+} as const;
 export const FINANCE_OPTIONS: FinanceOptions = {
   paymentPolicy: PAYMENT_POLICY,
   timeZone: DEFAULT_OPERATIONS_CONFIG.timeZone,
   billing: TEST_BILLING_CONFIG,
+  issuer: TEST_INVOICE_ISSUER,
 };
 
 /** Creates, issues and releases the invoice of a booking (finance). */

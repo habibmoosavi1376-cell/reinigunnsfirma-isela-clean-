@@ -1,6 +1,7 @@
 export { DEFAULT_BILLING_CONFIG, billingConfigSchema, missingBillingConfig } from "./config.ts";
 export type { BillingConfig, BillingConfigKey } from "./config.ts";
-export type { FinanceOptions } from "./internal.ts";
+export { missingIssuerFields } from "./internal.ts";
+export type { FinanceOptions, InvoiceIssuer } from "./internal.ts";
 export { MAX_AMOUNT_CENTS, allocatePayment, outstandingCents, reverseAllocation } from "./money.ts";
 export type { Allocation } from "./money.ts";
 export { formatInvoiceNumber } from "./numbering.ts";

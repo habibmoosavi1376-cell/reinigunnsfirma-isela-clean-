@@ -58,6 +58,7 @@ import {
   staffedEmployee,
   testService,
   type StaffCtx,
+  TEST_INVOICE_ISSUER,
 } from "../support/operations.ts";
 import {
   TEST_WEBHOOK_SECRET,
@@ -1212,6 +1213,87 @@ describe("payment provider (not active) and webhook security", () => {
         .set({ eventType: "manipuliert" })
         .where(eq(schema.paymentProviderEvent.provider, provider.key)),
       "23000",
+    );
+  });
+});
+
+describe("invoice issuance snapshot (service date, recipient, issuer)", () => {
+  it("stores a frozen snapshot at issuance; later address changes do not alter it", async () => {
+    const owner = await customer();
+    const bookingId = await booking(owner);
+    const invoiceId = await draftFor(bookingId);
+    await issueInvoice(finance, { invoiceId }, FINANCE_OPTIONS);
+    const issued = await invoiceRow(invoiceId);
+    const [b] = await db
+      .select({ requestedDate: schema.booking.requestedDate })
+      .from(schema.booking)
+      .where(eq(schema.booking.id, bookingId));
+    expect(issued.serviceDate).toBe(b?.requestedDate);
+    expect(issued.serviceDateBasis).toBe("PLANNED");
+    expect(issued.issuerSnapshot).toMatchObject({
+      legalName: "Testdaten Reinigung (fiktiv)",
+      taxNumber: "TEST-000/000/00000",
+      vatId: null,
+    });
+    expect(issued.recipientSnapshot?.city).toBe("Teststadt");
+    const before = issued.recipientSnapshot;
+    await db
+      .update(schema.customerAddress)
+      .set({ city: "Umgezogen (Test)" })
+      .where(eq(schema.customerAddress.customerId, owner.customerId));
+    expect((await invoiceRow(invoiceId)).recipientSnapshot).toEqual(before);
+    // The database rejects any change of the snapshot after issuance.
+    await expectPgError(
+      db
+        .update(schema.invoice)
+        .set({ serviceDate: "2000-01-01" })
+        .where(eq(schema.invoice.id, invoiceId)),
+      "23000",
+    );
+    await expectPgError(
+      db
+        .update(schema.invoice)
+        .set({ issuerSnapshot: { ...TEST_INVOICE_ISSUER, legalName: "Andere Firma (Test)" } })
+        .where(eq(schema.invoice.id, invoiceId)),
+      "23000",
+    );
+  });
+
+  it("refuses issuance without complete issuer data and keeps the draft unnumbered", async () => {
+    const owner = await customer();
+    const invoiceId = await draftFor(await booking(owner));
+    const withoutIssuer: FinanceOptions = {
+      paymentPolicy: FINANCE_OPTIONS.paymentPolicy,
+      timeZone: FINANCE_OPTIONS.timeZone,
+      billing: FINANCE_OPTIONS.billing,
+    };
+    const variants: FinanceOptions[] = [
+      withoutIssuer,
+      { ...withoutIssuer, issuer: null },
+      { ...withoutIssuer, issuer: { ...TEST_INVOICE_ISSUER, taxNumber: null, vatId: null } },
+      { ...withoutIssuer, issuer: { ...TEST_INVOICE_ISSUER, legalName: " " } },
+    ];
+    for (const options of variants) {
+      await expectDomainError(issueInvoice(finance, { invoiceId }, options), "CONFIG_REQUIRED");
+    }
+    const row = await invoiceRow(invoiceId);
+    expect(row).toMatchObject({ status: "DRAFT", invoiceNumber: null, issuerSnapshot: null });
+  });
+
+  it("is enforced by the database: no issuance without the snapshot", async () => {
+    const owner = await customer();
+    const invoiceId = await draftFor(await booking(owner));
+    await expectPgError(
+      db
+        .update(schema.invoice)
+        .set({
+          status: "ISSUED",
+          invoiceNumber: `RAW-${randomUUID().slice(0, 8)}`,
+          issueDate: "2026-01-01",
+          issuedAt: new Date(),
+        })
+        .where(eq(schema.invoice.id, invoiceId)),
+      "23514",
     );
   });
 });

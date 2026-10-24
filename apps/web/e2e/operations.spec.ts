@@ -139,6 +139,11 @@ test.describe("day 5: service → quote → booking → job → assignment", () 
     await expect(page.getByRole("heading", { level: 1 })).toContainText("Rechnungsentwurf");
     await page.getByRole("button", { name: "Rechnung ausstellen (Nummer vergeben)" }).click();
     await expect(page.getByRole("heading", { level: 1 })).toContainText(/Rechnung E2E-\d{4}-\d{6}/);
+    // Issuance snapshot (frozen): planned service date, recipient and issuer from the config.
+    await expect(page.getByText("Leistungsdatum (geplant)")).toBeVisible();
+    await expect(
+      page.getByText(/E2E-Testdaten GmbH.*Steuernummer TEST-000\/000\/00000/),
+    ).toBeVisible();
     await page.getByRole("button", { name: "Rechnung freigeben (Zahlung erwartet)" }).click();
     await expect(page.getByRole("heading", { level: 1 })).toContainText("Offen");
     const record = page.getByRole("form", { name: "Zahlungseingang erfassen" });

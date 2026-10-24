@@ -14,6 +14,7 @@ import Link from "next/link";
 import { Fragment } from "react";
 import { forbidden, notFound } from "next/navigation";
 import { ActionResult } from "@/components/admin/action-result";
+import { InvoiceSnapshotRows } from "@/components/invoice-snapshot";
 import { formatDate, formatDateTime, formatMoney, formatTaxRate } from "@/lib/admin/format";
 import {
   INVOICE_KIND_LABELS,
@@ -139,6 +140,7 @@ export default async function InvoiceDetailPage({
             <dd>{formatDate(invoice.issueDate)}</dd>
             <dt>Fällig am</dt>
             <dd>{formatDate(invoice.dueDate)}</dd>
+            <InvoiceSnapshotRows invoice={invoice} />
             <dt>Zahlungsbedingung</dt>
             <dd>{invoice.paymentTerms === "VORKASSE" ? "Vorkasse" : "Rechnungskauf"}</dd>
             {invoice.voidReason === null ? null : (

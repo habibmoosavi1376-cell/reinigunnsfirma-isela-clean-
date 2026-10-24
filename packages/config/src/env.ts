@@ -137,6 +137,8 @@ export const legalEnvSchema = z.object({
   BUSINESS_EMAIL: z.preprocess(emptyToUndefined, z.email().optional()),
   BUSINESS_PHONE: optionalString,
   BUSINESS_VAT_ID: optionalString,
+  /** Tax number (Steuernummer); invoices need it or the VAT id (BUSINESS_VAT_ID). */
+  BUSINESS_TAX_NUMBER: optionalString,
 });
 
 const LEGAL_REQUIRED_IN_PRODUCTION = [

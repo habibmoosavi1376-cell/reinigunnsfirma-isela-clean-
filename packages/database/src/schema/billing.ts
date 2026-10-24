@@ -52,6 +52,25 @@ export const invoiceStatus = pgEnum("invoice_status", [
 /** Payment terms of the invoice: prepayment before service, or credit terms after it. */
 export const invoicePaymentTerms = pgEnum("invoice_payment_terms", ["VORKASSE", "CREDIT_TERMS"]);
 
+export interface InvoiceRecipientSnapshot {
+  readonly name: string;
+  readonly companyName: string | null;
+  readonly street: string;
+  readonly houseNumber: string;
+  readonly postalCode: string;
+  readonly city: string;
+  readonly country: string;
+}
+
+export interface InvoiceIssuerSnapshot {
+  readonly legalName: string;
+  readonly street: string;
+  readonly postalCode: string;
+  readonly city: string;
+  readonly vatId: string | null;
+  readonly taxNumber: string | null;
+}
+
 export const invoice = pgTable(
   "invoice",
   {
@@ -80,6 +99,15 @@ export const invoice = pgTable(
     paidCents: bigint("paid_cents", { mode: "number" }).notNull().default(0),
     issueDate: date("issue_date", { mode: "string" }),
     dueDate: date("due_date", { mode: "string" }),
+    /**
+     * Issuance snapshot (since migration 0012, required for every newly issued invoice and
+     * frozen afterwards): date of the service (PLANNED for prepayment invoices, PERFORMED
+     * once the job is done), recipient name/address and issuer data. Older invoices keep NULL.
+     */
+    serviceDate: date("service_date", { mode: "string" }),
+    serviceDateBasis: text("service_date_basis"),
+    recipientSnapshot: jsonb("recipient_snapshot").$type<InvoiceRecipientSnapshot>(),
+    issuerSnapshot: jsonb("issuer_snapshot").$type<InvoiceIssuerSnapshot>(),
     createdByUserId: text("created_by_user_id")
       .notNull()
       .references(() => user.id, { onDelete: "restrict" }),
@@ -94,6 +122,10 @@ export const invoice = pgTable(
   },
   (t) => [
     uniqueIndex("invoice_number_uq").on(t.invoiceNumber),
+    check(
+      "invoice_service_date_basis_chk",
+      sql`${t.serviceDateBasis} IS NULL OR ${t.serviceDateBasis} IN ('PLANNED', 'PERFORMED')`,
+    ),
     // At most one active invoice per booking – also the guard against double invoicing.
     uniqueIndex("invoice_booking_active_uq")
       .on(t.bookingId)
