@@ -37,6 +37,8 @@ export const notificationStatus = pgEnum("notification_status", [
   "NO_RECIPIENT",
   "SUPPRESSED",
   "OBSOLETE",
+  /** A person reviewed a failed/uncertain delivery and closed it without resending. */
+  "DISMISSED",
 ]);
 
 export const notificationOutbox = pgTable(

@@ -1,6 +1,19 @@
 import { recordAudit } from "@isela/audit";
 import { auditActorOf, requireActor, type ServiceContext } from "@isela/auth";
-import { and, asc, eq, gte, inArray, isNull, lte, schema } from "@isela/database";
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  gte,
+  inArray,
+  isNull,
+  lte,
+  schema,
+  sql,
+  type Transaction,
+} from "@isela/database";
 import { paymentPolicySchema } from "@isela/payment-risk";
 import { DomainError } from "@isela/shared";
 import { parseInput, z } from "@isela/validation";
@@ -11,8 +24,10 @@ import {
   expandOccurrences,
   recurrenceRuleSchema,
   yearsOf,
+  type Occurrence,
   type OccurrenceSkipReason,
 } from "./recurrence.ts";
+import { localTime } from "./time.ts";
 import type { PaymentRequirement } from "./state-machines.ts";
 
 /*
@@ -147,34 +162,173 @@ const pauseInput = z.strictObject({
   reason: z.string().trim().min(3).max(500),
 });
 
+/** Booked, not cancelled appointments of a contract inside [from, to] (need a decision). */
+async function bookedInRange(
+  db: Pick<ServiceContext["db"], "select">,
+  contractId: string,
+  from: string,
+  to: string,
+): Promise<string[]> {
+  const rows = await db
+    .select({ bookingId: schema.contractOccurrence.bookingId })
+    .from(schema.contractOccurrence)
+    .innerJoin(schema.booking, eq(schema.booking.id, schema.contractOccurrence.bookingId))
+    .where(
+      and(
+        eq(schema.contractOccurrence.contractId, contractId),
+        eq(schema.contractOccurrence.status, "BOOKED"),
+        gte(schema.contractOccurrence.occurrenceDate, from),
+        lte(schema.contractOccurrence.occurrenceDate, to),
+        inArray(schema.booking.status, ["REQUESTED", "PENDING_PAYMENT", "CONFIRMED", "SCHEDULED"]),
+      ),
+    );
+  return rows.map((r) => r.bookingId).filter((id): id is string => id !== null);
+}
+
+export interface PauseResult {
+  readonly pauseId: string;
+  /**
+   * Already generated, active bookings inside the pause. They are NOT cancelled
+   * automatically (payments may exist) – staff decide per booking.
+   */
+  readonly conflictingBookingIds: readonly string[];
+}
+
 /** Records a pause; appointments in it are skipped by future generation runs. */
-export async function addContractPause(ctx: ServiceContext, input: unknown): Promise<void> {
+export async function addContractPause(ctx: ServiceContext, input: unknown): Promise<PauseResult> {
   const actor = requireActor(ctx.actor);
   requireGlobal(actor, "booking:write");
   const data = parseInput(pauseInput, input);
   if (data.toDate < data.fromDate) {
     throw new DomainError("VALIDATION_FAILED", "The pause must not end before it starts");
   }
-  await ctx.db.transaction(async (tx) => {
+  return ctx.db.transaction(async (tx) => {
     const [contract] = await tx
-      .select({ id: schema.serviceContract.id })
+      .select({ id: schema.serviceContract.id, status: schema.serviceContract.status })
       .from(schema.serviceContract)
       .where(eq(schema.serviceContract.id, data.contractId))
+      .for("update")
       .limit(1);
     if (contract === undefined) throw new DomainError("NOT_FOUND", "Contract not found");
+    if (contract.status === "ENDED") {
+      throw new DomainError("POLICY_VIOLATION", "An ended contract cannot be paused");
+    }
     const [pause] = await tx
       .insert(schema.contractPause)
       .values({ ...data, createdByUserId: actor.userId })
       .returning({ id: schema.contractPause.id });
+    if (pause === undefined) throw new DomainError("CONFLICT", "Pause not created");
+    const conflictingBookingIds = await bookedInRange(
+      tx,
+      data.contractId,
+      data.fromDate,
+      data.toDate,
+    );
     await recordAudit(tx, {
       actor: auditActorOf(actor),
       action: "service_contract.paused",
       entityType: "service_contract",
       entityId: data.contractId,
-      after: { pauseId: pause?.id ?? null, fromDate: data.fromDate, toDate: data.toDate },
+      after: {
+        pauseId: pause.id,
+        fromDate: data.fromDate,
+        toDate: data.toDate,
+        conflictingBookings: conflictingBookingIds.length,
+      },
+      correlationId: ctx.correlationId,
+    });
+    return { pauseId: pause.id, conflictingBookingIds };
+  });
+}
+
+const updatePauseInput = z.strictObject({
+  pauseId: z.uuid(),
+  fromDate: isoDate,
+  toDate: isoDate,
+  reason: z.string().trim().min(3).max(500),
+});
+
+/** Changes a pause (dates and reason). Only pauses that have not ended yet can be changed. */
+export async function updateContractPause(
+  ctx: ServiceContext,
+  input: unknown,
+  options: { readonly timeZone: string },
+): Promise<PauseResult> {
+  const actor = requireActor(ctx.actor);
+  requireGlobal(actor, "booking:write");
+  const data = parseInput(updatePauseInput, input);
+  if (data.toDate < data.fromDate) {
+    throw new DomainError("VALIDATION_FAILED", "The pause must not end before it starts");
+  }
+  return ctx.db.transaction(async (tx) => {
+    const pause = await lockPause(tx, data.pauseId);
+    const today = localTime(ctx.clock.now(), options.timeZone).date;
+    if (pause.toDate < today) {
+      throw new DomainError("POLICY_VIOLATION", "A pause in the past cannot be changed");
+    }
+    await tx
+      .update(schema.contractPause)
+      .set({ fromDate: data.fromDate, toDate: data.toDate, reason: data.reason })
+      .where(eq(schema.contractPause.id, pause.id));
+    const conflictingBookingIds = await bookedInRange(
+      tx,
+      pause.contractId,
+      data.fromDate,
+      data.toDate,
+    );
+    await recordAudit(tx, {
+      actor: auditActorOf(actor),
+      action: "service_contract.pause_updated",
+      entityType: "service_contract",
+      entityId: pause.contractId,
+      before: { pauseId: pause.id, fromDate: pause.fromDate, toDate: pause.toDate },
+      after: { pauseId: pause.id, fromDate: data.fromDate, toDate: data.toDate },
+      correlationId: ctx.correlationId,
+    });
+    return { pauseId: pause.id, conflictingBookingIds };
+  });
+}
+
+const endPauseInput = z.strictObject({ pauseId: z.uuid(), lastDay: isoDate });
+
+/** Ends a pause early: `lastDay` becomes its last paused day (not before its start). */
+export async function endContractPause(ctx: ServiceContext, input: unknown): Promise<void> {
+  const actor = requireActor(ctx.actor);
+  requireGlobal(actor, "booking:write");
+  const data = parseInput(endPauseInput, input);
+  await ctx.db.transaction(async (tx) => {
+    const pause = await lockPause(tx, data.pauseId);
+    if (data.lastDay < pause.fromDate) {
+      throw new DomainError("VALIDATION_FAILED", "A pause cannot end before it starts");
+    }
+    if (data.lastDay >= pause.toDate) {
+      throw new DomainError("VALIDATION_FAILED", "The new end must be before the current end");
+    }
+    await tx
+      .update(schema.contractPause)
+      .set({ toDate: data.lastDay })
+      .where(eq(schema.contractPause.id, pause.id));
+    await recordAudit(tx, {
+      actor: auditActorOf(actor),
+      action: "service_contract.pause_ended",
+      entityType: "service_contract",
+      entityId: pause.contractId,
+      before: { pauseId: pause.id, toDate: pause.toDate },
+      after: { pauseId: pause.id, toDate: data.lastDay },
       correlationId: ctx.correlationId,
     });
   });
+}
+
+async function lockPause(tx: Transaction, pauseId: string) {
+  const [pause] = await tx
+    .select()
+    .from(schema.contractPause)
+    .where(eq(schema.contractPause.id, pauseId))
+    .for("update")
+    .limit(1);
+  if (pause === undefined) throw new DomainError("NOT_FOUND", "Pause not found");
+  return pause;
 }
 
 const holidayYearInput = z.strictObject({
@@ -481,15 +635,131 @@ export async function generateContractBookings(
   return { created, skipped, existing, past };
 }
 
+const CONTRACT_TRANSITIONS: Readonly<Record<string, readonly string[]>> = {
+  ACTIVE: ["PAUSED", "ENDED"],
+  PAUSED: ["ACTIVE", "ENDED"],
+  ENDED: [],
+};
+
+const statusInput = z.strictObject({
+  contractId: z.uuid(),
+  to: z.enum(["ACTIVE", "PAUSED", "ENDED"]),
+  /** Optimistic concurrency: the version the user saw. */
+  expectedVersion: z.number().int().min(1),
+  reason: z.string().trim().min(3).max(500),
+});
+
+/**
+ * Changes the contract status (ACTIVE ⇄ PAUSED, any → ENDED, ENDED is final). A PAUSED or
+ * ENDED contract generates no appointments; existing bookings stay untouched (staff decide).
+ */
+export async function updateContractStatus(ctx: ServiceContext, input: unknown): Promise<void> {
+  const actor = requireActor(ctx.actor);
+  requireGlobal(actor, "booking:write");
+  const data = parseInput(statusInput, input);
+  await ctx.db.transaction(async (tx) => {
+    const [contract] = await tx
+      .select()
+      .from(schema.serviceContract)
+      .where(eq(schema.serviceContract.id, data.contractId))
+      .for("update")
+      .limit(1);
+    if (contract === undefined) throw new DomainError("NOT_FOUND", "Contract not found");
+    if (contract.version !== data.expectedVersion) {
+      throw new DomainError("CONFLICT", "The contract was changed in the meantime", {
+        currentVersion: contract.version,
+      });
+    }
+    if (!(CONTRACT_TRANSITIONS[contract.status] ?? []).includes(data.to)) {
+      throw new DomainError("POLICY_VIOLATION", "Status change not allowed", {
+        from: contract.status,
+        to: data.to,
+      });
+    }
+    await tx
+      .update(schema.serviceContract)
+      .set({ status: data.to, version: contract.version + 1, updatedAt: ctx.clock.now() })
+      .where(eq(schema.serviceContract.id, contract.id));
+    await recordAudit(tx, {
+      actor: auditActorOf(actor),
+      action: "service_contract.status_changed",
+      entityType: "service_contract",
+      entityId: contract.id,
+      before: { status: contract.status, version: contract.version },
+      after: { status: data.to, version: contract.version + 1, reason: data.reason },
+      correlationId: ctx.correlationId,
+    });
+  });
+}
+
+const listInput = z.strictObject({
+  status: z.enum(["ACTIVE", "PAUSED", "ENDED"]).optional(),
+  page: z.coerce.number().int().min(1).max(10_000).default(1),
+});
+
+export interface ContractListItem {
+  readonly id: string;
+  readonly customerId: string;
+  readonly customerName: string;
+  readonly frequency: string;
+  readonly startDate: string;
+  readonly endDate: string | null;
+  readonly status: string;
+  readonly nextBookedDate: string | null;
+}
+
+/** Back-office list of contracts (booking:read). */
+export async function listServiceContracts(
+  ctx: ServiceContext,
+  input: unknown,
+  options: { readonly timeZone: string },
+): Promise<{ items: ContractListItem[]; page: number; pageSize: number; total: number }> {
+  const actor = requireActor(ctx.actor);
+  requireGlobal(actor, "booking:read");
+  const f = parseInput(listInput, input ?? {});
+  const pageSize = 25;
+  const c = schema.serviceContract;
+  const where = f.status === undefined ? undefined : eq(c.status, f.status);
+  const today = localTime(ctx.clock.now(), options.timeZone).date;
+  const [totalRow] = await ctx.db.select({ total: count() }).from(c).where(where);
+  const rows = await ctx.db
+    .select({
+      id: c.id,
+      customerId: c.customerId,
+      customerName: schema.customer.displayName,
+      frequency: c.frequency,
+      startDate: c.startDate,
+      endDate: c.endDate,
+      status: c.status,
+      nextBookedDate: sql<string | null>`(
+        SELECT min(o."occurrence_date")::text FROM "contract_occurrence" o
+        WHERE o."contract_id" = ${c.id} AND o."status" = 'BOOKED' AND o."occurrence_date" >= ${today}::date
+      )`,
+    })
+    .from(c)
+    .innerJoin(schema.customer, eq(schema.customer.id, c.customerId))
+    .where(where)
+    .orderBy(desc(c.createdAt), desc(c.id))
+    .limit(pageSize)
+    .offset((f.page - 1) * pageSize);
+  return { items: rows, page: f.page, pageSize, total: totalRow?.total ?? 0 };
+}
+
 export interface ContractView {
   readonly id: string;
   readonly customerId: string;
+  readonly customerName: string;
   readonly propertyId: string;
   readonly quoteId: string;
   readonly frequency: string;
   readonly startDate: string;
   readonly endDate: string | null;
+  readonly windowStartMinute: number;
+  readonly windowEndMinute: number;
+  readonly durationMinutes: number;
   readonly status: string;
+  readonly version: number;
+  readonly pauses: readonly { id: string; fromDate: string; toDate: string; reason: string }[];
   readonly occurrences: readonly {
     date: string;
     status: string;
@@ -498,7 +768,7 @@ export interface ContractView {
   }[];
 }
 
-/** Contract with its appointments (booking:read). */
+/** Contract with pauses and appointments (booking:read). */
 export async function getServiceContract(
   ctx: ServiceContext,
   input: unknown,
@@ -506,12 +776,24 @@ export async function getServiceContract(
   const actor = requireActor(ctx.actor);
   requireGlobal(actor, "booking:read");
   const { contractId } = parseInput(z.strictObject({ contractId: z.uuid() }), input);
-  const [contract] = await ctx.db
-    .select()
+  const [row] = await ctx.db
+    .select({ contract: schema.serviceContract, customerName: schema.customer.displayName })
     .from(schema.serviceContract)
+    .innerJoin(schema.customer, eq(schema.customer.id, schema.serviceContract.customerId))
     .where(eq(schema.serviceContract.id, contractId))
     .limit(1);
-  if (contract === undefined) throw new DomainError("NOT_FOUND", "Contract not found");
+  if (row === undefined) throw new DomainError("NOT_FOUND", "Contract not found");
+  const contract = row.contract;
+  const pauses = await ctx.db
+    .select({
+      id: schema.contractPause.id,
+      fromDate: schema.contractPause.fromDate,
+      toDate: schema.contractPause.toDate,
+      reason: schema.contractPause.reason,
+    })
+    .from(schema.contractPause)
+    .where(eq(schema.contractPause.contractId, contract.id))
+    .orderBy(asc(schema.contractPause.fromDate));
   const occurrences = await ctx.db
     .select({
       date: schema.contractOccurrence.occurrenceDate,
@@ -525,12 +807,96 @@ export async function getServiceContract(
   return {
     id: contract.id,
     customerId: contract.customerId,
+    customerName: row.customerName,
     propertyId: contract.propertyId,
     quoteId: contract.quoteId,
     frequency: contract.frequency,
     startDate: contract.startDate,
     endDate: contract.endDate,
+    windowStartMinute: contract.windowStartMinute,
+    windowEndMinute: contract.windowEndMinute,
+    durationMinutes: contract.durationMinutes,
     status: contract.status,
+    version: contract.version,
+    pauses,
     occurrences,
   };
+}
+
+const previewInput = z.strictObject({ contractId: z.uuid(), from: isoDate, to: isoDate });
+
+export interface ContractPreview {
+  readonly occurrences: readonly Occurrence[];
+  /** false = holiday data for at least one year is missing: holidays are NOT applied. */
+  readonly holidayDataComplete: boolean;
+  readonly missingYears: readonly number[];
+}
+
+/**
+ * Upcoming appointments of a contract (read-only, nothing is written). Uses the verified
+ * holidays where available and reports missing years instead of guessing.
+ */
+export async function previewContractOccurrences(
+  ctx: ServiceContext,
+  input: unknown,
+  options: { readonly timeZone: string; readonly holidayRegion: string | null },
+): Promise<ContractPreview> {
+  const actor = requireActor(ctx.actor);
+  requireGlobal(actor, "booking:read");
+  const data = parseInput(previewInput, input);
+  const days =
+    (Date.parse(`${data.to}T00:00:00Z`) - Date.parse(`${data.from}T00:00:00Z`)) / 86_400_000 + 1;
+  if (days < 1 || days > MAX_GENERATION_DAYS) {
+    throw new DomainError("VALIDATION_FAILED", "Invalid preview window");
+  }
+  const [contract] = await ctx.db
+    .select()
+    .from(schema.serviceContract)
+    .where(eq(schema.serviceContract.id, data.contractId))
+    .limit(1);
+  if (contract === undefined) throw new DomainError("NOT_FOUND", "Contract not found");
+  const years = yearsOf({ from: data.from, to: data.to });
+  let holidays: string[] = [];
+  let missingYears = years;
+  if (options.holidayRegion !== null) {
+    const holidayRegion = region.parse(options.holidayRegion);
+    const covered = await ctx.db
+      .select({ year: schema.holidayYearCoverage.year })
+      .from(schema.holidayYearCoverage)
+      .where(
+        and(
+          eq(schema.holidayYearCoverage.region, holidayRegion),
+          inArray(schema.holidayYearCoverage.year, years),
+        ),
+      );
+    missingYears = years.filter((y) => !covered.some((c) => c.year === y));
+    holidays = (
+      await ctx.db
+        .select({ date: schema.publicHoliday.holidayDate })
+        .from(schema.publicHoliday)
+        .where(
+          and(
+            eq(schema.publicHoliday.region, holidayRegion),
+            gte(schema.publicHoliday.holidayDate, data.from),
+            lte(schema.publicHoliday.holidayDate, data.to),
+          ),
+        )
+    ).map((h) => h.date);
+  }
+  const pauses = await ctx.db
+    .select({ from: schema.contractPause.fromDate, to: schema.contractPause.toDate })
+    .from(schema.contractPause)
+    .where(eq(schema.contractPause.contractId, contract.id));
+  const occurrences = expandOccurrences(
+    {
+      frequency: contract.frequency,
+      startDate: contract.startDate,
+      endDate: contract.endDate,
+      windowStartMinute: contract.windowStartMinute,
+      windowEndMinute: contract.windowEndMinute,
+    },
+    { from: data.from, to: data.to },
+    { timeZone: options.timeZone, holidays: new Set(holidays), pauses },
+  );
+  return { occurrences, holidayDataComplete: missingYears.length === 0, missingYears };
 }

@@ -118,18 +118,36 @@ export {
   MAX_GENERATION_DAYS,
   addContractPause,
   createServiceContract,
+  endContractPause,
   generateContractBookings,
   getServiceContract,
+  listServiceContracts,
+  previewContractOccurrences,
   recordHolidayYear,
+  updateContractPause,
+  updateContractStatus,
 } from "./contracts.ts";
-export type { ContractView, GenerationOptions, GenerationResult } from "./contracts.ts";
+export type {
+  ContractListItem,
+  ContractPreview,
+  ContractView,
+  GenerationOptions,
+  GenerationResult,
+  PauseResult,
+} from "./contracts.ts";
 export {
+  NOTIFICATION_REVIEW_STATUSES,
+  NOTIFICATION_STATUSES,
   dispatchNotifications,
   enqueueAppointmentReminders,
+  listNotifications,
   renderAppointmentReminder,
+  reviewNotification,
 } from "./notifications.ts";
 export type {
   DispatchDependencies,
   DispatchResult,
   NotificationJobContext,
+  NotificationListItem,
+  NotificationStatus,
 } from "./notifications.ts";
