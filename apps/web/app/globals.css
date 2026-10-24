@@ -726,3 +726,13 @@ dt,
   align-items: flex-end;
   gap: var(--space-3);
 }
+
+/* Day 8 back office: compact status counters */
+.inline-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1rem;
+}

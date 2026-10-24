@@ -1,9 +1,11 @@
 export {
   DEFAULT_OPERATIONS_CONFIG,
+  DEFAULT_RECURRING_CONFIG,
   PARTNER_DOCUMENT_KINDS,
   operationsConfigSchema,
+  recurringConfigSchema,
 } from "./config.ts";
-export type { OperationsConfig, PartnerDocumentKind } from "./config.ts";
+export type { OperationsConfig, PartnerDocumentKind, RecurringConfig } from "./config.ts";
 export {
   BOOKING_STATUSES,
   BOOKING_TRANSITIONS,
@@ -117,10 +119,13 @@ export type {
 export {
   MAX_GENERATION_DAYS,
   addContractPause,
+  contractListQuerySchema,
   createServiceContract,
   endContractPause,
+  findContractForQuote,
   generateContractBookings,
   getServiceContract,
+  listHolidayCoverage,
   listServiceContracts,
   previewContractOccurrences,
   recordHolidayYear,
@@ -141,6 +146,7 @@ export {
   dispatchNotifications,
   enqueueAppointmentReminders,
   listNotifications,
+  notificationListQuerySchema,
   renderAppointmentReminder,
   reviewNotification,
 } from "./notifications.ts";

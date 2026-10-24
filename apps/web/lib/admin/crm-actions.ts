@@ -54,6 +54,18 @@ export const CRM_ACTION_NOTICES = {
     "Der Rechnungskauf wurde widerrufen; offene Termine sind auf Vorkasse umgestellt.",
   risk_reevaluated: "Das Zahlungsrisiko wurde neu bewertet.",
   overdue_run: "Der Fälligkeitslauf wurde ausgeführt.",
+  contract_created: "Der wiederkehrende Vertrag wurde angelegt.",
+  contract_status_changed: "Der Vertragsstatus wurde geändert.",
+  contract_generated: "Die Termine wurden erzeugt (bereits vorhandene wurden übersprungen).",
+  pause_added: "Die Pause wurde erfasst.",
+  pause_added_conflicts:
+    "Die Pause wurde erfasst. Achtung: Im Zeitraum liegen bereits Buchungen – bitte einzeln prüfen und ggf. stornieren.",
+  pause_updated: "Die Pause wurde geändert.",
+  pause_ended: "Die Pause wurde vorzeitig beendet.",
+  notification_requeued: "Die Benachrichtigung wird erneut versendet (Testmodus bis zur Freigabe).",
+  notification_dismissed: "Die Benachrichtigung wurde geschlossen.",
+  settings_saved: "Die Einstellungen wurden als neue Version gespeichert.",
+  holidays_recorded: "Das Feiertagsjahr wurde freigegeben.",
 } as const;
 
 export type CrmActionNotice = keyof typeof CRM_ACTION_NOTICES;

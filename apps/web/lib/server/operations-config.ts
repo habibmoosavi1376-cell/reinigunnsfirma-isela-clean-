@@ -1,6 +1,6 @@
 import "server-only";
 import type { DbExecutor } from "@isela/database";
-import type { OperationsConfig, PaymentPolicySnapshot } from "@isela/operations";
+import type { OperationsConfig, PaymentPolicySnapshot, RecurringConfig } from "@isela/operations";
 import { GLOBAL_SCOPE, getEffectiveSetting } from "@isela/settings";
 import type { Clock } from "@isela/shared";
 
@@ -20,4 +20,10 @@ export async function loadPaymentPolicy(
 ): Promise<PaymentPolicySnapshot> {
   const setting = await getEffectiveSetting(db, "payment.policy", GLOBAL_SCOPE, clock.now());
   return { policy: setting.value, version: setting.version };
+}
+
+/** Effective recurring-jobs configuration (setting `operations.recurring`). */
+export async function loadRecurringConfig(db: DbExecutor, clock: Clock): Promise<RecurringConfig> {
+  const setting = await getEffectiveSetting(db, "operations.recurring", GLOBAL_SCOPE, clock.now());
+  return setting.value;
 }

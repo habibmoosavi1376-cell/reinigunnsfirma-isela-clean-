@@ -692,7 +692,7 @@ export async function updateContractStatus(ctx: ServiceContext, input: unknown):
   });
 }
 
-const listInput = z.strictObject({
+export const contractListQuerySchema = z.strictObject({
   status: z.enum(["ACTIVE", "PAUSED", "ENDED"]).optional(),
   page: z.coerce.number().int().min(1).max(10_000).default(1),
 });
@@ -716,7 +716,7 @@ export async function listServiceContracts(
 ): Promise<{ items: ContractListItem[]; page: number; pageSize: number; total: number }> {
   const actor = requireActor(ctx.actor);
   requireGlobal(actor, "booking:read");
-  const f = parseInput(listInput, input ?? {});
+  const f = parseInput(contractListQuerySchema, input ?? {});
   const pageSize = 25;
   const c = schema.serviceContract;
   const where = f.status === undefined ? undefined : eq(c.status, f.status);
@@ -899,4 +899,44 @@ export async function previewContractOccurrences(
     { timeZone: options.timeZone, holidays: new Set(holidays), pauses },
   );
   return { occurrences, holidayDataComplete: missingYears.length === 0, missingYears };
+}
+
+/** The contract created from a quote, if any (booking:read). */
+export async function findContractForQuote(
+  ctx: ServiceContext,
+  input: unknown,
+): Promise<{ id: string; status: string } | null> {
+  const actor = requireActor(ctx.actor);
+  requireGlobal(actor, "booking:read");
+  const { quoteId } = parseInput(z.strictObject({ quoteId: z.uuid() }), input);
+  const [row] = await ctx.db
+    .select({ id: schema.serviceContract.id, status: schema.serviceContract.status })
+    .from(schema.serviceContract)
+    .where(eq(schema.serviceContract.quoteId, quoteId))
+    .limit(1);
+  return row ?? null;
+}
+
+/** Approved holiday years of a region with their number of holidays (booking:read). */
+export async function listHolidayCoverage(
+  ctx: ServiceContext,
+  input: unknown,
+): Promise<{ year: number; sourceReference: string; approvedAt: Date; holidays: number }[]> {
+  const actor = requireActor(ctx.actor);
+  requireGlobal(actor, "booking:read");
+  const data = parseInput(z.strictObject({ region }), input);
+  const c = schema.holidayYearCoverage;
+  return ctx.db
+    .select({
+      year: c.year,
+      sourceReference: c.sourceReference,
+      approvedAt: c.approvedAt,
+      holidays: sql<number>`(
+        SELECT count(*)::int FROM "public_holiday" h
+        WHERE h."region" = ${c.region} AND extract(year from h."holiday_date") = ${c.year}
+      )`,
+    })
+    .from(c)
+    .where(eq(c.region, data.region))
+    .orderBy(asc(c.year));
 }

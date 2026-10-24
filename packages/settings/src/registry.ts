@@ -1,7 +1,12 @@
 import type { Permission } from "@isela/auth";
 import { DEFAULT_BILLING_CONFIG, billingConfigSchema } from "@isela/billing";
 import { DEFAULT_LEAD_SCORING, leadScoringSchema } from "@isela/lead-finder";
-import { DEFAULT_OPERATIONS_CONFIG, operationsConfigSchema } from "@isela/operations";
+import {
+  DEFAULT_OPERATIONS_CONFIG,
+  DEFAULT_RECURRING_CONFIG,
+  operationsConfigSchema,
+  recurringConfigSchema,
+} from "@isela/operations";
 import { DEFAULT_PAYMENT_POLICY, paymentPolicySchema } from "@isela/payment-risk";
 import { DEFAULT_QUOTE_CONFIG, quoteConfigSchema } from "@isela/quotes";
 import type { z } from "@isela/validation";
@@ -62,6 +67,14 @@ export const SETTING_DEFINITIONS = {
     defaultValue: DEFAULT_OPERATIONS_CONFIG,
     description:
       "Disposition: Partnerzuweisung (Owner-Regel, Standard aus), Pflichtnachweise, Score-Gewichte, Zeitzone",
+  }),
+  "operations.recurring": define({
+    schema: recurringConfigSchema,
+    scopes: ["GLOBAL"],
+    permission: "settings:manage",
+    defaultValue: DEFAULT_RECURRING_CONFIG,
+    description:
+      "Wiederkehrende Aufträge: Feiertagsregion (ohne Wert keine automatische Termin-Erzeugung), Planungshorizont, Vorlauf der Terminerinnerung",
   }),
 } as const;
 

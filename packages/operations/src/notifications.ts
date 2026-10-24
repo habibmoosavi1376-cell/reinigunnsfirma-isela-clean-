@@ -307,7 +307,7 @@ export const NOTIFICATION_REVIEW_STATUSES: readonly NotificationStatus[] = [
   "NO_RECIPIENT",
 ];
 
-const notificationListInput = z.strictObject({
+export const notificationListQuerySchema = z.strictObject({
   status: z.enum(NOTIFICATION_STATUSES).optional(),
   page: z.coerce.number().int().min(1).max(10_000).default(1),
 });
@@ -339,7 +339,7 @@ export async function listNotifications(
 }> {
   const actor = requireActor(ctx.actor);
   requireGlobal(actor, "booking:read");
-  const f = parseInput(notificationListInput, input ?? {});
+  const f = parseInput(notificationListQuerySchema, input ?? {});
   const o = schema.notificationOutbox;
   const pageSize = 50;
   const where = f.status === undefined ? undefined : eq(o.status, f.status);
