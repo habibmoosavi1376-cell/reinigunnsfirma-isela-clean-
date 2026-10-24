@@ -123,3 +123,13 @@ export {
   recordHolidayYear,
 } from "./contracts.ts";
 export type { ContractView, GenerationOptions, GenerationResult } from "./contracts.ts";
+export {
+  dispatchNotifications,
+  enqueueAppointmentReminders,
+  renderAppointmentReminder,
+} from "./notifications.ts";
+export type {
+  DispatchDependencies,
+  DispatchResult,
+  NotificationJobContext,
+} from "./notifications.ts";
