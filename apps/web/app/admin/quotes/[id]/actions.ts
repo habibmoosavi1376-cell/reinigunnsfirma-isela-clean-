@@ -1,6 +1,6 @@
 "use server";
 
-import { createBookingFromQuote } from "@isela/operations";
+import { createBookingFromQuote, createServiceContract } from "@isela/operations";
 import {
   addQuoteItem,
   addQuoteItemFromCalculation,
@@ -10,7 +10,7 @@ import {
   updateQuoteDetails,
 } from "@isela/quotes";
 import { parseDecimal, parseMoneyToCents } from "@/lib/admin/format";
-import { zonedDateTimeToIso } from "@/lib/admin/time";
+import { parseMinuteOfDay, zonedDateTimeToIso } from "@/lib/admin/time";
 import { formField, formId, runAdminAction } from "@/lib/server/admin-actions";
 import { loadOperationsConfig, loadPaymentPolicy } from "@/lib/server/operations-config";
 import { loadQuoteConfig } from "@/lib/server/quote-config";
@@ -172,6 +172,30 @@ export async function createBookingAction(form: FormData): Promise<void> {
     {
       revalidate: ["/admin/bookings"],
       redirectTo: (result) => `/admin/bookings/${(result as { bookingId: string }).bookingId}`,
+    },
+  );
+}
+
+/** Creates a recurring contract from the accepted quote (rule and window from the form). */
+export async function createContractAction(form: FormData): Promise<void> {
+  const quoteId = formId(form, "quoteId");
+  const endDate = formField(form, "endDate") ?? "";
+  await runAdminAction(
+    pathOf(quoteId),
+    "contract_created",
+    (ctx) =>
+      createServiceContract(ctx, {
+        quoteId,
+        frequency: formField(form, "frequency") ?? "",
+        startDate: formField(form, "startDate") ?? "",
+        endDate: endDate === "" ? null : endDate,
+        windowStartMinute: parseMinuteOfDay(formField(form, "from") ?? "") ?? -1,
+        windowEndMinute: parseMinuteOfDay(formField(form, "to") ?? "") ?? -1,
+        durationMinutes: Number(formField(form, "durationMinutes") ?? Number.NaN),
+      }),
+    {
+      revalidate: ["/admin/contracts"],
+      redirectTo: (result) => `/admin/contracts/${(result as { contractId: string }).contractId}`,
     },
   );
 }

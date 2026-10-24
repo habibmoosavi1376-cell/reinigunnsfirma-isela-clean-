@@ -72,12 +72,14 @@ describe("admin navigation", () => {
       "services",
       "pricing",
       "bookings",
+      "contracts",
       "jobs",
       "employees",
       "partners",
       "invoices",
       "payments",
       "payment-risk",
+      "notifications",
       "reports",
     ]);
     expect(modules.find((m) => m.key === "reviews")?.active).toBe(false);
@@ -115,6 +117,16 @@ describe("admin navigation", () => {
       for (const key of ["bookings", "jobs", "employees", "pricing"]) {
         expect(labels(role), `${role} ${key}`).not.toContain(key);
       }
+    }
+  });
+
+  it("shows day-8 modules only to roles with booking:read", () => {
+    for (const role of ["DISPATCHER", "FINANCE", "ADMIN"] as const) {
+      expect(labels(role)).toEqual(expect.arrayContaining(["contracts", "notifications"]));
+    }
+    for (const role of ["STAFF", "PARTNER", "CUSTOMER"] as const) {
+      expect(labels(role)).not.toContain("contracts");
+      expect(labels(role)).not.toContain("notifications");
     }
   });
 

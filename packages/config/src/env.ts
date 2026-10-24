@@ -119,6 +119,12 @@ export const observabilityEnvSchema = z.object({
    * statistics or marketing data is collected and no consent banner is shown.
    */
   ANALYTICS_PROVIDER: z.enum(["none"]).default("none"),
+  /**
+   * Day 8: user id of the service account that runs scheduled work (appointment generation,
+   * reminders). Needs booking:write (e.g. role DISPATCHER) and is attributable in the audit
+   * log. Optional: without it the scheduled run refuses to start.
+   */
+  JOBS_ACTOR_USER_ID: optionalString,
 });
 
 /** Legal notice (Impressum) data. Required in production; never invented. */

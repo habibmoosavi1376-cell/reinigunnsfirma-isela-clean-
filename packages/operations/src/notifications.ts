@@ -1,7 +1,23 @@
-import { and, asc, eq, gt, inArray, lt, lte, schema, sql, type Database } from "@isela/database";
+import { recordAudit } from "@isela/audit";
+import { auditActorOf, requireActor, type ServiceContext } from "@isela/auth";
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  gt,
+  inArray,
+  lt,
+  lte,
+  schema,
+  sql,
+  type Database,
+} from "@isela/database";
 import type { EmailSender } from "@isela/notifications";
-import type { Clock, DomainLogger } from "@isela/shared";
-import { z } from "@isela/validation";
+import { DomainError, type Clock, type DomainLogger } from "@isela/shared";
+import { parseInput, z } from "@isela/validation";
+import { requireGlobal } from "./internal.ts";
 
 /*
  * Appointment reminders through the transactional outbox (day 8). System jobs (db + clock,
@@ -265,4 +281,169 @@ export async function dispatchNotifications(
   const result = { sent, retried, dead, skipped, uncertain: stale.length };
   job.logger?.info("notification.dispatched", { ...result });
   return result;
+}
+
+// ---------------------------------------------------------------------------------------
+// Back office (day 8 follow-up): status overview and manual review of failed deliveries.
+// ---------------------------------------------------------------------------------------
+
+export const NOTIFICATION_STATUSES = [
+  "PENDING",
+  "SENDING",
+  "SENT",
+  "DEAD",
+  "UNCERTAIN",
+  "NO_RECIPIENT",
+  "SUPPRESSED",
+  "OBSOLETE",
+  "DISMISSED",
+] as const;
+export type NotificationStatus = (typeof NOTIFICATION_STATUSES)[number];
+
+/** Statuses that need a person (shown as "manuelle Prüfung"). */
+export const NOTIFICATION_REVIEW_STATUSES: readonly NotificationStatus[] = [
+  "DEAD",
+  "UNCERTAIN",
+  "NO_RECIPIENT",
+];
+
+export const notificationListQuerySchema = z.strictObject({
+  status: z.enum(NOTIFICATION_STATUSES).optional(),
+  page: z.coerce.number().int().min(1).max(10_000).default(1),
+});
+
+export interface NotificationListItem {
+  readonly id: string;
+  readonly purpose: string;
+  readonly status: NotificationStatus;
+  readonly attempts: number;
+  readonly nextAttemptAt: Date;
+  readonly sentAt: Date | null;
+  readonly lastErrorCode: string | null;
+  readonly bookingId: string | null;
+  readonly customerId: string;
+  readonly customerName: string;
+  readonly createdAt: Date;
+}
+
+/** Outbox overview (booking:read). Never exposes addresses or message content. */
+export async function listNotifications(
+  ctx: ServiceContext,
+  input: unknown,
+): Promise<{
+  items: NotificationListItem[];
+  counts: Partial<Record<NotificationStatus, number>>;
+  page: number;
+  pageSize: number;
+  total: number;
+}> {
+  const actor = requireActor(ctx.actor);
+  requireGlobal(actor, "booking:read");
+  const f = parseInput(notificationListQuerySchema, input ?? {});
+  const o = schema.notificationOutbox;
+  const pageSize = 50;
+  const where = f.status === undefined ? undefined : eq(o.status, f.status);
+  const grouped = await ctx.db.select({ status: o.status, n: count() }).from(o).groupBy(o.status);
+  const counts: Partial<Record<NotificationStatus, number>> = {};
+  for (const g of grouped) counts[g.status] = g.n;
+  const [totalRow] = await ctx.db.select({ total: count() }).from(o).where(where);
+  const items = await ctx.db
+    .select({
+      id: o.id,
+      purpose: o.purpose,
+      status: o.status,
+      attempts: o.attempts,
+      nextAttemptAt: o.nextAttemptAt,
+      sentAt: o.sentAt,
+      lastErrorCode: o.lastErrorCode,
+      bookingId: o.bookingId,
+      customerId: o.customerId,
+      customerName: schema.customer.displayName,
+      createdAt: o.createdAt,
+    })
+    .from(o)
+    .innerJoin(schema.customer, eq(schema.customer.id, o.customerId))
+    .where(where)
+    .orderBy(desc(o.createdAt), desc(o.id))
+    .limit(pageSize)
+    .offset((f.page - 1) * pageSize);
+  return { items, counts, page: f.page, pageSize, total: totalRow?.total ?? 0 };
+}
+
+const reviewInput = z.strictObject({
+  notificationId: z.uuid(),
+  action: z.enum(["REQUEUE", "DISMISS"]),
+  /** Status the person saw – protects against acting on a row that changed meanwhile. */
+  expectedStatus: z.enum(NOTIFICATION_STATUSES),
+  reason: z.string().trim().min(3).max(500),
+  /**
+   * Requeueing an UNCERTAIN delivery may send the message twice; the person must confirm
+   * that they checked it (e.g. with the provider or the customer).
+   */
+  confirmPossibleDuplicate: z.boolean().default(false),
+});
+
+/**
+ * Manual review (booking:write, audited):
+ * - REQUEUE: DEAD → PENDING (attempts reset); UNCERTAIN → PENDING only with explicit
+ *   confirmation; NO_RECIPIENT → PENDING (e.g. after the customer verified an account).
+ * - DISMISS: DEAD, UNCERTAIN or NO_RECIPIENT → DISMISSED.
+ * SUPPRESSED rows can never be requeued (objection is binding).
+ */
+export async function reviewNotification(ctx: ServiceContext, input: unknown): Promise<void> {
+  const actor = requireActor(ctx.actor);
+  requireGlobal(actor, "booking:write");
+  const data = parseInput(reviewInput, input);
+  if (!NOTIFICATION_REVIEW_STATUSES.includes(data.expectedStatus)) {
+    throw new DomainError("POLICY_VIOLATION", "This notification does not need a review", {
+      status: data.expectedStatus,
+    });
+  }
+  if (
+    data.action === "REQUEUE" &&
+    data.expectedStatus === "UNCERTAIN" &&
+    !data.confirmPossibleDuplicate
+  ) {
+    throw new DomainError(
+      "VALIDATION_FAILED",
+      "Requeueing an uncertain delivery requires confirming a possible duplicate",
+    );
+  }
+  const o = schema.notificationOutbox;
+  const now = ctx.clock.now();
+  await ctx.db.transaction(async (tx) => {
+    const changed = await tx
+      .update(o)
+      .set(
+        data.action === "REQUEUE"
+          ? { status: "PENDING", attempts: 0, nextAttemptAt: now, claimedAt: null, updatedAt: now }
+          : { status: "DISMISSED", updatedAt: now },
+      )
+      .where(and(eq(o.id, data.notificationId), eq(o.status, data.expectedStatus)))
+      .returning({ id: o.id });
+    if (changed.length === 0) {
+      const [exists] = await tx
+        .select({ status: o.status })
+        .from(o)
+        .where(eq(o.id, data.notificationId))
+        .limit(1);
+      if (exists === undefined) throw new DomainError("NOT_FOUND", "Notification not found");
+      throw new DomainError("CONFLICT", "The notification was changed in the meantime", {
+        currentStatus: exists.status,
+      });
+    }
+    await recordAudit(tx, {
+      actor: auditActorOf(actor),
+      action: data.action === "REQUEUE" ? "notification.requeued" : "notification.dismissed",
+      entityType: "notification_outbox",
+      entityId: data.notificationId,
+      before: { status: data.expectedStatus },
+      after: {
+        status: data.action === "REQUEUE" ? "PENDING" : "DISMISSED",
+        reason: data.reason,
+        confirmedPossibleDuplicate: data.confirmPossibleDuplicate,
+      },
+      correlationId: ctx.correlationId,
+    });
+  });
 }

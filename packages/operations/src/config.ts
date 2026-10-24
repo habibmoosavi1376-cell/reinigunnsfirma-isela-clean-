@@ -74,3 +74,29 @@ export const DEFAULT_OPERATIONS_CONFIG: OperationsConfig = {
   distanceReferenceM: 30_000,
   maxBookingWindowHours: 12,
 };
+
+/*
+ * Recurring jobs and reminders (setting key `operations.recurring`, day 8). The holiday
+ * region has NO default: until the owner sets it (and approves the holiday data of each
+ * year), no appointments are generated automatically. Horizon and lead time are operational
+ * defaults to be confirmed by the owner.
+ */
+export const recurringConfigSchema = z.strictObject({
+  /** ISO 3166-2 region of the holiday calendar, e.g. "DE-NW"; null = not configured. */
+  holidayRegion: z
+    .string()
+    .regex(/^[A-Z]{2}-[A-Z0-9]{1,3}$/)
+    .nullable(),
+  /** Days ahead for which appointments are generated in one run (max. 120). */
+  generationHorizonDays: z.number().int().min(1).max(120),
+  /** Hours before an appointment at which the reminder is due (1–168). */
+  reminderLeadHours: z.number().int().min(1).max(168),
+});
+
+export type RecurringConfig = z.infer<typeof recurringConfigSchema>;
+
+export const DEFAULT_RECURRING_CONFIG: RecurringConfig = {
+  holidayRegion: null,
+  generationHorizonDays: 28,
+  reminderLeadHours: 24,
+};

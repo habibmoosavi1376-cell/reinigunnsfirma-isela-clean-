@@ -374,3 +374,50 @@ export function label(map: Record<string, string>, value: string | null | undefi
   if (value === null || value === undefined) return "–";
   return map[value] ?? value;
 }
+
+export const CONTRACT_STATUS_LABELS: Record<string, string> = {
+  ACTIVE: "Aktiv",
+  PAUSED: "Pausiert",
+  ENDED: "Beendet",
+};
+
+export const RECURRENCE_FREQUENCY_LABELS: Record<string, string> = {
+  WEEKLY: "Wöchentlich",
+  BIWEEKLY: "Alle 2 Wochen",
+  MONTHLY: "Monatlich",
+};
+
+export const OCCURRENCE_STATUS_LABELS: Record<string, string> = {
+  BOOKED: "Gebucht",
+  SKIPPED: "Übersprungen",
+};
+
+export const OCCURRENCE_SKIP_REASON_LABELS: Record<string, string> = {
+  HOLIDAY: "Feiertag",
+  PAUSED: "Pause",
+  INVALID_LOCAL_TIME: "Uhrzeit existiert nicht (Zeitumstellung)",
+};
+
+export const NOTIFICATION_STATUS_LABELS: Record<string, string> = {
+  PENDING: "Wartet auf Versand",
+  SENDING: "Wird versendet",
+  SENT: "Versendet",
+  DEAD: "Endgültig fehlgeschlagen",
+  UNCERTAIN: "Zustellung unklar",
+  NO_RECIPIENT: "Kein verifiziertes Kundenkonto",
+  SUPPRESSED: "Gesperrt (Widerspruch)",
+  OBSOLETE: "Nicht mehr nötig",
+  DISMISSED: "Manuell geschlossen",
+};
+
+export const NOTIFICATION_PURPOSE_LABELS: Record<string, string> = {
+  APPOINTMENT_REMINDER: "Terminerinnerung",
+};
+
+export const NOTIFICATION_ERROR_LABELS: Record<string, string> = {
+  SEND_FAILED: "Versand fehlgeschlagen",
+  STALE_SENDING: "Versand abgebrochen – Zustellung unbekannt",
+  NO_VERIFIED_ACCOUNT: "Kein verifiziertes Kundenkonto",
+  SUPPRESSED: "Adresse gesperrt",
+  SUBJECT_NOT_ELIGIBLE: "Termin storniert oder vorbei",
+};

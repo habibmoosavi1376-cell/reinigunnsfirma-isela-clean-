@@ -388,3 +388,20 @@ describe("report range", () => {
     expect(dst.to.getTime() - dst.from.getTime()).toBe(25 * 3_600_000);
   });
 });
+
+describe("health checks", () => {
+  it("reports ready only when the database answers in time, without details", async () => {
+    const { checkReadiness, healthResponse } = await import("@/lib/server/health");
+    const ok = { execute: () => Promise.resolve({ rows: [{ ok: 1 }] }) };
+    const failing = { execute: () => Promise.reject(new Error("connection refused at db:5432")) };
+    const hanging = { execute: () => new Promise(() => undefined) };
+    type Db = Parameters<typeof checkReadiness>[0];
+    expect(await checkReadiness(ok as unknown as Db)).toBe("ok");
+    expect(await checkReadiness(failing as unknown as Db)).toBe("unavailable");
+    expect(await checkReadiness(hanging as unknown as Db, 20)).toBe("unavailable");
+    const response = healthResponse("unavailable");
+    expect(response.status).toBe(503);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(await response.json()).toEqual({ status: "unavailable" });
+  });
+});

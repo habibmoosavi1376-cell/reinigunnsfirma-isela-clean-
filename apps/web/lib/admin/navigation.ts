@@ -21,6 +21,12 @@ export const ADMIN_MODULES: readonly AdminModule[] = [
   { key: "services", label: "Leistungen", href: "/admin/services", permission: "catalog:manage" },
   { key: "pricing", label: "Preisregeln", href: "/admin/pricing", permission: "pricing:read" },
   { key: "bookings", label: "Buchungen", href: "/admin/bookings", permission: "booking:read" },
+  {
+    key: "contracts",
+    label: "Wiederkehrende Aufträge",
+    href: "/admin/contracts",
+    permission: "booking:read",
+  },
   { key: "jobs", label: "Einsätze", href: "/admin/jobs", permission: "job:read" },
   { key: "calendar", label: "Kalender", href: null, permission: null },
   {
@@ -37,6 +43,12 @@ export const ADMIN_MODULES: readonly AdminModule[] = [
     label: "Zahlungsrisiko",
     href: "/admin/payment-risk",
     permission: "payment_risk:read",
+  },
+  {
+    key: "notifications",
+    label: "Benachrichtigungen",
+    href: "/admin/notifications",
+    permission: "booking:read",
   },
   { key: "reviews", label: "Bewertungen", href: null, permission: null },
   { key: "complaints", label: "Reklamationen", href: null, permission: null },

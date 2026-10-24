@@ -9,12 +9,30 @@ describe("settings registry", () => {
       "billing.config",
       "lead.scoring",
       "operations.assignment",
+      "operations.recurring",
       "payment.policy",
       "quote.defaults",
     ]);
     for (const key of SETTING_KEYS) {
       const definition = SETTING_DEFINITIONS[key];
       expect(definition.schema.safeParse(definition.defaultValue).success, key).toBe(true);
+    }
+  });
+
+  it("has no default holiday region and validates the recurring settings", () => {
+    const definition = SETTING_DEFINITIONS["operations.recurring"];
+    expect(definition.defaultValue.holidayRegion).toBeNull();
+    expect(definition.permission).toBe("settings:manage");
+    const ok = { holidayRegion: "DE-NW", generationHorizonDays: 28, reminderLeadHours: 24 };
+    expect(definition.schema.safeParse(ok).success).toBe(true);
+    for (const bad of [
+      { ...ok, holidayRegion: "Nordrhein-Westfalen" },
+      { ...ok, holidayRegion: "de-nw" },
+      { ...ok, generationHorizonDays: 121 },
+      { ...ok, reminderLeadHours: 0 },
+      { ...ok, extra: true },
+    ]) {
+      expect(definition.schema.safeParse(bad).success, JSON.stringify(bad)).toBe(false);
     }
   });
 

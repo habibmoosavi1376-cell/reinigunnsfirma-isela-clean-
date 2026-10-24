@@ -220,3 +220,12 @@ Terminerinnerungen über eine Outbox (Migration 0010, at-most-once, nur Testsenk
 Integration, 26 E2E. Details: [`PHASE_1_DAY_8_REPORT.md`](PHASE_1_DAY_8_REPORT.md);
 Launch-Bewertung: [`LAUNCH_READINESS.md`](LAUNCH_READINESS.md) – **keine Produktionsfreigabe**.
 Offen: ADR-008, NRW-Feiertagsdaten, Bewertungsanfragen, E-Mail-Versanddienst, Hosting.
+
+## 17. Back Office, geplante Abläufe, Betrieb (Branch `phase-1-backoffice`)
+
+PR #21 (Tag 8) per Merge-Commit `2cb16fe` gemergt (Owner-Freigabe). Neu: Back Office für
+wiederkehrende Aufträge, Pausen, Feiertagsdaten und Benachrichtigungen (Migration 0011),
+Einstellung `operations.recurring` (ohne Standard-Feiertagsregion), technologieneutraler
+Runner `jobs:run` mit Dienstkonto, Health-Endpunkte, lokal geprüftes Backup-/Restore-Verfahren
+([`OPERATIONS.md`](OPERATIONS.md)). Tests: 941 Unit, 276 Integration, 29 E2E. Bewertung:
+[`LAUNCH_READINESS.md`](LAUNCH_READINESS.md) – weiterhin **keine Produktionsfreigabe**.

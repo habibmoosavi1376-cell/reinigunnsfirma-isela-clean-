@@ -1,6 +1,10 @@
 import { hasGlobalPermission } from "@isela/auth";
 import { listProperties } from "@isela/crm";
-import { findBookingForQuote } from "@isela/operations";
+import {
+  RECURRENCE_FREQUENCIES,
+  findBookingForQuote,
+  findContractForQuote,
+} from "@isela/operations";
 import { FREQUENCIES, URGENCIES } from "@isela/pricing";
 import {
   QUOTE_TRANSITIONS,
@@ -18,6 +22,8 @@ import { crmErrorText, crmNoticeText } from "@/lib/admin/crm-actions";
 import { formatDate, formatDateTime, formatMoney, formatTaxRate } from "@/lib/admin/format";
 import {
   BOOKING_STATUS_LABELS,
+  CONTRACT_STATUS_LABELS,
+  RECURRENCE_FREQUENCY_LABELS,
   FREQUENCY_LABELS,
   QUOTE_STATUS_LABELS,
   QUOTE_TRANSITION_LABELS,
@@ -32,6 +38,7 @@ import {
   addQuoteItemAction,
   calculatePriceAction,
   createBookingAction,
+  createContractAction,
   removeQuoteItemAction,
   transitionQuoteAction,
   updateQuoteDetailsAction,
@@ -67,12 +74,13 @@ export default async function QuoteDetailPage({
   const canWrite = hasGlobalPermission(actor, "quote:write");
   const editable = canWrite && quote.status === "DRAFT";
   const canBook = quote.status === "ACCEPTED" && hasGlobalPermission(actor, "booking:read");
-  const [config, options, properties, ruleBased, booking] = await Promise.all([
+  const [config, options, properties, ruleBased, booking, contract] = await Promise.all([
     loadQuoteConfig(ctx.db, ctx.clock),
     editable ? listQuoteServiceOptions(ctx) : null,
     editable ? listProperties(ctx, { customerId: quote.customerId }) : null,
     editable ? listRuleBasedServices(ctx) : null,
     canBook ? findBookingForQuote(ctx, { quoteId: quote.id }) : null,
+    canBook ? findContractForQuote(ctx, { quoteId: quote.id }) : null,
   ]);
   const mayCreateBooking = canBook && hasGlobalPermission(actor, "booking:write");
   const transitions = QUOTE_TRANSITIONS[quote.status].filter(
@@ -410,48 +418,109 @@ export default async function QuoteDetailPage({
       {canBook ? (
         <section className="panel" aria-labelledby="booking-title">
           <h2 id="booking-title">Buchung</h2>
-          {booking !== null ? (
+          {contract !== null ? (
+            <p>
+              Wiederkehrender Auftrag:{" "}
+              <Link href={`/admin/contracts/${contract.id}`}>
+                Vertrag {contract.id.slice(0, 8)}
+              </Link>{" "}
+              <span className="badge">{label(CONTRACT_STATUS_LABELS, contract.status)}</span>
+            </p>
+          ) : booking !== null ? (
             <p>
               <Link href={`/admin/bookings/${booking.id}`}>Buchung {booking.id.slice(0, 8)}</Link>{" "}
               <span className="badge">{label(BOOKING_STATUS_LABELS, booking.status)}</span>
             </p>
           ) : mayCreateBooking ? (
-            <form action={createBookingAction} className="form">
-              <input type="hidden" name="quoteId" value={quote.id} />
-              <div className="field">
-                <label htmlFor="booking-date">Wunschtermin</label>
-                <input id="booking-date" name="date" type="date" required />
-              </div>
-              <div className="field">
-                <label htmlFor="booking-from">Zeitfenster von</label>
-                <input id="booking-from" name="from" type="time" required />
-              </div>
-              <div className="field">
-                <label htmlFor="booking-to">Zeitfenster bis</label>
-                <input id="booking-to" name="to" type="time" required />
-              </div>
-              <div className="field">
-                <label htmlFor="booking-duration">Dauer in Minuten</label>
-                <input
-                  id="booking-duration"
-                  name="durationMinutes"
-                  inputMode="numeric"
-                  required
-                  maxLength={4}
-                />
-              </div>
-              <div className="field">
-                <label htmlFor="booking-notes">Operative Hinweise (optional)</label>
-                <textarea id="booking-notes" name="operationalNotes" rows={2} maxLength={2000} />
-              </div>
-              <button className="button" type="submit">
-                Buchung anlegen
-              </button>
-              <p className="hint">
-                Zahlungsbedingung, Kunde, Objekt und Beträge übernimmt der Server aus dem Angebot
-                und der Zahlungsrichtlinie. Ohne freigegebene Kreditbedingungen gilt Vorkasse.
-              </p>
-            </form>
+            <>
+              <form action={createBookingAction} className="form">
+                <input type="hidden" name="quoteId" value={quote.id} />
+                <div className="field">
+                  <label htmlFor="booking-date">Wunschtermin</label>
+                  <input id="booking-date" name="date" type="date" required />
+                </div>
+                <div className="field">
+                  <label htmlFor="booking-from">Zeitfenster von</label>
+                  <input id="booking-from" name="from" type="time" required />
+                </div>
+                <div className="field">
+                  <label htmlFor="booking-to">Zeitfenster bis</label>
+                  <input id="booking-to" name="to" type="time" required />
+                </div>
+                <div className="field">
+                  <label htmlFor="booking-duration">Dauer in Minuten</label>
+                  <input
+                    id="booking-duration"
+                    name="durationMinutes"
+                    inputMode="numeric"
+                    required
+                    maxLength={4}
+                  />
+                </div>
+                <div className="field">
+                  <label htmlFor="booking-notes">Operative Hinweise (optional)</label>
+                  <textarea id="booking-notes" name="operationalNotes" rows={2} maxLength={2000} />
+                </div>
+                <button className="button" type="submit">
+                  Buchung anlegen
+                </button>
+                <p className="hint">
+                  Zahlungsbedingung, Kunde, Objekt und Beträge übernimmt der Server aus dem Angebot
+                  und der Zahlungsrichtlinie. Ohne freigegebene Kreditbedingungen gilt Vorkasse.
+                </p>
+              </form>
+              <h3>Oder: wiederkehrender Auftrag</h3>
+              <form
+                action={createContractAction}
+                className="form"
+                aria-label="Wiederkehrenden Auftrag anlegen"
+              >
+                <input type="hidden" name="quoteId" value={quote.id} />
+                <div className="field">
+                  <label htmlFor="contract-frequency">Intervall</label>
+                  <select id="contract-frequency" name="frequency" required defaultValue="WEEKLY">
+                    {RECURRENCE_FREQUENCIES.map((f) => (
+                      <option key={f} value={f}>
+                        {label(RECURRENCE_FREQUENCY_LABELS, f)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="field">
+                  <label htmlFor="contract-start">Erster Termin</label>
+                  <input id="contract-start" name="startDate" type="date" required />
+                </div>
+                <div className="field">
+                  <label htmlFor="contract-end">Letzter Termin (optional)</label>
+                  <input id="contract-end" name="endDate" type="date" />
+                </div>
+                <div className="field">
+                  <label htmlFor="contract-from">Uhrzeit von (je Termin)</label>
+                  <input id="contract-from" name="from" type="time" required />
+                </div>
+                <div className="field">
+                  <label htmlFor="contract-to">Uhrzeit bis (je Termin)</label>
+                  <input id="contract-to" name="to" type="time" required />
+                </div>
+                <div className="field">
+                  <label htmlFor="contract-duration">Einsatzdauer je Termin (Minuten)</label>
+                  <input
+                    id="contract-duration"
+                    name="durationMinutes"
+                    inputMode="numeric"
+                    required
+                    maxLength={4}
+                  />
+                </div>
+                <button className="button" type="submit">
+                  Wiederkehrenden Auftrag anlegen
+                </button>
+                <p className="hint">
+                  Monatlich nur am 1.–28. Jeder Termin wird eine eigene Buchung mit der zentralen
+                  Zahlungslogik (Vorkasse für Neukunden und Aufträge 1–2).
+                </p>
+              </form>
+            </>
           ) : (
             <p className="muted">Noch keine Buchung.</p>
           )}

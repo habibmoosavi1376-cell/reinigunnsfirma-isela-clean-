@@ -326,3 +326,27 @@ export async function suppressLeadContact(
     });
   });
 }
+
+/**
+ * true when the e-mail address is on the suppression list (objection/opt-out). Used by
+ * background senders before contacting a customer; only the keyed hash is compared.
+ */
+export async function isEmailSuppressed(
+  db: DbExecutor,
+  config: CrmConfig,
+  email: string,
+): Promise<boolean> {
+  const [hash] = suppressionHashes(config, email, null);
+  if (hash === undefined) return false;
+  const [row] = await db
+    .select({ id: schema.contactSuppression.id })
+    .from(schema.contactSuppression)
+    .where(
+      and(
+        eq(schema.contactSuppression.channel, "EMAIL"),
+        eq(schema.contactSuppression.valueHash, hash.valueHash),
+      ),
+    )
+    .limit(1);
+  return row !== undefined;
+}

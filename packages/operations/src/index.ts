@@ -1,9 +1,11 @@
 export {
   DEFAULT_OPERATIONS_CONFIG,
+  DEFAULT_RECURRING_CONFIG,
   PARTNER_DOCUMENT_KINDS,
   operationsConfigSchema,
+  recurringConfigSchema,
 } from "./config.ts";
-export type { OperationsConfig, PartnerDocumentKind } from "./config.ts";
+export type { OperationsConfig, PartnerDocumentKind, RecurringConfig } from "./config.ts";
 export {
   BOOKING_STATUSES,
   BOOKING_TRANSITIONS,
@@ -117,19 +119,43 @@ export type {
 export {
   MAX_GENERATION_DAYS,
   addContractPause,
+  contractListQuerySchema,
   createServiceContract,
+  endContractPause,
+  findContractForQuote,
   generateContractBookings,
   getServiceContract,
+  listHolidayCoverage,
+  listServiceContracts,
+  previewContractOccurrences,
   recordHolidayYear,
+  updateContractPause,
+  updateContractStatus,
 } from "./contracts.ts";
-export type { ContractView, GenerationOptions, GenerationResult } from "./contracts.ts";
+export type {
+  ContractListItem,
+  ContractPreview,
+  ContractView,
+  GenerationOptions,
+  GenerationResult,
+  PauseResult,
+} from "./contracts.ts";
 export {
+  NOTIFICATION_REVIEW_STATUSES,
+  NOTIFICATION_STATUSES,
   dispatchNotifications,
   enqueueAppointmentReminders,
+  listNotifications,
+  notificationListQuerySchema,
   renderAppointmentReminder,
+  reviewNotification,
 } from "./notifications.ts";
 export type {
   DispatchDependencies,
   DispatchResult,
   NotificationJobContext,
+  NotificationListItem,
+  NotificationStatus,
 } from "./notifications.ts";
+export { runScheduledWork } from "./scheduled-work.ts";
+export type { ScheduledWorkDependencies, ScheduledWorkResult } from "./scheduled-work.ts";

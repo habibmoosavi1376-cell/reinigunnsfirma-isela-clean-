@@ -317,3 +317,42 @@ export async function countCallbacksFor(phone: string): Promise<number> {
     return Number(result.rows[0]?.n ?? "0");
   });
 }
+
+/** A TEST-DATA notification that needs a manual review (no e-mail is involved). */
+export async function insertDeadNotification(customerId: string): Promise<string> {
+  return withClient(async (client) => {
+    const result = await client.query<{ id: string }>(
+      `INSERT INTO notification_outbox
+         (purpose, dedupe_key, customer_id, status, attempts, claimed_at, last_error_code)
+       VALUES ('APPOINTMENT_REMINDER', $1, $2, 'DEAD', 5, now(), 'SEND_FAILED')
+       RETURNING id`,
+      [`E2E:${randomBytes(6).toString("hex")}`, customerId],
+    );
+    return result.rows[0]?.id ?? "";
+  });
+}
+
+/**
+ * TEST DATA: a service address and property only (no service area, no employee), so that
+ * the fixture cannot change area matching of other specs. Distinct test coordinates.
+ */
+export async function createPropertyFixture(customerId: string, marker: string): Promise<string> {
+  return withClient(async (client) => {
+    const address = await client.query<{ id: string }>(
+      `INSERT INTO customer_address
+         (customer_id, address_type, street, house_number, postal_code, city, country,
+          latitude, longitude, geocoding_status, geocoded_at, source, is_primary)
+       VALUES ($1, 'SERVICE', 'E2E-Vertragsweg', '8', '00000', 'Teststadt', 'DE',
+               -45.87, 170.5, 'MANUAL', now(), 'STAFF_INPUT', true)
+       RETURNING id`,
+      [customerId],
+    );
+    const propertyName = `${marker} Büro`;
+    await client.query(
+      `INSERT INTO property (customer_id, address_id, name, property_type)
+       VALUES ($1, $2, $3, 'OFFICE')`,
+      [customerId, address.rows[0]?.id, propertyName],
+    );
+    return propertyName;
+  });
+}
