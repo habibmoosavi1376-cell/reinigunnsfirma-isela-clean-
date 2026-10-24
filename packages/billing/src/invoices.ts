@@ -8,10 +8,12 @@ import {
   eq,
   gte,
   inArray,
+  isNull,
   lte,
   schema,
   sql,
   type SQL,
+  type Transaction,
 } from "@isela/database";
 import { markPrepaymentExpected } from "@isela/operations";
 import { businessDateOf, lockCustomerFinance, paymentPolicySchema } from "@isela/payment-risk";
@@ -24,6 +26,7 @@ import {
   invoiceRefs,
   lockBookingRow,
   lockInvoice,
+  missingIssuerFields,
   pgConstraint,
   pgErrorCode,
   requireGlobal,
@@ -263,6 +266,14 @@ export async function issueInvoice(
     if (invoice.kind === "PREPAYMENT" && booking.paymentRequirement !== "VORKASSE_REQUIRED") {
       throw new DomainError("POLICY_VIOLATION", "The booking no longer requires a prepayment");
     }
+    const missingIssuer = missingIssuerFields(options.issuer);
+    if (missingIssuer.length > 0 || options.issuer === null || options.issuer === undefined) {
+      throw new DomainError("CONFIG_REQUIRED", "Invoice issuer data missing", {
+        missing: missingIssuer.join(","),
+      });
+    }
+    const issuer = options.issuer;
+    const recipient = await recipientSnapshotOf(tx, invoice.customerId, invoice.propertyId);
     const opts = actionOptions(ctx, null);
     const issueDate = businessDateOf(opts.now, options.timeZone);
     const days = invoice.kind === "PREPAYMENT" ? config.prepaymentDueDays : config.paymentTermDays;
@@ -278,6 +289,16 @@ export async function issueInvoice(
         dueDate,
         issuedAt: opts.now,
         issuedByUserId: actor.userId,
+        ...serviceDateOf(booking, options.timeZone),
+        recipientSnapshot: recipient,
+        issuerSnapshot: {
+          legalName: issuer.legalName.trim(),
+          street: issuer.street.trim(),
+          postalCode: issuer.postalCode.trim(),
+          city: issuer.city.trim(),
+          vatId: issuer.vatId?.trim() || null,
+          taxNumber: issuer.taxNumber?.trim() || null,
+        },
       },
       opts,
     );
@@ -493,6 +514,11 @@ export interface CustomerInvoiceView {
   readonly propertyName: string;
   readonly issueDate: string | null;
   readonly dueDate: string | null;
+  /** Issuance snapshot (null for drafts and invoices issued before migration 0012). */
+  readonly serviceDate: string | null;
+  readonly serviceDateBasis: "PLANNED" | "PERFORMED" | null;
+  readonly recipient: InvoiceRecipientSnapshot | null;
+  readonly issuer: (typeof schema.invoice.$inferSelect)["issuerSnapshot"];
   readonly currency: string;
   readonly netCents: number;
   readonly taxCents: number;
@@ -629,6 +655,13 @@ function customerView(
     propertyName: row.propertyName,
     issueDate: inv.issueDate,
     dueDate: inv.dueDate,
+    serviceDate: inv.serviceDate,
+    serviceDateBasis:
+      inv.serviceDateBasis === "PLANNED" || inv.serviceDateBasis === "PERFORMED"
+        ? inv.serviceDateBasis
+        : null,
+    recipient: inv.recipientSnapshot,
+    issuer: inv.issuerSnapshot,
     currency: inv.currency,
     netCents: inv.netCents,
     taxCents: inv.taxCents,
@@ -860,4 +893,72 @@ export async function listInvoicesForBooking(
     .from(schema.invoice)
     .where(eq(schema.invoice.bookingId, bookingId))
     .orderBy(desc(schema.invoice.createdAt));
+}
+
+/**
+ * Service date of the invoice: the completion date once the booking is completed
+ * (PERFORMED), otherwise the planned appointment date (PLANNED, e.g. prepayment invoices).
+ */
+function serviceDateOf(
+  booking: { status: string; requestedDate: string; completedAt: Date | null },
+  timeZone: string,
+): { serviceDate: string; serviceDateBasis: "PLANNED" | "PERFORMED" } {
+  if (booking.status === "COMPLETED" && booking.completedAt !== null) {
+    return {
+      serviceDate: businessDateOf(booking.completedAt, timeZone),
+      serviceDateBasis: "PERFORMED",
+    };
+  }
+  return { serviceDate: booking.requestedDate, serviceDateBasis: "PLANNED" };
+}
+
+type InvoiceRecipientSnapshot = NonNullable<
+  (typeof schema.invoice.$inferInsert)["recipientSnapshot"]
+>;
+
+/**
+ * Recipient at issuance: customer name and billing address (fallback: the address of the
+ * invoiced property). Frozen with the invoice – later address changes do not alter it.
+ */
+async function recipientSnapshotOf(
+  tx: Transaction,
+  customerId: string,
+  propertyId: string,
+): Promise<InvoiceRecipientSnapshot> {
+  const [customer] = await tx
+    .select({ name: schema.customer.displayName, companyName: schema.customer.companyName })
+    .from(schema.customer)
+    .where(eq(schema.customer.id, customerId))
+    .limit(1);
+  if (customer === undefined) throw new DomainError("NOT_FOUND", "Customer not found");
+  const a = schema.customerAddress;
+  const [billing] = await tx
+    .select({
+      street: a.street,
+      houseNumber: a.houseNumber,
+      postalCode: a.postalCode,
+      city: a.city,
+      country: a.country,
+    })
+    .from(a)
+    .where(and(eq(a.customerId, customerId), eq(a.addressType, "BILLING"), isNull(a.archivedAt)))
+    .orderBy(desc(a.isPrimary), asc(a.createdAt))
+    .limit(1);
+  const [service] =
+    billing === undefined
+      ? await tx
+          .select({
+            street: a.street,
+            houseNumber: a.houseNumber,
+            postalCode: a.postalCode,
+            city: a.city,
+            country: a.country,
+          })
+          .from(schema.property)
+          .innerJoin(a, eq(a.id, schema.property.addressId))
+          .where(eq(schema.property.id, propertyId))
+          .limit(1)
+      : [billing];
+  if (service === undefined) throw new DomainError("NOT_FOUND", "No address for the invoice");
+  return { name: customer.name, companyName: customer.companyName, ...service };
 }

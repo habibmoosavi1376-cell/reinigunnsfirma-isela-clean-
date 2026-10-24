@@ -85,6 +85,13 @@
       "when": 1792845493246,
       "tag": "0011_notification_review_status",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1792850154371,
+      "tag": "0012_invoice_issuance_snapshot",
+      "breakpoints": true
     }
   ]
 }

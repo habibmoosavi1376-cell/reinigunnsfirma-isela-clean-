@@ -80,6 +80,7 @@ export default defineConfig({
         BUSINESS_POSTAL_CODE: "00000",
         BUSINESS_CITY: "Teststadt",
         BUSINESS_EMAIL: "impressum@example.test",
+        BUSINESS_TAX_NUMBER: "TEST-000/000/00000",
       },
     },
   ],

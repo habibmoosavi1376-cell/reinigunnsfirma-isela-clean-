@@ -26,6 +26,34 @@ export interface FinanceOptions {
   /** Business time zone (operations config) for issue/due dates and overdue checks. */
   readonly timeZone: string;
   readonly billing: BillingConfig;
+  /**
+   * Issuer data printed on invoices (company configuration – never invented). Required to
+   * issue an invoice; missing or incomplete data blocks issuance with CONFIG_REQUIRED.
+   */
+  readonly issuer?: InvoiceIssuer | null;
+}
+
+export interface InvoiceIssuer {
+  readonly legalName: string;
+  readonly street: string;
+  readonly postalCode: string;
+  readonly city: string;
+  /** At least one of VAT id (USt-IdNr.) or tax number (Steuernummer) is required. */
+  readonly vatId: string | null;
+  readonly taxNumber: string | null;
+}
+
+/** Missing issuer fields (empty = complete). */
+export function missingIssuerFields(issuer: InvoiceIssuer | null | undefined): string[] {
+  if (issuer === null || issuer === undefined) return ["issuer"];
+  const missing: string[] = [];
+  for (const key of ["legalName", "street", "postalCode", "city"] as const) {
+    if (issuer[key].trim() === "") missing.push(key);
+  }
+  if ((issuer.vatId ?? "").trim() === "" && (issuer.taxNumber ?? "").trim() === "") {
+    missing.push("vatIdOrTaxNumber");
+  }
+  return missing;
 }
 
 export function requireGlobal(actor: Actor, permission: Permission): void {

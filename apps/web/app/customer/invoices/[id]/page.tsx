@@ -3,6 +3,7 @@ import { isDomainError } from "@isela/shared";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Fragment } from "react";
+import { InvoiceSnapshotRows } from "@/components/invoice-snapshot";
 import { formatDate, formatMoney, formatTaxRate } from "@/lib/admin/format";
 import {
   INVOICE_KIND_LABELS,
@@ -52,6 +53,7 @@ export default async function CustomerInvoicePage({ params }: { params: Promise<
         <dd>{formatDate(invoice.issueDate)}</dd>
         <dt>Fällig am</dt>
         <dd>{formatDate(invoice.dueDate)}</dd>
+        <InvoiceSnapshotRows invoice={invoice} />
       </dl>
       <div className="table-scroll">
         <table className="table">
