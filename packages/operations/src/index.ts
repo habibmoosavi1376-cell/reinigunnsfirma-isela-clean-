@@ -157,3 +157,5 @@ export type {
   NotificationListItem,
   NotificationStatus,
 } from "./notifications.ts";
+export { runScheduledWork } from "./scheduled-work.ts";
+export type { ScheduledWorkDependencies, ScheduledWorkResult } from "./scheduled-work.ts";

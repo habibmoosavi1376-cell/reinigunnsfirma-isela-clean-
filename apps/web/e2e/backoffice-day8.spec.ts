@@ -37,6 +37,15 @@ test.describe("day 8: back office for recurring contracts and notifications", ()
     }
   });
 
+  test("health endpoints answer without details", async ({ request }) => {
+    for (const path of ["/api/health", "/api/health/ready"]) {
+      const response = await request.get(path);
+      expect(response.status(), path).toBe(200);
+      expect(response.headers()["cache-control"]).toBe("no-store");
+      expect(await response.json()).toEqual({ status: "ok" });
+    }
+  });
+
   test("an admin manages a recurring contract end to end", async ({ page }) => {
     test.setTimeout(180_000);
     const marker = `E2E-Testdaten ${randomUUID().slice(0, 8)}`;

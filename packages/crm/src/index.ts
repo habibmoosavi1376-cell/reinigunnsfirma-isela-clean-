@@ -23,7 +23,13 @@ export {
   updateProperty,
 } from "./properties.ts";
 export type { PropertySearchItem, PropertyView } from "./properties.ts";
-export { addLeadContact, createLead, suppressLeadContact, transitionLead } from "./leads.ts";
+export {
+  addLeadContact,
+  createLead,
+  isEmailSuppressed,
+  suppressLeadContact,
+  transitionLead,
+} from "./leads.ts";
 export { getEffectiveConsent, recordConsent, withdrawLeadContactConsent } from "./consent.ts";
 export {
   LEAD_STATUSES,

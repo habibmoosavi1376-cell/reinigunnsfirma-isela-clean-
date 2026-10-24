@@ -8,7 +8,8 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "next typegen && tsc -p tsconfig.json --noEmit",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "jobs:run": "node scripts/run-scheduled-work.ts"
   },
   "isela": {
     "serverOnly": false
