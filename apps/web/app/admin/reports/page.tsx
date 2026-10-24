@@ -2,7 +2,8 @@ import { hasGlobalPermission } from "@isela/auth";
 import { MAX_REPORT_DAYS, getConversionReport, type ConversionMetricKey } from "@isela/reporting";
 import type { Metadata } from "next";
 import { forbidden } from "next/navigation";
-import { formatDay, parseReportRange } from "@/lib/admin/report-range";
+import { parseReportRange } from "@/lib/admin/report-range";
+import { loadOperationsConfig } from "@/lib/server/operations-config";
 import { requireAdminArea } from "@/lib/server/guards";
 import { getServices } from "@/lib/server/services";
 import { getServiceContext } from "@/lib/server/session";
@@ -65,13 +66,14 @@ export default async function ReportsPage({
   const actor = await requireAdminArea();
   if (!hasGlobalPermission(actor, "report:read")) forbidden();
   const { clock, env } = getServices();
-  const range = parseReportRange(await searchParams, clock.now(), 30, MAX_REPORT_DAYS);
+  const ctx = await getServiceContext();
+  const { timeZone } = await loadOperationsConfig(ctx.db, clock);
+  const range = parseReportRange(await searchParams, clock.now(), 30, MAX_REPORT_DAYS, timeZone);
   const report = await getConversionReport(
-    await getServiceContext(),
+    ctx,
     { from: range.from, to: range.to },
     { environment: env.APP_ENVIRONMENT },
   );
-  const lastDay = new Date(range.to.getTime() - 86_400_000);
 
   return (
     <>
@@ -90,11 +92,11 @@ export default async function ReportsPage({
       <form className="form form--inline" method="get">
         <div className="field">
           <label htmlFor="report-from">Von (UTC)</label>
-          <input id="report-from" name="from" type="date" defaultValue={formatDay(range.from)} />
+          <input id="report-from" name="from" type="date" defaultValue={range.fromDay} />
         </div>
         <div className="field">
           <label htmlFor="report-to">Bis einschließlich (UTC)</label>
-          <input id="report-to" name="to" type="date" defaultValue={formatDay(lastDay)} />
+          <input id="report-to" name="to" type="date" defaultValue={range.lastDay} />
         </div>
         <button className="button button--secondary" type="submit">
           Anzeigen
@@ -104,7 +106,7 @@ export default async function ReportsPage({
       <div className="table-scroll">
         <table className="table">
           <caption>
-            Kennzahlen vom {formatDay(range.from)} bis {formatDay(lastDay)}
+            Kennzahlen vom {range.fromDay} bis {range.lastDay}
           </caption>
           <thead>
             <tr>

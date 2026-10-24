@@ -349,4 +349,42 @@ describe("report range", () => {
       expect(parseReportRange(params, NOW).valid).toBe(false);
     }
   });
+
+  it("uses business-local days: boundaries at local midnight, today in the local zone", () => {
+    // 2026-10-13T22:30Z is already 2026-10-14 in Berlin (F7 regression).
+    const lateEvening = new Date("2026-10-13T22:30:00Z");
+    const range = parseReportRange({}, lateEvening, 1, 400, "Europe/Berlin");
+    expect(range.fromDay).toBe("2026-10-14");
+    expect(range.lastDay).toBe("2026-10-14");
+    expect(range.from.toISOString()).toBe("2026-10-13T22:00:00.000Z");
+    expect(range.to.toISOString()).toBe("2026-10-14T22:00:00.000Z");
+    // The local "today" is selectable, the next local day is rejected as future.
+    expect(
+      parseReportRange(
+        { from: "2026-10-14", to: "2026-10-14" },
+        lateEvening,
+        30,
+        400,
+        "Europe/Berlin",
+      ).valid,
+    ).toBe(true);
+    expect(
+      parseReportRange(
+        { from: "2026-10-15", to: "2026-10-15" },
+        lateEvening,
+        30,
+        400,
+        "Europe/Berlin",
+      ).valid,
+    ).toBe(false);
+    // DST end (25-hour day) stays one full local day.
+    const dst = parseReportRange(
+      { from: "2026-10-25", to: "2026-10-25" },
+      new Date("2026-10-30T12:00:00Z"),
+      30,
+      400,
+      "Europe/Berlin",
+    );
+    expect(dst.to.getTime() - dst.from.getTime()).toBe(25 * 3_600_000);
+  });
 });
