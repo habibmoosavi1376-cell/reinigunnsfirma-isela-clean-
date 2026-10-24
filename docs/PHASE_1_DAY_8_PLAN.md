@@ -61,9 +61,8 @@ die zeitgesteuerte Ausführung (Teil C) wartet auf V2.
 - F7 (**umgesetzt** auf `phase-1-day-8`): `businessDayStart`/`businessDayEnd` in
   `@isela/shared`; Lead-, Kunden- und Einsatzlisten interpretieren Datumsfilter als Tage in
   der Geschäftszeitzone (Admin-Seiten übergeben `operations.timeZone`). Unverändert und
-  korrekt: `quotes/config.ts` `addDays` und `format.ts` (reine Kalenderarithmetik). Bewusst
-  unverändert: der Berichtszeitraum (`report-range.ts`) ist dokumentiert in UTC-Tagen –
-  Umstellung zusammen mit dem Reporting-Ausbau.
+  korrekt: `quotes/config.ts` `addDays` und `format.ts` (reine Kalenderarithmetik). Der
+  Berichtszeitraum (`report-range.ts`) verwendet ebenfalls Geschäftstage (`e09808e`).
 - F4: Lesezugriffe per `Promise.all` auf demselben Transaktions-Client sequenzialisieren
   (Vorbereitung `pg@9`).
 
