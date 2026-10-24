@@ -82,7 +82,13 @@ export {
   listLeads,
   offeredTransitions,
 } from "./lead-admin.ts";
-export type { LeadDetail, LeadListItem, LeadListPage, LeadListQuery } from "./lead-admin.ts";
+export type {
+  DateFilterOptions,
+  LeadDetail,
+  LeadListItem,
+  LeadListPage,
+  LeadListQuery,
+} from "./lead-admin.ts";
 export {
   INVITATION_LIMITS,
   createPropertyFromLead,

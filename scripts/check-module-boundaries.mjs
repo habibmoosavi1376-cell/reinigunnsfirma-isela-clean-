@@ -20,7 +20,16 @@ const ALLOWED = {
   catalog: ["audit", "auth", "database", "shared", "validation"],
   quotes: ["audit", "auth", "catalog", "database", "pricing", "shared", "validation"],
   pricing: ["audit", "auth", "database", "shared", "validation"],
-  operations: ["audit", "auth", "catalog", "database", "payment-risk", "shared", "validation"],
+  operations: [
+    "audit",
+    "auth",
+    "catalog",
+    "database",
+    "notifications",
+    "payment-risk",
+    "shared",
+    "validation",
+  ],
   billing: [
     "audit",
     "auth",

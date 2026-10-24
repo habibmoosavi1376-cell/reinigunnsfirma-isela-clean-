@@ -29,6 +29,7 @@ import { GLOBAL_SCOPE, getEffectiveSetting } from "@isela/settings";
 import { DomainError } from "@isela/shared";
 import { emailSchema, normalizeEmail, parseInput, z } from "@isela/validation";
 import { hashIdentity, type CrmConfig, type IdentityKind } from "./identity.ts";
+import { dayBoundary, type DateFilterOptions } from "./lead-admin.ts";
 import { likePattern } from "./lead-admin.ts";
 import type { LeadStatus } from "./lead-state-machine.ts";
 
@@ -100,16 +101,11 @@ function requireStaffRead(actor: Actor): void {
   }
 }
 
-function nextDay(date: string): Date {
-  const d = new Date(`${date}T00:00:00.000Z`);
-  d.setUTCDate(d.getUTCDate() + 1);
-  return d;
-}
-
 export async function listCustomers(
   ctx: ServiceContext,
   input: unknown,
   config: CrmConfig,
+  options: DateFilterOptions = {},
 ): Promise<CustomerListPage> {
   const actor = requireActor(ctx.actor);
   requireStaffRead(actor);
@@ -126,9 +122,11 @@ export async function listCustomers(
   if (f.kind !== undefined) conditions.push(eq(c.kind, f.kind));
   if (f.status !== undefined) conditions.push(eq(c.status, f.status));
   if (f.createdFrom !== undefined) {
-    conditions.push(gte(c.createdAt, new Date(`${f.createdFrom}T00:00:00.000Z`)));
+    conditions.push(gte(c.createdAt, dayBoundary(f.createdFrom, options, false)));
   }
-  if (f.createdTo !== undefined) conditions.push(lt(c.createdAt, nextDay(f.createdTo)));
+  if (f.createdTo !== undefined) {
+    conditions.push(lt(c.createdAt, dayBoundary(f.createdTo, options, true)));
+  }
   if (f.serviceAreaId !== undefined) {
     // A customer belongs to a service area when a geocoded active address lies inside it or a
     // request of the customer was assigned to it. Pure geometry – no city/postcode shortcuts.

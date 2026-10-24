@@ -15,7 +15,7 @@ import {
   sql,
   type SQL,
 } from "@isela/database";
-import { DomainError } from "@isela/shared";
+import { businessDayEnd, businessDayStart, DomainError } from "@isela/shared";
 import { parseInput, z } from "@isela/validation";
 import { LEAD_STATUSES, LEAD_TRANSITIONS, type LeadStatus } from "./lead-state-machine.ts";
 import { REQUEST_CUSTOMER_TYPES } from "./service-requests.ts";
@@ -87,13 +87,27 @@ export function likePattern(text: string): string {
   return `%${text.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
 }
 
-function nextDay(date: string): Date {
-  const d = new Date(`${date}T00:00:00.000Z`);
-  d.setUTCDate(d.getUTCDate() + 1);
-  return d;
+/**
+ * Optional list options. `timeZone` is the business time zone used to interpret the
+ * "created from/to" calendar days; without it the days are read in UTC.
+ */
+export interface DateFilterOptions {
+  readonly timeZone?: string;
 }
 
-export async function listLeads(ctx: ServiceContext, input: unknown): Promise<LeadListPage> {
+/** Business-local day boundary; the schema already guarantees a valid ISO date. */
+export function dayBoundary(date: string, options: DateFilterOptions, end: boolean): Date {
+  const timeZone = options.timeZone ?? "UTC";
+  const value = end ? businessDayEnd(date, timeZone) : businessDayStart(date, timeZone);
+  if (value === null) throw new DomainError("VALIDATION_FAILED", "Invalid date filter");
+  return value;
+}
+
+export async function listLeads(
+  ctx: ServiceContext,
+  input: unknown,
+  options: DateFilterOptions = {},
+): Promise<LeadListPage> {
   const actor = requireActor(ctx.actor);
   authorize(actor, "lead:read");
   const f = parseInput(leadListQuerySchema, input ?? {});
@@ -112,9 +126,11 @@ export async function listLeads(ctx: ServiceContext, input: unknown): Promise<Le
   if (f.availability !== undefined) conditions.push(eq(request.serviceAreaStatus, f.availability));
   if (f.sourceKey !== undefined) conditions.push(eq(source.key, f.sourceKey));
   if (f.createdFrom !== undefined) {
-    conditions.push(gte(lead.createdAt, new Date(`${f.createdFrom}T00:00:00.000Z`)));
+    conditions.push(gte(lead.createdAt, dayBoundary(f.createdFrom, options, false)));
   }
-  if (f.createdTo !== undefined) conditions.push(lt(lead.createdAt, nextDay(f.createdTo)));
+  if (f.createdTo !== undefined) {
+    conditions.push(lt(lead.createdAt, dayBoundary(f.createdTo, options, true)));
+  }
   if (f.q !== undefined) {
     const idMatch = z.uuid().safeParse(f.q);
     if (idMatch.success) {

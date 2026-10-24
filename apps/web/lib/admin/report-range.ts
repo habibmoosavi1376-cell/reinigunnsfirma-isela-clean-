@@ -1,18 +1,31 @@
+import { businessDayEnd, businessDayStart } from "@isela/shared";
+
 /**
  * Report period from untrusted query parameters (framework-free, unit-tested).
- * Dates are calendar days in UTC; `to` is inclusive for the user and exclusive internally.
+ * Dates are calendar days in the business time zone (UTC when none is given); `to` is
+ * inclusive for the user and exclusive internally (start of the following local day).
  */
 const DAY_MS = 86_400_000;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 
-function parseDay(value: unknown): Date | null {
+function parseDay(value: unknown): string | null {
   if (typeof value !== "string" || !DATE.test(value)) return null;
   const date = new Date(`${value}T00:00:00.000Z`);
-  return Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== value ? null : date;
+  return Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== value ? null : value;
 }
 
-export function formatDay(date: Date): string {
-  return date.toISOString().slice(0, 10);
+/** Calendar arithmetic on "YYYY-MM-DD" (time-zone independent). */
+function shiftDay(day: string, days: number): string {
+  return new Date(Date.parse(`${day}T00:00:00.000Z`) + days * DAY_MS).toISOString().slice(0, 10);
+}
+
+function dayNumber(day: string): number {
+  return Date.parse(`${day}T00:00:00.000Z`) / DAY_MS;
+}
+
+/** Calendar day of an instant in the given time zone. */
+export function businessDateOf(instant: Date, timeZone: string): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone }).format(instant);
 }
 
 export interface ReportRange {
@@ -20,8 +33,18 @@ export interface ReportRange {
   readonly from: Date;
   /** exclusive (start of the day after the last selected day) */
   readonly to: Date;
+  /** First and last selected calendar day ("YYYY-MM-DD", both inclusive). */
+  readonly fromDay: string;
+  readonly lastDay: string;
   /** false = the parameters were missing or invalid and the default range is used. */
   readonly valid: boolean;
+}
+
+function rangeOf(fromDay: string, lastDay: string, timeZone: string, valid: boolean): ReportRange {
+  const from = businessDayStart(fromDay, timeZone);
+  const to = businessDayEnd(lastDay, timeZone);
+  if (from === null || to === null) throw new Error("Invalid report range");
+  return { from, to, fromDay, lastDay, valid };
 }
 
 export function parseReportRange(
@@ -29,22 +52,17 @@ export function parseReportRange(
   now: Date,
   defaultDays = 30,
   maxDays = 400,
+  timeZone = "UTC",
 ): ReportRange {
-  const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-  const fallback = {
-    from: new Date(today.getTime() - (defaultDays - 1) * DAY_MS),
-    to: new Date(today.getTime() + DAY_MS),
-  };
-  if (params["from"] === undefined && params["to"] === undefined) {
-    return { ...fallback, valid: true };
-  }
-  const from = parseDay(params["from"]);
+  const today = businessDateOf(now, timeZone);
+  const fallback = (valid: boolean) =>
+    rangeOf(shiftDay(today, -(defaultDays - 1)), today, timeZone, valid);
+  if (params["from"] === undefined && params["to"] === undefined) return fallback(true);
+  const fromDay = parseDay(params["from"]);
   const lastDay = parseDay(params["to"]);
-  if (from === null || lastDay === null) return { ...fallback, valid: false };
-  const to = new Date(lastDay.getTime() + DAY_MS);
-  if (from.getTime() >= to.getTime() || to.getTime() - from.getTime() > maxDays * DAY_MS) {
-    return { ...fallback, valid: false };
-  }
-  if (to.getTime() > today.getTime() + DAY_MS) return { ...fallback, valid: false };
-  return { from, to, valid: true };
+  if (fromDay === null || lastDay === null) return fallback(false);
+  const days = dayNumber(lastDay) - dayNumber(fromDay) + 1;
+  if (days < 1 || days > maxDays) return fallback(false);
+  if (dayNumber(lastDay) > dayNumber(today)) return fallback(false);
+  return rangeOf(fromDay, lastDay, timeZone, true);
 }

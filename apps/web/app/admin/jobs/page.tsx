@@ -28,10 +28,9 @@ export default async function JobListPage({
     jobListQuerySchema,
   );
   const ctx = await getServiceContext();
-  const [page, config] = await Promise.all([
-    listJobs(ctx, query ?? {}),
-    loadOperationsConfig(ctx.db, ctx.clock),
-  ]);
+  // The business time zone interprets the "from" calendar day.
+  const config = await loadOperationsConfig(ctx.db, ctx.clock);
+  const page = await listJobs(ctx, query ?? {}, { timeZone: config.timeZone });
   const filters = query === null ? {} : raw;
 
   return (

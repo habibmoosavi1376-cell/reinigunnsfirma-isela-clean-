@@ -24,7 +24,7 @@ import {
   type Transaction,
 } from "@isela/database";
 import { evaluateCustomerPaymentTerms, paymentPolicySchema } from "@isela/payment-risk";
-import { DomainError, isDomainError } from "@isela/shared";
+import { businessDayStart, DomainError, isDomainError } from "@isela/shared";
 import { parseInput, z } from "@isela/validation";
 import {
   applyBookingTransition,
@@ -383,6 +383,7 @@ const activeAssignee = sql<string | null>`(
 export async function listJobs(
   ctx: ServiceContext,
   input: unknown,
+  options: { readonly timeZone?: string } = {},
 ): Promise<{ items: JobListItem[]; total: number; page: number; pageSize: number }> {
   const actor = requireActor(ctx.actor);
   requireGlobal(actor, "job:read");
@@ -390,7 +391,12 @@ export async function listJobs(
   const j = schema.job;
   const conditions: SQL[] = [];
   if (f.status !== undefined) conditions.push(eq(j.status, f.status));
-  if (f.from !== undefined) conditions.push(gte(j.scheduledStart, new Date(`${f.from}T00:00:00Z`)));
+  if (f.from !== undefined) {
+    // "from" is a business-local calendar day (start of that day in the business time zone).
+    const start = businessDayStart(f.from, options.timeZone ?? "UTC");
+    if (start === null) throw new DomainError("VALIDATION_FAILED", "Invalid date filter");
+    conditions.push(gte(j.scheduledStart, start));
+  }
   const where = and(...conditions);
   const [totalRow] = await ctx.db.select({ total: count() }).from(j).where(where);
   const items = await ctx.db

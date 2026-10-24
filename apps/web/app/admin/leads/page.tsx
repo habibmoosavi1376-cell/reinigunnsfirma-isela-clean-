@@ -12,6 +12,7 @@ import {
 } from "@/lib/admin/labels";
 import { leadQueryFromSearchParams, leadQueryString } from "@/lib/admin/lead-filters";
 import { requireAdminArea } from "@/lib/server/guards";
+import { loadOperationsConfig } from "@/lib/server/operations-config";
 import { getServiceContext } from "@/lib/server/session";
 
 export const metadata: Metadata = { title: "Leads" };
@@ -25,8 +26,9 @@ export default async function LeadListPage({
   if (!isAuthorized(actor, "lead:read")) forbidden();
   const ctx = await getServiceContext();
   const { query, invalid } = leadQueryFromSearchParams(await searchParams);
+  const { timeZone } = await loadOperationsConfig(ctx.db, ctx.clock);
   const [page, categories, areas, sources] = await Promise.all([
-    listLeads(ctx, query),
+    listLeads(ctx, query, { timeZone }),
     listPublicServiceCategories(ctx.db),
     listServiceAreaOptions(ctx),
     listLeadSourceOptions(ctx),

@@ -15,6 +15,7 @@ import { CUSTOMER_STATUS_LABELS, CUSTOMER_TYPE_LABELS, label } from "@/lib/admin
 import { listQueryString, parseListParams, type SearchParams } from "@/lib/admin/list-params";
 import { requireAdminArea } from "@/lib/server/guards";
 import { getServices } from "@/lib/server/services";
+import { loadOperationsConfig } from "@/lib/server/operations-config";
 import { getServiceContext } from "@/lib/server/session";
 
 export const metadata: Metadata = { title: "Kunden" };
@@ -35,8 +36,9 @@ export default async function CustomerListPage({
     customerListQuerySchema,
   );
   const effective: CustomerListQuery = query ?? { page: 1, pageSize: 25 };
+  const { timeZone } = await loadOperationsConfig(ctx.db, ctx.clock);
   const [page, areas] = await Promise.all([
-    listCustomers(ctx, effective, getServices().crmConfig),
+    listCustomers(ctx, effective, getServices().crmConfig, { timeZone }),
     listServiceAreaOptions(ctx),
   ]);
   const pages = Math.max(1, Math.ceil(page.total / page.pageSize));

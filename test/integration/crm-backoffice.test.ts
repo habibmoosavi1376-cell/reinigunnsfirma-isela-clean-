@@ -114,6 +114,20 @@ describe("lead list (filters, search, pagination)", () => {
       (await listLeads(dispatcher, { q: marker, createdFrom: today, createdTo: today })).total,
     ).toBe(2);
     expect((await listLeads(dispatcher, { q: marker, createdTo: "2000-01-01" })).total).toBe(0);
+    // F7 regression: calendar days are business-local days, not UTC days. In zones far from
+    // UTC the local date often differs from the UTC date; the local "today" must match.
+    for (const timeZone of ["Pacific/Kiritimati", "Pacific/Pago_Pago", "Europe/Berlin"]) {
+      const localToday = new Intl.DateTimeFormat("en-CA", { timeZone }).format(new Date());
+      const localYesterday = new Date(Date.parse(`${localToday}T00:00:00Z`) - 86_400_000)
+        .toISOString()
+        .slice(0, 10);
+      const filter = { q: marker, createdFrom: localToday, createdTo: localToday };
+      expect((await listLeads(dispatcher, filter, { timeZone })).total, timeZone).toBe(2);
+      expect(
+        (await listLeads(dispatcher, { q: marker, createdTo: localYesterday }, { timeZone })).total,
+        timeZone,
+      ).toBe(0);
+    }
   });
 
   it("treats SQL and LIKE metacharacters as plain text", async () => {
