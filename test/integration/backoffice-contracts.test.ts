@@ -9,6 +9,7 @@ import {
   generateContractBookings,
   getBooking,
   getServiceContract,
+  listCustomerContracts,
   listNotifications,
   listServiceContracts,
   previewContractOccurrences,
@@ -382,5 +383,47 @@ describe("notification review", () => {
       }),
       "FORBIDDEN",
     );
+  });
+});
+
+describe("customer portal: own recurring contracts (IDOR)", () => {
+  it("shows customers only their own contracts without internal fields", async () => {
+    const own = await newContract();
+    const foreign = await newContract();
+    await addContractPause(dispatcher, {
+      contractId: own.contractId,
+      fromDate: day(30),
+      toDate: day(31),
+      reason: "Interne Notiz (Test)",
+    });
+    await generateContractBookings(
+      dispatcher,
+      { contractId: own.contractId, from: FROM, to: TO },
+      generationOptions,
+    );
+    const customer = await contextForRole(db, "CUSTOMER", { customerId: own.customerId });
+
+    const list = await listCustomerContracts(customer, { timeZone: TZ });
+    expect(list.map((c) => c.id)).toEqual([own.contractId]);
+    const [view] = list;
+    expect(view).toMatchObject({ status: "ACTIVE", frequency: "WEEKLY" });
+    expect(view?.pauses).toEqual([{ fromDate: day(30), toDate: day(31) }]);
+    expect(view?.upcoming.some((o) => o.bookingId !== null)).toBe(true);
+    for (const internal of ["customerId", "quoteId", "version", "durationMinutes"]) {
+      expect(view, internal).not.toHaveProperty(internal);
+    }
+    expect(JSON.stringify(list)).not.toContain("Interne Notiz");
+    expect(JSON.stringify(list)).not.toContain(foreign.contractId);
+
+    // Back-office services stay forbidden; staff get nothing from the customer list.
+    await expectDomainError(
+      getServiceContract(customer, { contractId: own.contractId }),
+      "FORBIDDEN",
+    );
+    await expectDomainError(listServiceContracts(customer, {}, { timeZone: TZ }), "FORBIDDEN");
+    expect(await listCustomerContracts(dispatcher, { timeZone: TZ })).toEqual([]);
+    expect(
+      await listCustomerContracts(anonymousContext(db), { timeZone: TZ }).catch(() => "denied"),
+    ).toBe("denied");
   });
 });

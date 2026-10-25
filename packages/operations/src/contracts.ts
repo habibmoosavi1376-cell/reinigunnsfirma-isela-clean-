@@ -1,5 +1,5 @@
 import { recordAudit } from "@isela/audit";
-import { auditActorOf, requireActor, type ServiceContext } from "@isela/auth";
+import { auditActorOf, requireActor, scopeFilterFor, type ServiceContext } from "@isela/auth";
 import {
   and,
   asc,
@@ -939,4 +939,91 @@ export async function listHolidayCoverage(
     .from(c)
     .where(eq(c.region, data.region))
     .orderBy(asc(c.year));
+}
+
+export interface CustomerContractView {
+  readonly id: string;
+  readonly propertyName: string;
+  readonly frequency: string;
+  readonly startDate: string;
+  readonly endDate: string | null;
+  readonly windowStartMinute: number;
+  readonly windowEndMinute: number;
+  readonly status: string;
+  /** Pause periods without the internal reason. */
+  readonly pauses: readonly { fromDate: string; toDate: string }[];
+  /** Upcoming appointments (today or later). */
+  readonly upcoming: readonly { date: string; status: string; bookingId: string | null }[];
+}
+
+/**
+ * Customer portal: the actor's own recurring contracts (OWN scope, read-only). Staff
+ * contexts get an empty list; internal fields (quote, notes, pause reasons, version) are
+ * not exposed.
+ */
+export async function listCustomerContracts(
+  ctx: ServiceContext,
+  options: { readonly timeZone: string },
+): Promise<CustomerContractView[]> {
+  const actor = requireActor(ctx.actor);
+  const scope = scopeFilterFor(actor, "booking:read");
+  if (scope.kind !== "RESTRICTED" || scope.customerIds.length === 0) return [];
+  const c = schema.serviceContract;
+  const contracts = await ctx.db
+    .select({
+      id: c.id,
+      propertyName: schema.property.name,
+      frequency: c.frequency,
+      startDate: c.startDate,
+      endDate: c.endDate,
+      windowStartMinute: c.windowStartMinute,
+      windowEndMinute: c.windowEndMinute,
+      status: c.status,
+    })
+    .from(c)
+    .innerJoin(schema.property, eq(schema.property.id, c.propertyId))
+    .where(inArray(c.customerId, [...scope.customerIds]))
+    .orderBy(desc(c.createdAt), desc(c.id))
+    .limit(50);
+  if (contracts.length === 0) return [];
+  const ids = contracts.map((row) => row.id);
+  const today = localTime(ctx.clock.now(), options.timeZone).date;
+  const [pauses, occurrences] = await Promise.all([
+    ctx.db
+      .select({
+        contractId: schema.contractPause.contractId,
+        fromDate: schema.contractPause.fromDate,
+        toDate: schema.contractPause.toDate,
+      })
+      .from(schema.contractPause)
+      .where(
+        and(inArray(schema.contractPause.contractId, ids), gte(schema.contractPause.toDate, today)),
+      )
+      .orderBy(asc(schema.contractPause.fromDate)),
+    ctx.db
+      .select({
+        contractId: schema.contractOccurrence.contractId,
+        date: schema.contractOccurrence.occurrenceDate,
+        status: schema.contractOccurrence.status,
+        bookingId: schema.contractOccurrence.bookingId,
+      })
+      .from(schema.contractOccurrence)
+      .where(
+        and(
+          inArray(schema.contractOccurrence.contractId, ids),
+          gte(schema.contractOccurrence.occurrenceDate, today),
+        ),
+      )
+      .orderBy(asc(schema.contractOccurrence.occurrenceDate)),
+  ]);
+  return contracts.map((row) => ({
+    ...row,
+    pauses: pauses
+      .filter((p) => p.contractId === row.id)
+      .map(({ fromDate, toDate }) => ({ fromDate, toDate })),
+    upcoming: occurrences
+      .filter((o) => o.contractId === row.id)
+      .slice(0, 12)
+      .map(({ date, status, bookingId }) => ({ date, status, bookingId })),
+  }));
 }
