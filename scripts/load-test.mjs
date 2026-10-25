@@ -8,6 +8,7 @@
  *
  * Prints one JSON report per path (requests, errors, req/s, latency p50/p95/p99/max in ms).
  */
+/* global fetch */
 import { performance } from "node:perf_hooks";
 
 const args = Object.fromEntries(
