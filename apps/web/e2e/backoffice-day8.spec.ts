@@ -31,7 +31,12 @@ const isoDay = (offset: number) => new Date(Date.now() + offset * DAY).toISOStri
 
 test.describe("day 8: back office for recurring contracts and notifications", () => {
   test("protected without a session", async ({ page }) => {
-    for (const path of ["/admin/contracts", "/admin/notifications", "/admin/contracts/holidays"]) {
+    for (const path of [
+      "/admin/contracts",
+      "/admin/notifications",
+      "/admin/contracts/holidays",
+      "/customer/contracts",
+    ]) {
       await page.goto(path);
       await expect(page).toHaveURL(/\/auth\/login/);
     }

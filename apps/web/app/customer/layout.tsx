@@ -14,6 +14,7 @@ const LINKS = [
   { href: "/customer/requests", label: "Anfragen" },
   { href: "/customer/quotes", label: "Angebote" },
   { href: "/customer/jobs", label: "Termine/Buchungen" },
+  { href: "/customer/contracts", label: "Wiederkehrende Aufträge" },
   { href: "/customer/invoices", label: "Rechnungen" },
   { href: "/customer/profile", label: "Profil" },
 ] as const;
