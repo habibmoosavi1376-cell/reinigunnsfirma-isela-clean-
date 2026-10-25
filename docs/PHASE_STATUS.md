@@ -229,3 +229,14 @@ Einstellung `operations.recurring` (ohne Standard-Feiertagsregion), technologien
 Runner `jobs:run` mit Dienstkonto, Health-Endpunkte, lokal geprüftes Backup-/Restore-Verfahren
 ([`OPERATIONS.md`](OPERATIONS.md)). Tests: 941 Unit, 276 Integration, 29 E2E. Bewertung:
 [`LAUNCH_READINESS.md`](LAUNCH_READINESS.md) – weiterhin **keine Produktionsfreigabe**.
+
+## 18. Phase 3 – nach PR #24 bis Launch-Bereitschaft (Stand 2026-10-25)
+
+PR #24 per Merge-Commit `d8266ed` gemergt (Owner-Freigabe); `main` grün (CI, CodeQL, lokal
+941 Unit / 276 Integration). Offen zur Freigabe: PR #25 (Rechnung friert Leistungsdatum,
+Empfänger und Aussteller ein; Migration 0012; Ausstellung nur mit Steuernummer/USt-IdNr.)
+und PR #26 (Kundenportal: eigene wiederkehrende Aufträge, nur lesend). Dieser Branch ergänzt
+den lokalen Last-/Stabilitätstest (`pnpm run test:load`), Monitoring-Regeln und die
+Checkliste externer Voraussetzungen ([`OPERATIONS.md`](OPERATIONS.md) §6–7,
+[`LAUNCH_READINESS.md`](LAUNCH_READINESS.md) §4). Bericht: [`PHASE_3_REPORT.md`](PHASE_3_REPORT.md).
+Weiterhin **keine Produktionsfreigabe**.

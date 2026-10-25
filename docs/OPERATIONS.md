@@ -12,7 +12,7 @@ anbieterunabhängig.
 | `GET /api/health/ready` | Readiness (Datenbank antwortet in ≤ 2 s) | `200 {"status":"ok"}` bzw. `503 {"status":"unavailable"}` |
 
 Keine Versionen, Hosts oder Fehlermeldungen in der Antwort; `Cache-Control: no-store`.
-Monitoring/Alarmierung ist noch nicht angebunden (Anbieter offen).
+Monitoring/Alarmierung ist noch nicht angebunden (Anbieter offen); Regeln siehe §6.
 
 ## 2. Geplante Abläufe (Termin-Erzeugung, Erinnerungen)
 
@@ -62,3 +62,45 @@ regelmäßiger Wiederherstellungstest in der Zielumgebung, Point-in-Time-Recover
 Alle Migrationen sind additiv. Rückfall = Code-Revert; neue Tabellen/Spalten bleiben
 ungenutzt bestehen. Vor jeder Produktionsmigration: Sicherung (§4) und Upgrade-Test gegen
 eine Kopie.
+
+## 6. Monitoring und Alarmierung (Regeln, anbieterunabhängig)
+
+Status: **definiert, nicht angebunden** (Anbieter und Zielumgebung offen). Empfohlene Regeln:
+
+| Signal | Prüfung | Alarm |
+| --- | --- | --- |
+| Liveness | `GET /api/health` alle 60 s aus einer zweiten Region | 3 Fehlschläge in Folge → Bereitschaft |
+| Readiness (DB) | `GET /api/health/ready` alle 60 s | `503` über 3 min → Bereitschaft |
+| Antwortzeit | p95 `/api/health/ready` | > 500 ms über 10 min → Warnung |
+| Geplante Abläufe | JSON-Zeile `scheduled_work.result` je Lauf | kein Lauf in 60 min oder Exit-Code ≠ 0 → Warnung |
+| Benachrichtigungen | Back Office: `DEAD`/`UNCERTAIN` > 0 | täglich prüfen; > 0 seit 24 h → Warnung |
+| Sicherungen | Erfolg des täglichen `pg_dump` | fehlend → Bereitschaft |
+| TLS-Zertifikat | Restlaufzeit | < 14 Tage → Warnung |
+| Speicher/Datenträger | Host-Metriken | > 85 % → Warnung |
+
+Logs enthalten keine personenbezogenen Daten (Zähler, Korrelations-IDs). Alarmziele
+(E-Mail/Telefon des Betreibers) werden erst mit dem Anbieter festgelegt.
+
+## 7. Last- und Stabilitätstest (lokal, isoliert)
+
+Skript: `pnpm run test:load -- --base http://127.0.0.1:<port> --concurrency 20 --seconds 20
+--paths /api/health,/` (verweigert Nicht-Loopback-Ziele ohne `LOAD_TEST_ALLOW_REMOTE=1`).
+
+**Messung am 2026-10-25** – Produktions-Build (`next start`), lokale PostgreSQL 16, Sandbox
+mit 4 vCPU, Testdatenbank. Aussagekraft: Größenordnung, **kein** Ersatz für einen Test in der
+Zielumgebung.
+
+| Pfad | Parallel | Anfragen | Fehler | Anfragen/s | p50 ms | p95 ms | p99 ms |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `/api/health` | 20 | 22 430 | 0 | 1 121 | 14.8 | 31.7 | 47.3 |
+| `/api/health/ready` | 20 | 18 935 | 0 | 946 | 19.3 | 32.7 | 43.9 |
+| `/` | 20 | 2 020 | 0 | 101 | 188 | 273 | 371 |
+| `/leistungen` | 20 | 2 645 | 0 | 132 | 148 | 195 | 245 |
+| `/auth/login` | 20 | 3 065 | 0 | 153 | 127 | 179 | 217 |
+| `/api/health/ready` (60 s) | 10 | 54 271 | 0 | 904 | 9.7 | 19.2 | 26.5 |
+
+Stabilität: Speicher des Server-Prozesses nach allen Läufen ~0,7 GB RSS ohne Anstieg im
+Dauerlauf. Datenbank gestoppt → `/api/health` 200, `/api/health/ready` 503; nach Neustart
+der Datenbank sofort wieder 200 ohne Neustart der Anwendung. Parallele/wiederholte
+Terminerzeugung und Erinnerungen sind über Integrationstests (Konkurrenz, Advisory-Lock)
+abgedeckt.

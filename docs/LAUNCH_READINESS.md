@@ -1,57 +1,80 @@
-# Launch Readiness – ISELA CLEAN (Stand 2026-10-24, nach Back Office)
+# Launch Readiness – ISELA CLEAN (Stand 2026-10-25, Phase 3)
 
 **Entscheidung: KEINE Produktionsfreigabe.** Die Software ist für einen kontrollierten
-Testbetrieb technisch weit, aber Betreiber-, Zahlungs- und Rechtsvoraussetzungen fehlen (§3).
-Geprüft: `main` @ `2cb16fe` (PR #21 gemergt) plus Branch `phase-1-backoffice` (PR siehe
-Status). Legende: PASS · FAIL · BLOCKED (Voraussetzung/Freigabe fehlt) · UNKNOWN.
+Testbetrieb technisch weit; Betreiber-, Zahlungs- und Rechtsvoraussetzungen fehlen (§4).
+
+Geprüft: `main` @ `d8266ed` (PR #24 gemergt) plus offene PRs #25 (Rechnungs-Snapshot)
+und #26 (Kundenansicht Verträge), beide CI-grün bzw. lokal grün, **nicht gemergt** (Freigabe offen).
+
+Legende Prüfstatus: PASS · FAIL · BLOCKED (Voraussetzung/Freigabe fehlt) · UNKNOWN.
+Reifegrad: **T** technisch umgesetzt · **V** in Testumgebung verifiziert · **K** für
+Produktion konfiguriert · **F** für Produktion freigegeben.
 
 ## 1. Technische Prüfungen
 
-| Prüfung | Status | Nachweis |
-| --- | --- | --- |
-| Typecheck, Lint, Build, Web-Build | PASS | lokal 2026-10-24; CI auf jedem Push |
-| Unit / Integration / E2E | PASS | 941 / 276 / 29 lokal |
-| Migrationen 0000–0011, Drift, Upgrade mit Daten | PASS | `db:check`; Upgrade-Test Tag 8 |
-| Modulgrenzen, Hardcoding, Audit, Lizenzen, Secret-Scan | PASS | Skripte, gitleaks |
-| CodeQL, Dependency Review | PASS | CI (#101/#47 auf `main`) |
-| Health-/Readiness-Endpunkte | PASS | `/api/health`, `/api/health/ready`; Unit + E2E |
-| Geplante Abläufe (Runner) | PASS (technisch) | `jobs:run`, Integrationstests, lokaler Lauf |
-| Backup/Wiederherstellung (Verfahren) | PASS (lokal) | `OPERATIONS.md` §4, Prüfsummen identisch |
-| Backup in Zielumgebung, PITR | BLOCKED | Hosting offen |
-| Monitoring, Alarmierung | BLOCKED | Anbieter offen; Endpunkte vorhanden |
-| Last-/Performance-Test | UNKNOWN | nicht durchgeführt |
+| Prüfung | Status | Reife | Nachweis |
+| --- | --- | --- | --- |
+| Typecheck, Lint, Build, Web-Build | PASS | T V | lokal + CI je Push |
+| Unit / Integration / E2E | PASS | T V | 941 / 279 (#25) bzw. 277 (#26) / 29 |
+| Migrationen 0000–0012, Drift, Upgrade mit Daten | PASS | T V | `db:check`; Upgrade-Test 0012 |
+| Modulgrenzen, Hardcoding, Audit, Lizenzen, Secret-Scan | PASS | T V | Skripte, gitleaks |
+| CodeQL, Dependency Review | PASS | T V | CI auf `main` und PRs |
+| Health-/Readiness-Endpunkte | PASS | T V | Unit + E2E; DB-Ausfall → 503, Erholung ohne Neustart |
+| Geplante Abläufe (Runner) | PASS | T V | Integrationstests, lokaler Lauf; Cron offen |
+| Backup/Wiederherstellung (Verfahren) | PASS | T V | `OPERATIONS.md` §4 |
+| Backup in Zielumgebung, PITR | BLOCKED | – | Hosting offen |
+| Monitoring, Alarmierung | BLOCKED | T | Regeln `OPERATIONS.md` §6; Anbieter offen |
+| Last-/Stabilitätstest | PASS (lokal) | T V | `OPERATIONS.md` §7; Zielumgebung offen |
 
 ## 2. Fachliche Prüfung
 
-| Bereich | Status | Anmerkung |
-| --- | --- | --- |
-| Registrierung, Anmeldung, Rollen, MFA für Admins | PASS | E2E, RBAC-Tests |
-| Kunden, Leads, Angebote, Buchungen, Einsätze | PASS | Integration/E2E |
-| Vorkasse Auftrag 1–2; Kredit ≥ 3 bezahlte + Freigabe; Überfälligkeit → Vorkasse | PASS | Payment-Risk-, Billing-, Guard-Tests; Vertragsbuchungen nutzen dieselbe Logik |
-| Kein Auftrag ohne bestätigte Vorkasse/Kredit | PASS | DB-Check + Job-Start-Guard |
-| Kundenhistorie nicht durch neue Konten rücksetzbar | PASS | Identitätstests |
-| Wiederkehrende Aufträge inkl. Back Office, Pausen, Status | PASS | Integration + E2E |
-| Feiertage nur aus freigegebenen Daten | PASS (Mechanik) / BLOCKED (Daten) | keine Daten erfasst |
-| Keine Doppel-Aufträge/-Benachrichtigungen | PASS | Konkurrenztests |
-| Erinnerungen (Testmodus), manuelle Prüfung | PASS | Integration + E2E; Produktion versendet nicht |
-| Bewertungsanfragen | BLOCKED | Rechtsgrundlage/Kanal offen; nicht implementiert |
-| Rechnungen, Stornos, Erstattungen | PASS (Tag 6) | Stornorechnung/Gutschrift als Beleg: BLOCKED (Steuerberatung/Owner, siehe §4) |
-| Rechtstexte, Firmendaten | BLOCKED | Entwürfe; echte Daten fehlen |
+| Bereich | Status | Reife | Anmerkung |
+| --- | --- | --- | --- |
+| Registrierung, Anmeldung, Rollen, MFA für Admins | PASS | T V | E2E, RBAC-Tests |
+| Kunden, Leads, Angebote, Buchungen, Einsätze | PASS | T V | Integration/E2E |
+| Kundenportal: Buchungen, Rechnungen, Angebote | PASS | T V | IDOR-Tests |
+| Kundenportal: eigene wiederkehrende Aufträge | PASS | T V | PR #26 (offen) |
+| Vorkasse Auftrag 1–2; Kredit ≥ 3 erledigt + bezahlt + Freigabe | PASS | T V | Payment-Risk-, Billing-Tests |
+| Überfällige Rechnung → künftige Aufträge Vorkasse | PASS | T V | Guard-Tests |
+| Kein Auftrag ohne bestätigte Vorkasse/Kredit | PASS | T V | DB-Check + Job-Start-Guard |
+| Kundenhistorie nicht durch neue Konten rücksetzbar | PASS | T V | Identitätstests |
+| Wiederkehrende Aufträge, Pausen, Status, Back Office | PASS | T V | Integration + E2E |
+| Feiertage nur aus freigegebenen Daten | PASS / BLOCKED | T V | Mechanik geprüft; amtliche Daten fehlen |
+| Keine Doppel-Aufträge/-Benachrichtigungen | PASS | T V | Konkurrenztests, Advisory-Lock |
+| Audit für Verträge, Zahlungen, Benachrichtigungen | PASS | T V | Audit-Assertions in Tests |
+| Erinnerungen (Testsenke), manuelle Prüfung | PASS | T V | Produktion versendet nicht |
+| Rechnung: Leistungsdatum, Empfänger, Aussteller eingefroren | PASS | T V | PR #25 (offen); Steuernummer/USt-IdNr. Pflicht |
+| Stornorechnung/Gutschrift als Beleg | BLOCKED | – | Form mit Steuerberatung klären |
+| Bewertungsanfragen | BLOCKED | – | Rechtsgrundlage/Kanal offen; nicht implementiert |
+| Rechtstexte, Firmendaten | BLOCKED | T | Entwürfe; echte Daten fehlen |
+| Online-Zahlung | BLOCKED | – | Anbieter offen (ADR-010) |
 
-## 3. Vor dem ersten echten Kundenauftrag erforderlich (Betreiber)
+Kein Bereich ist **K** oder **F**: Es gibt keine Produktionsumgebung.
 
-1. Hosting (EU), Domain, TLS; Backup-Plan und Wiederherstellungstest dort; Monitoring an Health-Endpunkten.
-2. E-Mail-Versanddienst freigeben (danach `dispatchEnabled` in Produktion).
-3. Zahlungsweg/-anbieter (ADR-010) und Buchhaltung; Werte der Zahlungsrichtlinie bestätigen.
-4. Rechtstexte prüfen lassen; echte Firmendaten (Impressum).
-5. ADR-008: Ausführung `jobs:run` (Cron) oder Worker; Dienstkonto `JOBS_ACTOR_USER_ID` anlegen.
-6. Feiertagsregion setzen und NRW-Feiertage je Jahr aus amtlicher Quelle freigeben.
-7. Bewertungsanfragen: Kanal, Zeitpunkt, Rechtsgrundlage.
-8. Form der Korrekturbelege (Stornorechnung/Gutschrift) mit Steuerberatung festlegen.
+## 3. Offene PRs und Entscheidungen
 
-## 4. Bekannte Lücken und Risiken
+- PR #25 Rechnungs-Snapshot (Migration 0012) – Merge-Freigabe erforderlich.
+- PR #26 Kundenansicht Verträge – Merge-Freigabe erforderlich.
+- Dependabot-PRs #13–#23 – einzeln prüfen und freigeben.
 
-- Korrekturbelege (Stornorechnung/Gutschrift) werden bewusst nicht erzeugt, bis die steuerliche Form entschieden ist (`voidInvoice` dokumentiert das).
-- Ruleset erlaubt noch Squash/Rebase (Proxy der Session darf Einstellungen nicht ändern).
+## 4. Checkliste externe Voraussetzungen (Betreiber)
+
+| # | Voraussetzung | Verantwortlich | Ergebnis/Nachweis |
+| --- | --- | --- | --- |
+| 1 | EU-Hosting, Domain, TLS | Owner | Anbieter, Region, DNS; `APP_BASE_URL` |
+| 2 | Backups in Zielumgebung | Owner/Hoster | täglicher Dump, Aufbewahrung, Verschlüsselung, Restore-Test protokolliert |
+| 3 | Monitoring | Owner | Dienst angebunden an Regeln `OPERATIONS.md` §6, Alarmziel |
+| 4 | E-Mail-Versanddienst | Owner | AV-Vertrag, SPF/DKIM/DMARC, SMTP-Zugang; erst dann Versand in Produktion |
+| 5 | Zahlungsanbieter, Buchhaltung | Owner/Steuerberatung | Anbieter (ADR-010), Abgleich, Werte der Zahlungsrichtlinie bestätigt |
+| 6 | Firmendaten, Rechtstexte | Owner/Rechtsberatung | Impressum, Datenschutz, AGB geprüft; `BUSINESS_*` inkl. Steuernummer/USt-IdNr. |
+| 7 | Amtliche Feiertagsdaten | Owner | Region gesetzt; je Jahr aus amtlicher Quelle (NRW) erfasst und freigegeben |
+| 8 | Scheduler, Dienstkonto | Owner/Hoster | Cron für `jobs:run` (z. B. 15 min); Konto `JOBS_ACTOR_USER_ID` mit DISPATCHER |
+| 9 | Korrekturbelege | Steuerberatung | Form Stornorechnung/Gutschrift festgelegt, danach Umsetzung |
+| 10 | Bewertungsanfragen | Owner/Rechtsberatung | Kanal, Zeitpunkt, Einwilligung/Rechtsgrundlage; danach Umsetzung |
+
+## 5. Bekannte Lücken und Risiken
+
+- Korrekturbelege werden bewusst nicht erzeugt (`voidInvoice` dokumentiert das).
+- Last-Test nur lokal (4 vCPU); Zielumgebung muss erneut gemessen werden.
+- Ruleset erlaubt noch Squash/Rebase (Session darf Einstellungen nicht ändern).
 - F4 (`pg@9`-Vorbereitung) offen, niedrig.
-- Kein Last-Test.
