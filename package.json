@@ -22,6 +22,7 @@
     "check:boundaries": "node scripts/check-module-boundaries.mjs",
     "check:hardcoding": "node scripts/check-hardcoded-locations.mjs",
     "check:licenses": "node scripts/check-licenses.mjs",
+    "test:load": "node scripts/load-test.mjs",
     "check:audit": "pnpm audit --audit-level=moderate",
     "test:e2e": "pnpm --filter @isela/web run test:e2e",
     "check:client-bundle": "node scripts/check-client-bundle.mjs"
