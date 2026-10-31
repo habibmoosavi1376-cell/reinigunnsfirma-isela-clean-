@@ -47,12 +47,12 @@
     "@isela/settings": "workspace:*",
     "@isela/shared": "workspace:*",
     "@isela/validation": "workspace:*",
-    "@types/node": "^24.13.6",
-    "eslint": "10.11.0",
-    "prettier": "3.9.9",
+    "@types/node": "^26.6.5",
+    "eslint": "10.13.0",
+    "prettier": "3.9.10",
     "typescript": "6.0.3",
-    "typescript-eslint": "8.70.1",
-    "vite": "8.3.4",
-    "vitest": "5.0.4"
+    "typescript-eslint": "8.72.1",
+    "vite": "8.3.5",
+    "vitest": "5.0.5"
   }
 }
