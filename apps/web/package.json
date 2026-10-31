@@ -33,7 +33,7 @@
     "@isela/settings": "workspace:*",
     "@isela/shared": "workspace:*",
     "@isela/validation": "workspace:*",
-    "better-auth": "1.7.6",
+    "better-auth": "1.7.14",
     "next": "16.4.2",
     "react": "19.3.0",
     "react-dom": "19.3.0",
